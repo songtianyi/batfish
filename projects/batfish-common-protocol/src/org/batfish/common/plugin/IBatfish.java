@@ -48,6 +48,8 @@ public interface IBatfish extends IPluginConsumer {
          NodeSet nodeBlacklist, Set<NodeInterfacePair> interfaceBlacklist,
          boolean dp);
 
+   void encodeSMT();
+
    Map<String, BiFunction<Question, IBatfish, Answerer>> getAnswererCreators();
 
    ConvertConfigurationAnswerElement getConvertConfigurationAnswerElement();

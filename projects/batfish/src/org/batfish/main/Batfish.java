@@ -130,6 +130,7 @@ import org.batfish.representation.VendorConfiguration;
 import org.batfish.representation.aws_vpcs.AwsVpcConfiguration;
 import org.batfish.representation.host.HostConfiguration;
 import org.batfish.representation.iptables.IptablesVendorConfiguration;
+import org.batfish.smt.Encoder;
 import org.batfish.z3.AclLine;
 import org.batfish.z3.AclReachabilityQuerySynthesizer;
 import org.batfish.z3.BlacklistDstIpQuerySynthesizer;
@@ -1003,6 +1004,15 @@ public class Batfish extends PluginConsumer implements AutoCloseable, IBatfish {
          computeDataPlane(true);
       }
       return answerElement;
+   }
+
+   @Override
+   public void encodeSMT() {
+      // Encoder e = new Encoder(this, "4.1.0.1");
+      // Encoder e = new Encoder(this, "70.70.70.70");
+      // Encoder e = new Encoder(this, "172.0.0.0");
+      Encoder e = new Encoder(this, "140.0.0.0");
+      e.computeEncoding();
    }
 
    private boolean dataPlaneDependenciesExist(TestrigSettings testrigSettings) {
