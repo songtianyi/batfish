@@ -4,12 +4,12 @@ public class LogicalGraphEdge extends LogicalEdge {
 
     private GraphEdge _edge;
 
-    LogicalGraphEdge(GraphEdge edge, EdgeType type, int prefixLen, EdgeVars edgeVars) {
+    public LogicalGraphEdge(GraphEdge edge, EdgeType type, int prefixLen, EdgeVars edgeVars) {
         super(type, prefixLen, edgeVars);
         _edge = edge;
     }
 
-    GraphEdge getEdge() {
+    public GraphEdge getEdge() {
         return _edge;
     }
 

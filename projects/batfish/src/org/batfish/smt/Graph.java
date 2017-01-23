@@ -104,14 +104,33 @@ public class Graph {
         });
     }
 
-    public Graph(IBatfish batfish) {
+    public Graph(IBatfish batfish, Set<String> routers) {
         _batfish = batfish;
-        _configurations = _batfish.loadConfigurations();
+        _configurations = new HashMap<>(_batfish.loadConfigurations());
         _edgeMap = new HashMap<>();
         _otherEnd = new HashMap<>();
         _staticRoutes = new HashMap<>();
+        _neighbors = new HashMap<>();
+
+        // Remove the routers we don't want to model
+        if (routers != null) {
+            List<String> toRemove = new ArrayList<>();
+            _configurations.forEach((router, conf) -> {
+                if (!routers.contains(router)) {
+                    toRemove.add(router);
+                }
+            });
+            for (String router : toRemove) {
+                _configurations.remove(router);
+            }
+        }
+
         initGraph();
         initStaticRoutes();
+    }
+
+    public Graph(IBatfish batfish) {
+        this(batfish, null);
     }
 
     public String toString() {

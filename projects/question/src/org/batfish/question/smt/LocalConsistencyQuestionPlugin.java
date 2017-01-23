@@ -2,11 +2,9 @@ package org.batfish.question.smt;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.batfish.common.Answerer;
 import org.batfish.common.BatfishException;
 import org.batfish.common.plugin.IBatfish;
-import org.batfish.common.util.BatfishObjectMapper;
 import org.batfish.datamodel.answers.AnswerElement;
 import org.batfish.datamodel.questions.Question;
 import org.batfish.question.QuestionPlugin;
@@ -14,40 +12,54 @@ import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 
 import java.util.Iterator;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 
 
-public class ForwardingQuestionPlugin extends QuestionPlugin {
+public class LocalConsistencyQuestionPlugin extends QuestionPlugin {
 
-    public static class ForwardingAnswerElement implements AnswerElement {
+    public static class LocalConsistencyAnswerElement implements AnswerElement {
         @Override
         public String prettyPrint() throws JsonProcessingException {
-            return "FORWARDING";
+            return "REACHABILITY";
             // ObjectMapper mapper = new BatfishObjectMapper();
             // return mapper.writeValueAsString(this);
         }
     }
 
-    public static class ForwardingAnswerer extends Answerer {
+    public static class LocalConsistencyAnswerer extends Answerer {
 
-        public ForwardingAnswerer(Question question, IBatfish batfish) {
+        public LocalConsistencyAnswerer(Question question, IBatfish batfish) {
             super(question, batfish);
         }
 
         @Override
         public AnswerElement answer() {
-            ForwardingQuestion q = (ForwardingQuestion) _question;
-            return _batfish.smtForwarding(q.getDestination());
+            LocalConsistencyQuestion q = (LocalConsistencyQuestion) _question;
+
+            Pattern routerRegex;
+
+            try {
+                routerRegex = Pattern.compile(q.getRouterRegex());
+            }
+            catch (PatternSyntaxException e) {
+                throw new BatfishException(String.format(
+                        "One of the supplied regexes %s is not a valid java regex.",
+                        q.getRouterRegex()), e);
+            }
+
+            return _batfish.smtLocalConsistency(routerRegex);
         }
     }
 
-    public static class ForwardingQuestion extends Question {
+    public static class LocalConsistencyQuestion extends Question {
 
-        private static final String DESTINATION_VAR = "destination";
+        private static final String ROUTER_REGEX_VAR = "routerRegex";
 
-        private String _destinationStr;
+        private String _routerRegex;
 
-        public ForwardingQuestion() {
-            _destinationStr = "0.0.0.0/0";
+        public LocalConsistencyQuestion() {
+            _routerRegex = ".*";
         }
 
         @Override
@@ -64,8 +76,8 @@ public class ForwardingQuestionPlugin extends QuestionPlugin {
 
                 try {
                     switch (paramKey) {
-                        case DESTINATION_VAR:
-                            setDestination(parameters.getString(paramKey));
+                        case ROUTER_REGEX_VAR:
+                            setRouterRegex(parameters.getString(paramKey));
                             break;
                         default:
                             throw new BatfishException("Unknown key in "
@@ -78,9 +90,14 @@ public class ForwardingQuestionPlugin extends QuestionPlugin {
             }
         }
 
-        @JsonProperty(DESTINATION_VAR)
-        public String getDestination() {
-            return _destinationStr;
+        @JsonProperty(ROUTER_REGEX_VAR)
+        public String getRouterRegex() {
+            return _routerRegex;
+        }
+
+
+        public void setRouterRegex(String _routerRegex) {
+            this._routerRegex = _routerRegex;
         }
 
         @Override
@@ -90,27 +107,23 @@ public class ForwardingQuestionPlugin extends QuestionPlugin {
 
         @Override
         public String getName() {
-            return "smt-forwarding";
+            return "smt-local-consistency";
         }
 
         @Override
         public boolean getTraffic() {
             return false;
         }
-
-        public void setDestination(String dst) {
-            _destinationStr = dst;
-        }
     }
 
 
     @Override
     protected Answerer createAnswerer(Question question, IBatfish batfish) {
-        return new ForwardingAnswerer(question, batfish);
+        return new LocalConsistencyAnswerer(question, batfish);
     }
 
     @Override
     protected Question createQuestion() {
-        return new ForwardingQuestion();
+        return new LocalConsistencyQuestion();
     }
 }

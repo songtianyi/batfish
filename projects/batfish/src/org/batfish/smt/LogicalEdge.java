@@ -8,21 +8,21 @@ public class LogicalEdge {
     private EdgeVars _edgeVars;
 
 
-    LogicalEdge(EdgeType type, int prefixLen, EdgeVars edgeVars) {
+    public LogicalEdge(EdgeType type, int prefixLen, EdgeVars edgeVars) {
         _type = type;
         _prefixLen = prefixLen;
         _edgeVars = edgeVars;
     }
 
-    EdgeType getEdgeType() {
+    public EdgeType getEdgeType() {
         return _type;
     }
 
-    int getPrefixLen() {
+    public int getPrefixLen() {
         return _prefixLen;
     }
 
-    EdgeVars getEdgeVars () {
+    public EdgeVars getEdgeVars () {
         return _edgeVars;
     }
 

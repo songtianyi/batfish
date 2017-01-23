@@ -47,29 +47,7 @@ import org.batfish.common.plugin.PluginClientType;
 import org.batfish.common.plugin.PluginConsumer;
 import org.batfish.common.util.BatfishObjectMapper;
 import org.batfish.common.util.CommonUtil;
-import org.batfish.datamodel.BgpAdvertisement;
-import org.batfish.datamodel.BgpNeighbor;
-import org.batfish.datamodel.BgpProcess;
-import org.batfish.datamodel.Configuration;
-import org.batfish.datamodel.ConfigurationFormat;
-import org.batfish.datamodel.DataPlane;
-import org.batfish.datamodel.Edge;
-import org.batfish.datamodel.Flow;
-import org.batfish.datamodel.FlowHistory;
-import org.batfish.datamodel.FlowTrace;
-import org.batfish.datamodel.ForwardingAction;
-import org.batfish.datamodel.GenericConfigObject;
-import org.batfish.datamodel.HeaderSpace;
-import org.batfish.datamodel.Interface;
-import org.batfish.datamodel.Ip;
-import org.batfish.datamodel.IpAccessList;
-import org.batfish.datamodel.IpAccessListLine;
-import org.batfish.datamodel.IpsecVpn;
-import org.batfish.datamodel.OspfArea;
-import org.batfish.datamodel.OspfProcess;
-import org.batfish.datamodel.Route;
-import org.batfish.datamodel.Prefix;
-import org.batfish.datamodel.Topology;
+import org.batfish.datamodel.*;
 import org.batfish.datamodel.BgpAdvertisement.BgpAdvertisementType;
 import org.batfish.datamodel.answers.AclLinesAnswerElement;
 import org.batfish.datamodel.answers.Answer;
@@ -131,6 +109,7 @@ import org.batfish.representation.aws_vpcs.AwsVpcConfiguration;
 import org.batfish.representation.host.HostConfiguration;
 import org.batfish.representation.iptables.IptablesVendorConfiguration;
 import org.batfish.smt.Encoder;
+import org.batfish.smt.answers.*;
 import org.batfish.z3.AclLine;
 import org.batfish.z3.AclReachabilityQuerySynthesizer;
 import org.batfish.z3.BlacklistDstIpQuerySynthesizer;
@@ -1007,13 +986,53 @@ public class Batfish extends PluginConsumer implements AutoCloseable, IBatfish {
    }
 
    @Override
-   public void encodeSMT() {
-      // Encoder e = new Encoder(this, "4.1.0.1");
-      // Encoder e = new Encoder(this, "70.70.70.70");
-      // Encoder e = new Encoder(this, "172.0.0.0");
-      Encoder e = new Encoder(this, "140.0.0.0");
-      e.computeEncoding();
+   public AnswerElement smtForwarding(String destination) {
+      return new SmtForwardingAnswerElement(this, destination);
    }
+
+   @Override
+   public AnswerElement smtReachability(Pattern node1Regex, Pattern ifaceRegex, Pattern node2Regex) {
+      return new SmtReachabilityAnswerElement(this, node1Regex, ifaceRegex, node2Regex);
+   }
+
+   @Override
+   public AnswerElement smtBlackhole() {
+      return new SmtBlackholeAnswerElement(this);
+   }
+
+   @Override
+   public AnswerElement smtRoutingLoop() {
+      return new SmtRoutingLoopAnswerElement(this);
+   }
+
+   @Override
+   public AnswerElement smtBoundedLength(Pattern node1Regex, Pattern ifaceRegex, Pattern node2Regex, Integer bound) {
+      if (bound == null) {
+         throw new BatfishException("Missing parameter length bound: (e.g., bound=3)");
+      }
+      return new SmtBoundedLengthAnswerElement(this, node1Regex, ifaceRegex, node2Regex, bound);
+   }
+
+   @Override
+   public AnswerElement smtEqualLength(Pattern node1Regex, Pattern ifaceRegex, Pattern node2Regex) {
+      return new SmtEqualLengthAnswerElement(this, node1Regex, ifaceRegex, node2Regex);
+   }
+
+   @Override
+   public AnswerElement smtMultipathConsistency(Pattern node1Regex, Pattern ifaceRegex) {
+      return new SmtMultipathConsistencyAnswerElement(this, node1Regex, ifaceRegex);
+   }
+
+   @Override
+   public AnswerElement smtLoadBalance(Pattern node1Regex, Pattern ifaceRegex, Pattern node2Regex, Pattern peerRegex, int threshold) {
+      return new SmtLoadBalanceAnswerElement(this, node1Regex, ifaceRegex, node2Regex, peerRegex, threshold);
+   }
+
+   @Override
+   public AnswerElement smtLocalConsistency(Pattern routerRegex) {
+      return new SmtLocalConsistencyAnswerElement(this, routerRegex);
+   }
+
 
    private boolean dataPlaneDependenciesExist(TestrigSettings testrigSettings) {
       checkConfigurations();

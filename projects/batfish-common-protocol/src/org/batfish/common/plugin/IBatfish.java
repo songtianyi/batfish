@@ -3,6 +3,7 @@ package org.batfish.common.plugin;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.BiFunction;
+import java.util.regex.Pattern;
 
 import org.batfish.common.Answerer;
 import org.batfish.datamodel.Configuration;
@@ -48,7 +49,25 @@ public interface IBatfish extends IPluginConsumer {
          NodeSet nodeBlacklist, Set<NodeInterfacePair> interfaceBlacklist,
          boolean dp);
 
-   void encodeSMT();
+
+   AnswerElement smtForwarding(String destination);
+
+   AnswerElement smtReachability(Pattern node1Regex, Pattern ifaceRegex, Pattern node2Regex);
+
+   AnswerElement smtBlackhole();
+
+   AnswerElement smtRoutingLoop();
+
+   AnswerElement smtBoundedLength(Pattern node1Regex, Pattern ifaceRegex, Pattern node2Regex, Integer bound);
+
+   AnswerElement smtEqualLength(Pattern node1Regex, Pattern ifaceRegex, Pattern node2Regex);
+
+   AnswerElement smtMultipathConsistency(Pattern node1Regex, Pattern ifaceRegex);
+
+   AnswerElement smtLoadBalance(Pattern node1Regex, Pattern ifaceRegex, Pattern node2Regex, Pattern peerRegex, int threshold);
+
+   AnswerElement smtLocalConsistency(Pattern routerRegex);
+
 
    Map<String, BiFunction<Question, IBatfish, Answerer>> getAnswererCreators();
 
