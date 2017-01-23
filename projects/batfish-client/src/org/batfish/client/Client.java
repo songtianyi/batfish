@@ -388,19 +388,6 @@ public class Client extends AbstractClient implements IClient {
       }
    }
 
-   private void generateDatamodel() {
-      try {
-         ObjectMapper mapper = new BatfishObjectMapper();
-         JsonSchemaGenerator schemaGen = new JsonSchemaGenerator(mapper);
-         JsonSchema schema = schemaGen.generateSchema(Configuration.class);
-
-         _logger.output(mapper.writeValueAsString(schema));
-      }
-      catch (Exception e) {
-         _logger.errorf("Could not generate data model: " + e.getMessage());
-      }
-   }
-
    private boolean generateDataplane(FileWriter outWriter) throws Exception {
       if (!isSetTestrig() || !isSetContainer(true)) {
          return false;
@@ -426,6 +413,46 @@ public class Client extends AbstractClient implements IClient {
 
       return execute(wItemGenDdp, outWriter);
    }
+
+   /* private void generateDatamodel() {
+      try {
+         ObjectMapper mapper = new BatfishObjectMapper();
+         JsonSchemaGenerator schemaGen = new JsonSchemaGenerator(mapper);
+         JsonSchema schema = schemaGen.generateSchema(Configuration.class);
+
+         _logger.output(mapper.writeValueAsString(schema));
+      }
+      catch (Exception e) {
+         _logger.errorf("Could not generate data model: " + e.getMessage());
+      }
+   } */
+
+   private void generateDatamodel() {
+      try {
+         ObjectMapper mapper = new BatfishObjectMapper();
+
+         JsonSchemaGenerator schemaGenNew = new JsonSchemaGenerator(mapper);
+         JsonNode schemaNew = schemaGenNew
+               .generateJsonSchema(Configuration.class);
+         _logger.output(mapper.writeValueAsString(schemaNew));
+
+         // JsonSchemaGenerator schemaGenNew = new JsonSchemaGenerator(mapper,
+         // true, JsonSchemaConfig.vanillaJsonSchemaDraft4());
+         // JsonNode schemaNew =
+         // schemaGenNew.generateJsonSchema(Configuration.class);
+         // _logger.output(mapper.writeValueAsString(schemaNew));
+
+         // _logger.output("\n");
+         // JsonNode schemaNew2 =
+         // schemaGenNew.generateJsonSchema(SchemaTest.Parent.class);
+         // _logger.output(mapper.writeValueAsString(schemaNew2));
+      }
+      catch (Exception e) {
+         _logger.errorf("Could not generate data model: " + e.getMessage());
+         e.printStackTrace();
+      }
+   }
+
 
    private void generateQuestions() {
 
