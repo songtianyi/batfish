@@ -10,6 +10,7 @@ import java.util.List;
 public class Modifications {
 
     private boolean _defaultAccept;
+    private boolean _defaultAcceptLocal;
     private PrependAsPath _prependPath;
     private SetLocalPreference _setLp;
     private SetMetric _setMetric;
@@ -21,7 +22,8 @@ public class Modifications {
 
     Modifications() {
         _defaultAccept = true;
-         _prependPath = null;
+        _defaultAcceptLocal = false;
+        _prependPath = null;
         _setLp = null;
         _setMetric = null;
         _setWeight = null;
@@ -41,6 +43,7 @@ public class Modifications {
         List<SetCommunity> g = other.getSetCommunities();
         List<DeleteCommunity> h = other.getDeleteCommunities();
         _defaultAccept = true;
+        _defaultAcceptLocal = false;
         _prependPath = (a == null ? null : new PrependAsPath(a.getExpr()));
         _setLp = (b == null ? null : new SetLocalPreference(b.getLocalPreference()));
         _setMetric = (c == null ? null : new SetMetric(c.getMetric()));

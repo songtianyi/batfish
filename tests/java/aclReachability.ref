@@ -5,7 +5,6 @@
       "acls" : {
         "as1border1" : {
           "101" : {
-            "@id" : 1,
             "name" : "101",
             "lines" : [
               {
@@ -33,7 +32,6 @@
             ]
           },
           "102" : {
-            "@id" : 2,
             "name" : "102",
             "lines" : [
               {
@@ -61,7 +59,6 @@
             ]
           },
           "103" : {
-            "@id" : 3,
             "name" : "103",
             "lines" : [
               {
@@ -90,9 +87,8 @@
           }
         },
         "as2border1" : {
-          "INSIDE_TO_OUTSIDE" : {
-            "@id" : 4,
-            "name" : "INSIDE_TO_OUTSIDE",
+          "INSIDE_TO_AS1" : {
+            "name" : "INSIDE_TO_AS1",
             "lines" : [
               {
                 "action" : "ACCEPT",
@@ -119,7 +115,6 @@
             ]
           },
           "OUTSIDE_TO_INSIDE" : {
-            "@id" : 5,
             "name" : "OUTSIDE_TO_INSIDE",
             "lines" : [
               {
@@ -159,9 +154,8 @@
           }
         },
         "as2border2" : {
-          "INSIDE_TO_OUTSIDE" : {
-            "@id" : 6,
-            "name" : "INSIDE_TO_OUTSIDE",
+          "INSIDE_TO_AS3" : {
+            "name" : "INSIDE_TO_AS3",
             "lines" : [
               {
                 "action" : "ACCEPT",
@@ -188,7 +182,6 @@
             ]
           },
           "OUTSIDE_TO_INSIDE" : {
-            "@id" : 7,
             "name" : "OUTSIDE_TO_INSIDE",
             "lines" : [
               {
@@ -218,7 +211,6 @@
         },
         "as2core1" : {
           "blocktelnet" : {
-            "@id" : 8,
             "name" : "blocktelnet",
             "lines" : [
               {
@@ -254,7 +246,6 @@
         },
         "as2dept1" : {
           "102" : {
-            "@id" : 9,
             "name" : "102",
             "lines" : [
               {
@@ -282,7 +273,6 @@
             ]
           },
           "105" : {
-            "@id" : 10,
             "name" : "105",
             "lines" : [
               {
@@ -332,7 +322,6 @@
             ]
           },
           "RESTRICT_HOST_TRAFFIC_IN" : {
-            "@id" : 11,
             "name" : "RESTRICT_HOST_TRAFFIC_IN",
             "lines" : [
               {
@@ -374,7 +363,6 @@
             ]
           },
           "RESTRICT_HOST_TRAFFIC_OUT" : {
-            "@id" : 12,
             "name" : "RESTRICT_HOST_TRAFFIC_OUT",
             "lines" : [
               {
@@ -391,23 +379,20 @@
               {
                 "action" : "REJECT",
                 "dstIps" : [
-                  "0.0.0.0/0"
+                  "2.128.0.0/16"
                 ],
-                "name" : "deny ip any any",
+                "name" : "deny ip 1.128.0.0 0.0.255.255 2.128.0.0 0.0.255.255",
                 "negate" : false,
                 "srcIps" : [
-                  "0.0.0.0/0"
+                  "1.128.0.0/16"
                 ]
               },
               {
-                "action" : "ACCEPT",
+                "action" : "REJECT",
                 "dstIps" : [
                   "0.0.0.0/0"
                 ],
-                "ipProtocols" : [
-                  "ICMP"
-                ],
-                "name" : "permit icmp any any",
+                "name" : "deny ip any any",
                 "negate" : false,
                 "srcIps" : [
                   "0.0.0.0/0"
@@ -418,7 +403,6 @@
         },
         "as2dist1" : {
           "102" : {
-            "@id" : 13,
             "name" : "102",
             "lines" : [
               {
@@ -437,7 +421,6 @@
         },
         "host1" : {
           "filter::FORWARD" : {
-            "@id" : 14,
             "name" : "filter::FORWARD",
             "lines" : [
               {
@@ -447,7 +430,6 @@
             ]
           },
           "filter::INPUT" : {
-            "@id" : 15,
             "name" : "filter::INPUT",
             "lines" : [
               {
@@ -477,7 +459,6 @@
             ]
           },
           "filter::OUTPUT" : {
-            "@id" : 16,
             "name" : "filter::OUTPUT",
             "lines" : [
               {
@@ -487,7 +468,6 @@
             ]
           },
           "mangle::FORWARD" : {
-            "@id" : 17,
             "name" : "mangle::FORWARD",
             "lines" : [
               {
@@ -497,7 +477,6 @@
             ]
           },
           "mangle::INPUT" : {
-            "@id" : 18,
             "name" : "mangle::INPUT",
             "lines" : [
               {
@@ -507,7 +486,6 @@
             ]
           },
           "mangle::OUTPUT" : {
-            "@id" : 19,
             "name" : "mangle::OUTPUT",
             "lines" : [
               {
@@ -517,7 +495,6 @@
             ]
           },
           "mangle::POSTROUTING" : {
-            "@id" : 20,
             "name" : "mangle::POSTROUTING",
             "lines" : [
               {
@@ -527,7 +504,6 @@
             ]
           },
           "mangle::PREROUTING" : {
-            "@id" : 21,
             "name" : "mangle::PREROUTING",
             "lines" : [
               {
@@ -537,7 +513,6 @@
             ]
           },
           "nat::OUTPUT" : {
-            "@id" : 22,
             "name" : "nat::OUTPUT",
             "lines" : [
               {
@@ -547,7 +522,6 @@
             ]
           },
           "nat::POSTROUTING" : {
-            "@id" : 23,
             "name" : "nat::POSTROUTING",
             "lines" : [
               {
@@ -557,7 +531,6 @@
             ]
           },
           "nat::PREROUTING" : {
-            "@id" : 24,
             "name" : "nat::PREROUTING",
             "lines" : [
               {
@@ -569,7 +542,6 @@
         },
         "host2" : {
           "filter::INPUT" : {
-            "@id" : 25,
             "name" : "filter::INPUT",
             "lines" : [
               {
@@ -589,7 +561,6 @@
             ]
           },
           "filter::OUTPUT" : {
-            "@id" : 26,
             "name" : "filter::OUTPUT",
             "lines" : [
               {
@@ -650,10 +621,12 @@
             "as2dist2"
           ]
         },
-        "INSIDE_TO_OUTSIDE" : {
+        "INSIDE_TO_AS1" : {
           "as2border1" : [
             "as2border1"
-          ],
+          ]
+        },
+        "INSIDE_TO_AS3" : {
           "as2border2" : [
             "as2border2"
           ]
@@ -792,7 +765,7 @@
           ]
         },
         "as2border1" : {
-          "INSIDE_TO_OUTSIDE" : [
+          "INSIDE_TO_AS1" : [
             {
               "index" : 0,
               "name" : "permit ip 2.0.0.0 0.255.255.255 1.0.0.0 0.255.255.255",
@@ -823,7 +796,7 @@
           ]
         },
         "as2border2" : {
-          "INSIDE_TO_OUTSIDE" : [
+          "INSIDE_TO_AS3" : [
             {
               "index" : 0,
               "name" : "permit ip 2.0.0.0 0.255.255.255 3.0.0.0 0.255.255.255",
@@ -916,7 +889,7 @@
               "differentAction" : false
             },
             {
-              "index" : 1,
+              "index" : 2,
               "name" : "deny ip any any",
               "differentAction" : false
             }
@@ -1043,11 +1016,11 @@
           ],
           "RESTRICT_HOST_TRAFFIC_OUT" : [
             {
-              "index" : 2,
-              "name" : "permit icmp any any",
+              "index" : 1,
+              "name" : "deny ip 1.128.0.0 0.0.255.255 2.128.0.0 0.0.255.255",
               "differentAction" : true,
-              "earliestMoreGeneralLineIndex" : 1,
-              "earliestMoreGeneralLineName" : "deny ip any any"
+              "earliestMoreGeneralLineIndex" : 0,
+              "earliestMoreGeneralLineName" : "permit ip any 2.128.0.0 0.0.255.255"
             }
           ]
         }

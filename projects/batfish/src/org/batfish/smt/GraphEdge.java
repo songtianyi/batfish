@@ -3,9 +3,7 @@ package org.batfish.smt;
 import org.batfish.datamodel.Interface;
 import org.batfish.datamodel.collections.NodeInterfacePair;
 
-/**
- * Created by ryanbeckett on 12/7/16.
- */
+
 public class GraphEdge {
 
     private Interface _start;
@@ -40,15 +38,21 @@ public class GraphEdge {
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
+
         GraphEdge graphEdge = (GraphEdge) o;
-        return _router.equals(graphEdge._router) &&
-               _start.getName().equals(graphEdge._start.getName());
+
+        if (_start != null ? !_start.equals(graphEdge._start) : graphEdge._start != null) return false;
+        if (_end != null ? !_end.equals(graphEdge._end) : graphEdge._end != null) return false;
+        if (_router != null ? !_router.equals(graphEdge._router) : graphEdge._router != null) return false;
+        return _peer != null ? _peer.equals(graphEdge._peer) : graphEdge._peer == null;
     }
 
     @Override
     public int hashCode() {
-        int result = _start.getName().hashCode();
-        result = 31 * result + _router.hashCode();
+        int result = _start != null ? _start.hashCode() : 0;
+        result = 31 * result + (_end != null ? _end.hashCode() : 0);
+        result = 31 * result + (_router != null ? _router.hashCode() : 0);
+        result = 31 * result + (_peer != null ? _peer.hashCode() : 0);
         return result;
     }
 

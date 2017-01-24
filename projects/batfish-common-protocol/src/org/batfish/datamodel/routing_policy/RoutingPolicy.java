@@ -14,7 +14,10 @@ import org.batfish.datamodel.routing_policy.statement.Statement;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonPropertyDescription;
+import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaDescription;
 
+@JsonSchemaDescription("A procedural routing policy used to transform and accept/reject IPV4/IPV6 routes")
 public class RoutingPolicy extends ComparableStructure<String> {
 
    /**
@@ -24,14 +27,19 @@ public class RoutingPolicy extends ComparableStructure<String> {
 
    private static final String STATEMENTS_VAR = "statements";
 
-   private transient Configuration _owner;
+   private Configuration _owner;
 
    private List<Statement> _statements;
 
    @JsonCreator
-   public RoutingPolicy(@JsonProperty(NAME_VAR) String name) {
+   private RoutingPolicy(@JsonProperty(NAME_VAR) String name) {
       super(name);
       _statements = new ArrayList<>();
+   }
+
+   public RoutingPolicy(String name, Configuration owner) {
+      this(name);
+      _owner = owner;
    }
 
    public Result call(Environment environment) {
@@ -46,6 +54,7 @@ public class RoutingPolicy extends ComparableStructure<String> {
          }
       }
       Result result = new Result();
+      result.setFallThrough(true);
       result.setBooleanValue(environment.getDefaultAction());
       return result;
    }
@@ -56,12 +65,7 @@ public class RoutingPolicy extends ComparableStructure<String> {
          return true;
       }
       RoutingPolicy other = (RoutingPolicy) o;
-      if (this.getStatements().equals(other.getStatements())) {
-         return true;
-      }
-      else {
-         return false;
-      }
+      return _statements.equals(other._statements);
    }
 
    @JsonIgnore
@@ -70,19 +74,17 @@ public class RoutingPolicy extends ComparableStructure<String> {
    }
 
    @JsonProperty(STATEMENTS_VAR)
+   @JsonPropertyDescription("The list of routing-policy statements to execute")
    public List<Statement> getStatements() {
       return _statements;
    }
 
    public boolean process(AbstractRoute inputRoute, AbstractRoute6 inputRoute6,
-         AbstractRouteBuilder<?> outputRoute, Ip peerAddress) {
-      Result result = call(new Environment(_owner, inputRoute, inputRoute6,
-            outputRoute, peerAddress));
+         AbstractRouteBuilder<?> outputRoute, Ip peerAddress, String vrf) {
+      Environment environment = new Environment(_owner, vrf, inputRoute,
+            inputRoute6, outputRoute, peerAddress);
+      Result result = call(environment);
       return result.getBooleanValue();
-   }
-
-   public void setOwner(Configuration owner) {
-      _owner = owner;
    }
 
    @JsonProperty(STATEMENTS_VAR)
@@ -95,7 +97,7 @@ public class RoutingPolicy extends ComparableStructure<String> {
       for (Statement statement : _statements) {
          simpleStatements.addAll(statement.simplify());
       }
-      RoutingPolicy simple = new RoutingPolicy(_key);
+      RoutingPolicy simple = new RoutingPolicy(_key, _owner);
       simple.setStatements(simpleStatements);
       return simple;
    }

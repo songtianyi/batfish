@@ -24,19 +24,11 @@ ss_community
 :
    COMMUNITY name = variable
    (
-      ssc_access_control
-      | ssc_group
+      ssc_group
       | ssc_use_ipv4_acl
       | ssc_use_ipv6_acl
+      | ssc_access_control
    )
-;
-
-ssc_access_control
-:
-   (
-      RO
-      | RW
-   )? name = variable? NEWLINE
 ;
 
 ss_enable_mib_null
@@ -72,7 +64,8 @@ ss_host
 ss_host_null
 :
    (
-      TRAPS
+      INFORMS
+      | TRAPS
       | VERSION
    ) ~NEWLINE* NEWLINE
 ;
@@ -93,7 +86,9 @@ ss_null
       AAA
       | AAA_USER
       | CHASSIS_ID
+      | COMMUNITY_MAP
       | CONTACT
+      | CONTEXT
       | ENGINEID
       | GLOBALENFORCEPRIV
       | GROUP
@@ -103,10 +98,12 @@ ss_null
       | MANAGER
       | MAX_IFINDEX_PER_MODULE
       | OVERLOAD_CONTROL
+      | PRIORITY
       | PROTOCOL
       | QUEUE_LENGTH
       | SOURCE_INTERFACE
       | TCP_SESSION
+      | TRAP
       | TRAPS
       | USER
       | VIEW
@@ -116,7 +113,33 @@ ss_null
 
 ss_trap_source
 :
-   TRAP_SOURCE interface_name NEWLINE
+   TRAP_SOURCE IPV4? interface_name NEWLINE
+;
+
+ssc_access_control
+:
+   (
+      RO
+      | RW
+      | SDROWNER
+      | SYSTEMOWNER
+      |
+      (
+         VIEW view = variable_snmp
+      )
+   )*
+   (
+      (
+         (
+            IPV4 acl4 = variable_snmp
+         )
+         |
+         (
+            IPV6 acl6 = variable_snmp
+         ) DEC?
+      )
+      | acl4 = variable_snmp
+   )* NEWLINE
 ;
 
 ssc_group
@@ -137,3 +160,8 @@ ssc_use_ipv6_acl
    USE_IPV6_ACL name = variable NEWLINE
 ;
 
+variable_snmp
+:
+   ~( IPV4 | IPV6 | GROUP | NEWLINE | RO | RW | SDROWNER | SYSTEMOWNER |
+   USE_ACL | USE_IPV4_ACL | USE_IPV6_ACL | VIEW )
+;

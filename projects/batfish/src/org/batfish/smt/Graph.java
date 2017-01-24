@@ -47,20 +47,32 @@ public class Graph {
             nips.forEach((nip) -> {
                 EdgeSet es = ifaceEdges.get(nip);
                 Interface i1 = ifaceMap.get(nip);
-                if (es == null && i1.getPrefix() != null) {
+                boolean hasNoOtherEnd = (es == null && i1.getPrefix() != null);
+                if (hasNoOtherEnd) {
                     GraphEdge ge = new GraphEdge(i1, null, router, null);
                     graphEdges.add(ge);
                 }
+
                 if (es != null) {
-                    for (Edge e : es) {
-                        if (!router.equals(e.getNode2())) {
-                            Interface i2 = ifaceMap.get(e.getInterface2());
-                            String neighbor = e.getNode2();
-                            GraphEdge ge1 = new GraphEdge(i1, i2, router, neighbor);
-                            GraphEdge ge2 = new GraphEdge(i2, i1, neighbor, router);
-                            _otherEnd.put(ge1, ge2);
-                            graphEdges.add(ge1);
-                            neighs.add(neighbor);
+                    boolean hasMultipleEnds = (es.size() > 2);
+                    if (hasMultipleEnds) {
+                        GraphEdge ge = new GraphEdge(i1, null, router, null);
+                        graphEdges.add(ge);
+                        // System.out.println("Warning: edge " + ge + " has multiple ends");
+                    } else {
+                    // System.out.println("NIP: " + nip.toString());
+
+                        for (Edge e : es) {
+                            // System.out.println("  edge: " + e.toString());
+                            if (!router.equals(e.getNode2())) {
+                                Interface i2 = ifaceMap.get(e.getInterface2());
+                                String neighbor = e.getNode2();
+                                GraphEdge ge1 = new GraphEdge(i1, i2, router, neighbor);
+                                GraphEdge ge2 = new GraphEdge(i2, i1, neighbor, router);
+                                _otherEnd.put(ge1, ge2);
+                                graphEdges.add(ge1);
+                                neighs.add(neighbor);
+                            }
                         }
                     }
                 }
@@ -78,7 +90,7 @@ public class Graph {
             for(GraphEdge ge : _edgeMap.get(router)) {
                 Interface here = ge.getStart();
                 Interface there = ge.getEnd();
-                for (StaticRoute sr : conf.getStaticRoutes()) {
+                for (StaticRoute sr : conf.getDefaultVrf().getStaticRoutes()) {
 
                     String hereName = here.getName();
                     if (hereName.equals(sr.getNextHopInterface())) {
@@ -156,6 +168,12 @@ public class Graph {
                 sb.append("  peer: ").append(peer).append("\n");
             }
         });
+
+        //sb.append("---------- Other End of Edge ----------\n");
+        //_otherEnd.forEach((e1, e2) -> {
+        //    sb.append(e1).append(" maps to ").append(e2).append("\n");
+        //});
+
 
         sb.append("---------- Static Routes by Interface ----------\n");
         _staticRoutes.forEach((router, map) -> {

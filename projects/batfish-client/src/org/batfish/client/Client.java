@@ -19,7 +19,6 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.NavigableMap;
 import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -38,42 +37,19 @@ import org.batfish.common.plugin.IClient;
 import org.batfish.common.util.BatfishObjectMapper;
 import org.batfish.common.util.CommonUtil;
 import org.batfish.common.util.ZipUtility;
-import org.batfish.datamodel.AsPathAccessList;
 import org.batfish.datamodel.Configuration;
 import org.batfish.datamodel.answers.Answer;
 import org.batfish.datamodel.questions.IEnvironmentCreationQuestion;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonPropertyDescription;
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.module.jsonSchema.JsonSchema;
 import com.kjetland.jackson.jsonSchema.JsonSchemaGenerator;
-import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaDescription;
-import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle;
 
 import jline.console.ConsoleReader;
 import jline.console.completer.Completer;
 
 public class Client extends AbstractClient implements IClient {
 
-   public class Shape {
-      private List<Color> _colors;
-
-      public List<Color> getColors() {
-         return _colors;
-      }
-   }
-   
-   public class Color {
-      public String colorName;
-   }
-   
-   public class Rectangle extends Shape {
-      
-   }
-   
    private static final String DEFAULT_CONTAINER_PREFIX = "cp";
    private static final String DEFAULT_DELTA_ENV_PREFIX = "env_";
    private static final String DEFAULT_ENV_NAME = BfConsts.RELPATH_DEFAULT_ENVIRONMENT_NAME;
@@ -81,7 +57,6 @@ public class Client extends AbstractClient implements IClient {
    private static final String DEFAULT_TESTRIG_PREFIX = "tr_";
 
    private static final String FLAG_FAILING_TEST = "-error";
-   private static final String FLAG_NO_DATAPLANE = "-nodataplane";
    private static final int NUM_TRIES_WARNING_THRESHOLD = 5;
 
    private Map<String, String> _additionalBatfishOptions;
@@ -388,45 +363,6 @@ public class Client extends AbstractClient implements IClient {
       }
    }
 
-   private boolean generateDataplane(FileWriter outWriter) throws Exception {
-      if (!isSetTestrig() || !isSetContainer(true)) {
-         return false;
-      }
-
-      // generate the data plane
-      WorkItem wItemGenDp = _workHelper.getWorkItemGenerateDataPlane(
-            _currContainerName, _currTestrig, _currEnv);
-
-      return execute(wItemGenDp, outWriter);
-   }
-
-   private boolean generateDeltaDataplane(FileWriter outWriter)
-         throws Exception {
-      if (!isSetDeltaEnvironment() || !isSetTestrig()
-            || !isSetContainer(true)) {
-         return false;
-      }
-
-      WorkItem wItemGenDdp = _workHelper.getWorkItemGenerateDeltaDataPlane(
-            _currContainerName, _currTestrig, _currEnv, _currDeltaTestrig,
-            _currDeltaEnv);
-
-      return execute(wItemGenDdp, outWriter);
-   }
-
-   /* private void generateDatamodel() {
-      try {
-         ObjectMapper mapper = new BatfishObjectMapper();
-         JsonSchemaGenerator schemaGen = new JsonSchemaGenerator(mapper);
-         JsonSchema schema = schemaGen.generateSchema(Configuration.class);
-
-         _logger.output(mapper.writeValueAsString(schema));
-      }
-      catch (Exception e) {
-         _logger.errorf("Could not generate data model: " + e.getMessage());
-      }
-   } */
-
    private void generateDatamodel() {
       try {
          ObjectMapper mapper = new BatfishObjectMapper();
@@ -453,6 +389,31 @@ public class Client extends AbstractClient implements IClient {
       }
    }
 
+   private boolean generateDataplane(FileWriter outWriter) throws Exception {
+      if (!isSetTestrig() || !isSetContainer(true)) {
+         return false;
+      }
+
+      // generate the data plane
+      WorkItem wItemGenDp = _workHelper.getWorkItemGenerateDataPlane(
+            _currContainerName, _currTestrig, _currEnv);
+
+      return execute(wItemGenDp, outWriter);
+   }
+
+   private boolean generateDeltaDataplane(FileWriter outWriter)
+         throws Exception {
+      if (!isSetDeltaEnvironment() || !isSetTestrig()
+            || !isSetContainer(true)) {
+         return false;
+      }
+
+      WorkItem wItemGenDdp = _workHelper.getWorkItemGenerateDeltaDataPlane(
+            _currContainerName, _currTestrig, _currEnv, _currDeltaTestrig,
+            _currDeltaEnv);
+
+      return execute(wItemGenDdp, outWriter);
+   }
 
    private void generateQuestions() {
 
@@ -593,9 +554,8 @@ public class Client extends AbstractClient implements IClient {
       if (_currTestrig == null) {
          _logger.errorf("Active testrig is not set.\n");
          _logger.errorf(
-               "Specify testrig on command line (-%s <testrigdir>) or use command (%s [%s] <testrigdir>)\n",
-               Settings.ARG_TESTRIG_DIR, Command.INIT_TESTRIG,
-               FLAG_NO_DATAPLANE);
+               "Specify testrig on command line (-%s <testrigdir>) or use command (%s <testrigdir>)\n",
+               Settings.ARG_TESTRIG_DIR, Command.INIT_TESTRIG);
          return false;
       }
       return true;
@@ -677,7 +637,7 @@ public class Client extends AbstractClient implements IClient {
          // }
          case ADD_BATFISH_OPTION: {
             String optionKey = parameters.get(0);
-            String optionValue = CommonUtil.joinStrings(" ",
+            String optionValue = String.join(" ",
                   Arrays.copyOfRange(words, 2 + options.size(), words.length));
             _additionalBatfishOptions.put(optionKey, optionValue);
             return true;
@@ -688,7 +648,7 @@ public class Client extends AbstractClient implements IClient {
             }
 
             String questionFile = parameters.get(0);
-            String paramsLine = CommonUtil.joinStrings(" ",
+            String paramsLine = String.join(" ",
                   Arrays.copyOfRange(words, 2 + options.size(), words.length));
 
             return answerFile(questionFile, paramsLine, false, outWriter);
@@ -700,7 +660,7 @@ public class Client extends AbstractClient implements IClient {
             }
 
             String questionFile = parameters.get(0);
-            String paramsLine = CommonUtil.joinStrings(" ",
+            String paramsLine = String.join(" ",
                   Arrays.copyOfRange(words, 2 + options.size(), words.length));
 
             return answerFile(questionFile, paramsLine, true, outWriter);
@@ -782,8 +742,8 @@ public class Client extends AbstractClient implements IClient {
             return true;
          }
          case ECHO: {
-            _logger.outputf("%s\n", CommonUtil.joinStrings(" ",
-                  Arrays.copyOfRange(words, 1, words.length)));
+            _logger.outputf("%s\n",
+                  String.join(" ", Arrays.copyOfRange(words, 1, words.length)));
             return true;
          }
          case EXIT:
@@ -807,7 +767,7 @@ public class Client extends AbstractClient implements IClient {
             }
 
             String qTypeStr = parameters.get(0).toLowerCase();
-            String paramsLine = CommonUtil.joinStrings(" ",
+            String paramsLine = String.join(" ",
                   Arrays.copyOfRange(words, 2 + options.size(), words.length));
 
             // TODO: make environment creation a command, not a question
@@ -940,6 +900,10 @@ public class Client extends AbstractClient implements IClient {
             String containerPrefix = (words.length > 1) ? words[1]
                   : DEFAULT_CONTAINER_PREFIX;
             _currContainerName = _workHelper.initContainer(containerPrefix);
+            if (_currContainerName == null) {
+               _logger.errorf("Could not init container\n");
+               return false;
+            }
             _logger.output("Active container is set");
             _logger.infof(" to  %s\n", _currContainerName);
             _logger.output("\n");
@@ -948,19 +912,6 @@ public class Client extends AbstractClient implements IClient {
          case INIT_DELTA_ENV: {
             if (!isSetTestrig() || !isSetContainer(true)) {
                return false;
-            }
-
-            // check if we are being asked to not generate the dataplane
-            boolean generateDeltaDataplane = true;
-
-            if (options.size() == 1) {
-               if (options.get(0).equals(FLAG_NO_DATAPLANE)) {
-                  generateDeltaDataplane = false;
-               }
-               else {
-                  _logger.outputf("Unknown option %s\n", options.get(0));
-                  return false;
-               }
             }
 
             String deltaEnvLocation = parameters.get(0);
@@ -986,31 +937,10 @@ public class Client extends AbstractClient implements IClient {
                return false;
             }
 
-            if (generateDeltaDataplane) {
-               _logger.output("Generating delta dataplane\n");
-
-               if (!generateDeltaDataplane(outWriter)) {
-                  return false;
-               }
-
-               _logger.output("Generated delta dataplane\n");
-            }
-
             return true;
          }
          case INIT_DELTA_TESTRIG:
          case INIT_TESTRIG: {
-            boolean generateDataplane = true;
-
-            if (options.size() == 1) {
-               if (options.get(0).equals(FLAG_NO_DATAPLANE)) {
-                  generateDataplane = false;
-               }
-               else {
-                  _logger.outputf("Unknown option %s\n", options.get(0));
-                  return false;
-               }
-            }
 
             String testrigLocation = parameters.get(0);
             String testrigName = (parameters.size() > 1) ? parameters.get(1)
@@ -1020,6 +950,10 @@ public class Client extends AbstractClient implements IClient {
             if (!isSetContainer(false)) {
                _currContainerName = _workHelper
                      .initContainer(DEFAULT_CONTAINER_PREFIX);
+               if (_currContainerName == null) {
+                  _logger.errorf("Could not init container\n");
+                  return false;
+               }
                _logger.outputf("Init'ed and set active container");
                _logger.infof(" to %s\n", _currContainerName);
                _logger.output("\n");
@@ -1047,21 +981,6 @@ public class Client extends AbstractClient implements IClient {
                _currDeltaTestrig = testrigName;
                _currDeltaEnv = DEFAULT_ENV_NAME;
                _logger.infof("Delta testrig is now %s\n", _currDeltaTestrig);
-            }
-
-            if (generateDataplane) {
-               _logger.output("Generating dataplane now\n");
-
-               if (command == Command.INIT_TESTRIG) {
-                  if (!generateDataplane(outWriter)) {
-                     return false;
-                  }
-               }
-               else if (!generateDeltaDataplane(outWriter)) {
-                  return false;
-               }
-
-               _logger.output("Generated dataplane\n");
             }
 
             return true;
@@ -1119,17 +1038,6 @@ public class Client extends AbstractClient implements IClient {
          }
          case REINIT_TESTRIG:
          case REINIT_DELTA_TESTRIG: {
-            boolean generateDataplane = true;
-
-            if (options.size() == 1) {
-               if (options.get(0).equals(FLAG_NO_DATAPLANE)) {
-                  generateDataplane = false;
-               }
-               else {
-                  _logger.outputf("Unknown option %s\n", options.get(0));
-                  return false;
-               }
-            }
 
             String testrig;
             if (command == Command.REINIT_TESTRIG) {
@@ -1146,21 +1054,6 @@ public class Client extends AbstractClient implements IClient {
 
             if (!execute(wItemParse, outWriter)) {
                return false;
-            }
-
-            if (generateDataplane) {
-               _logger.output("Generating dataplane now\n");
-
-               if (command == Command.REINIT_TESTRIG) {
-                  if (!generateDataplane(outWriter)) {
-                     return false;
-                  }
-               }
-               else if (!generateDeltaDataplane(outWriter)) {
-                  return false;
-               }
-
-               _logger.output("Generated dataplane\n");
             }
 
             return true;
@@ -1459,7 +1352,7 @@ public class Client extends AbstractClient implements IClient {
             System.exit(1);
          }
          if (!processCommand(Command.INIT_TESTRIG.commandName() + " "
-               + FLAG_NO_DATAPLANE + " " + _settings.getTestrigDir())) {
+               + _settings.getTestrigDir())) {
             return;
          }
       }

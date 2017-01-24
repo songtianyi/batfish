@@ -109,6 +109,23 @@ if_ip_address_secondary
    ) SECONDARY NEWLINE
 ;
 
+if_ip_nat_source
+:
+   IP NAT SOURCE DYNAMIC ACCESS_LIST acl = variable
+   (
+      OVERLOAD
+      |
+      (
+         POOL pool = variable
+      )
+   )* NEWLINE
+;
+
+if_ip_ospf_area
+:
+   IP OSPF procnum = DEC AREA area = DEC NEWLINE
+;
+
 if_ip_ospf_cost
 :
    IP OSPF COST cost = DEC NEWLINE
@@ -134,6 +151,11 @@ if_ip_ospf_passive_interface
    NO? IP OSPF PASSIVE_INTERFACE NEWLINE
 ;
 
+if_ip_pim_neighbor_filter
+:
+   IP PIM NEIGHBOR_FILTER acl = variable NEWLINE
+;
+
 if_ip_policy
 :
    IP POLICY ROUTE_MAP name = ~NEWLINE NEWLINE
@@ -147,6 +169,11 @@ if_ip_proxy_arp
 if_ip_router_isis
 :
    IP ROUTER ISIS NEWLINE
+;
+
+if_ip_router_ospf_area
+:
+   IP ROUTER OSPF procnum = DEC AREA area = IP_ADDRESS NEWLINE
 ;
 
 if_ip_verify
@@ -276,7 +303,9 @@ if_null_block
       | DELAY
       | DESTINATION
       | DIALER
+      | DIALER_GROUP
       | DFS
+      | DSL
       |
       (
          DSU BANDWIDTH
@@ -285,6 +314,7 @@ if_null_block
       | ENABLE
       | ENCAPSULATION
       | ENCRYPTION
+      | ETHERNET
       | EXIT
       | FAIR_QUEUE
       | FAST_REROUTE
@@ -318,7 +348,12 @@ if_null_block
          IP
          (
             ACCOUNTING
+            | ADDRESS
+            (
+               NEGOTIATED
+            )
             | ARP
+            | BGP
             | BROADCAST_ADDRESS
             | CGMP
             | CONTROL_APPS_USE_MGMT_PORT
@@ -340,26 +375,48 @@ if_null_block
             | MULTICAST_BOUNDARY
             |
             (
+               NAT
+               (
+                  INSIDE
+                  | OUTSIDE
+               )
+            )
+            | NHRP
+            |
+            (
                OSPF
                (
                   AUTHENTICATION
                   | AUTHENTICATION_KEY
                   | BFD
+                  | DEMAND_CIRCUIT
                   | MESSAGE_DIGEST_KEY
                   | MTU_IGNORE
                   | NETWORK
                   | PRIORITY
                )
             )
-            | NAT
-            | PIM
+            |
+            (
+               PIM
+               (
+                  BORDER
+                  | BORDER_ROUTER
+                  | BSR_BORDER
+                  | DR_PRIORITY
+                  | PASSIVE
+                  | QUERY_INTERVAL
+                  | SNOOPING
+                  | SPARSE_DENSE_MODE
+                  | SPARSE_MODE
+               )
+            )
             | PIM_SPARSE
             | PORT_UNREACHABLE
             | REDIRECT
             | REDIRECTS
             | RIP
             | ROUTE_CACHE
-            | ROUTER
             | RSVP
             | SDR
             | TCP
@@ -375,7 +432,8 @@ if_null_block
       (
          IPV4
          (
-            MTU
+            ICMP
+            | MTU
             | POINT_TO_POINT
             | UNNUMBERED
             | UNREACHABLES
@@ -399,6 +457,7 @@ if_null_block
       | KEEPALIVE
       | L2_FILTER
       | L2PROTOCOL_TUNNEL
+      | L2TRANSPORT
       | LANE
       | LAPB
       | LACP
@@ -453,6 +512,7 @@ if_null_block
          (
             BROADCAST
             | DISABLE
+            | MULTICAST
          )
       )
       | NV
@@ -465,9 +525,11 @@ if_null_block
       | PEER
       | PFC PRIORITY
       | PHYSICAL_LAYER
+      | PLATFORM
       | PORT_CHANNEL
       | PORT_CHANNEL_PROTOCOL
       | PORT_NAME
+      | PORT_TYPE
       | PORTMODE
       | POS
       | POWER
@@ -476,18 +538,22 @@ if_null_block
       | PRIORITY
       | PRIORITY_FLOW_CONTROL
       | PRIORITY_QUEUE
+      | PVC
       | QOS
+      | QUEUE_MONITOR
       | QUEUE_SET
       | RANDOM_DETECT
       | RATE_LIMIT
       | RATE_MODE
       | RCV_QUEUE
+      | REDIRECTS
       | REMOTE
       | ROUTE_CACHE
       | ROUTE_ONLY
       | SCRAMBLE
       | SECURITY_LEVEL
       | SERIAL
+      | SERVICE
       | SERVICE_MODULE
       | SERVICE_POLICY
       | SFLOW
@@ -556,10 +622,20 @@ if_null_inner
    NO?
    (
       ADDRESS
+      | BACKUP
+      | BRIDGE_DOMAIN
+      | DIALER
+      | ENCAPSULATION
+      | L2PROTOCOL
+      | MODE
       | PRIORITY
+      | PROPAGATE
+      | PROTOCOL
       | RECEIVE
       | REMOTE_PORTS
+      | REWRITE
       | SATELLITE_FABRIC_LINK
+      | SERVICE_POLICY
       | TRANSMIT
       | VIRTUAL_ADDRESS
    ) ~NEWLINE* NEWLINE
@@ -695,13 +771,17 @@ s_interface
       | if_ip_address
       | if_ip_address_dhcp
       | if_ip_address_secondary
+      | if_ip_nat_source
+      | if_ip_ospf_area
       | if_ip_ospf_cost
       | if_ip_ospf_dead_interval
       | if_ip_ospf_dead_interval_minimal
       | if_ip_ospf_hello_interval
       | if_ip_ospf_passive_interface
+      | if_ip_pim_neighbor_filter
       | if_ip_policy
       | if_ip_router_isis
+      | if_ip_router_ospf_area
       | if_isis_circuit_type
       | if_isis_enable
       | if_isis_hello_interval

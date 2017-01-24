@@ -41,30 +41,40 @@ public class VerificationResult {
         System.out.println("Number of edges: " + _statistics.getNumEdges());
         System.out.println("Solving time: " + _statistics.getTime());
 
-        System.out.println("================= Variables ==================");
-        for (Expr e : _encoder.getAllVariables()) {
-            System.out.println(e.toString());
-        }
-        System.out.println("================= Constraints ==================");
-        for (BoolExpr be : _encoder.getSolver().getAssertions()) {
-            System.out.println(be);
-        }
+        //System.out.println("================= Variables ==================");
+        //for (Expr e : _encoder.getAllVariables()) {
+        //    System.out.println(e.toString());
+        //}
+        //System.out.println("================= Constraints ==================");
+        //for (BoolExpr be : _encoder.getSolver().getAssertions()) {
+        //   System.out.println(be.simplify());
+        //}
         if (_verified) {
             System.out.println("verified");
         } else {
             System.out.println("================= Model ================");
             _encoder.getDataForwarding().forEach((router, map) -> {
                 map.forEach((edge, e) -> {
-                    String result = _model.get(e.toString());
-                    if (result.equals("true")) {
-                        System.out.println(edge);
+                    String expr = e.toString();
+                    if (expr.contains("data-")) {
+                        String result = _model.get(expr);
+                        if (result.equals("true")) {
+                            System.out.println(edge);
+                        }
                     }
                 });
             });
             System.out.println("");
-            _model.forEach((var,val) -> {
+             _model.forEach((var,val) -> {
                 System.out.println(var + "=" + val);
             });
+        }
+
+        System.out.println("================= Unsat Core ================");
+        for (BoolExpr be : _encoder.getSolver().getUnsatCore()) {
+            BoolExpr constraint = _encoder.getTrackingVars().get(be.toString());
+            System.out.println(constraint.simplify());
+            System.out.println("");
         }
     }
 

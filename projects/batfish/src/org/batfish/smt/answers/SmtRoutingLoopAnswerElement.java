@@ -37,7 +37,7 @@ public class SmtRoutingLoopAnswerElement implements AnswerElement {
         // potential place node along a loop
         List<String> routers = new ArrayList<>();
         graph.getConfigurations().forEach((router,conf) -> {
-            if (conf.getStaticRoutes().size() > 0) {
+            if (conf.getDefaultVrf().getStaticRoutes().size() > 0) {
                 routers.add(router);
             }
         });

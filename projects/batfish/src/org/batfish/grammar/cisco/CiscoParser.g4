@@ -18,6 +18,12 @@ package org.batfish.grammar.cisco;
    public void setMultilineBgpNeighbors(boolean multilineBgpNeighbors) {
       _multilineBgpNeighbors = multilineBgpNeighbors;
    }
+   
+   @Override
+   public String getStateInfo() {
+      return "_multilineBgpNeighbors: " + _multilineBgpNeighbors + "\n";
+   }
+   
 }
 
 address_aiimgp_stanza
@@ -48,30 +54,6 @@ address_family_multicast_tail
       | interface_multicast_stanza
       | ip_pim_tail
    )*
-;
-
-address_family_vrfd_stanza
-:
-   ADDRESS_FAMILY
-   (
-      IPV4
-      | IPV6
-   )
-   (
-      MULTICAST
-      | UNICAST
-   )?
-   (
-      MAX_ROUTE DEC
-   )? NEWLINE afvrfd_stanza*
-   (
-      EXIT_ADDRESS_FAMILY NEWLINE
-   )?
-;
-
-afvrfd_stanza
-:
-   null_afvrfd_stanza
 ;
 
 aiimgp_stanza
@@ -288,16 +270,34 @@ del_stanza
    DEL ~NEWLINE* NEWLINE
 ;
 
-dhcp_stanza
+dhcp_null
 :
-   DHCP IPV4 NEWLINE dhcp_substanza+
+   NO?
+   (
+      INTERFACE
+   ) ~NEWLINE* NEWLINE
 ;
 
-dhcp_substanza
+dhcp_profile
 :
-   PROFILE ~NEWLINE+ NEWLINE
-   | HELPER_ADDRESS ~NEWLINE+ NEWLINE
-   | INTERFACE ~NEWLINE+ NEWLINE
+   NO? PROFILE ~NEWLINE* NEWLINE
+   (
+      dhcp_profile_null
+   )*
+;
+
+dhcp_profile_null
+:
+   NO?
+   (
+      DEFAULT_ROUTER
+      | DOMAIN_NAME
+      | DNS_SERVER
+      | HELPER_ADDRESS
+      | LEASE
+      | POOL
+      | SUBNET_MASK
+   ) ~NEWLINE* NEWLINE
 ;
 
 dspf_null
@@ -398,6 +398,7 @@ flowv_null
    NO?
    (
       OPTIONS
+      | TEMPLATE
    ) ~NEWLINE* NEWLINE
 ;
 
@@ -431,17 +432,6 @@ hardware_null
       | SPAN
       | VACL
    ) ~NEWLINE* NEWLINE
-;
-
-hostname_stanza
-:
-   (
-      HOSTNAME
-      | SWITCHNAME
-   )
-   (
-      name_parts += ~NEWLINE
-   )+ NEWLINE
 ;
 
 iimgp_stanza
@@ -499,17 +489,31 @@ ip_default_gateway_stanza
    IP DEFAULT_GATEWAY gateway = IP_ADDRESS NEWLINE
 ;
 
-ip_domain_name
+ip_dhcp_null
 :
-   DOMAIN_NAME name = variable NEWLINE
+   NO?
+   (
+      BOOTFILE
+      | CLIENT_IDENTIFIER
+      | CLIENT_NAME
+      | DEFAULT_ROUTER
+      | DNS_SERVER
+      | DOMAIN_NAME
+      | HARDWARE_ADDRESS
+      | HOST
+      | LEASE
+      | NETWORK
+      | NEXT_SERVER
+      | OPTION
+   ) ~NEWLINE* NEWLINE
 ;
 
-ip_pim
+ip_nat_null
 :
-   PIM
+   NO?
    (
-      VRF vrf = variable
-   )? ip_pim_tail
+      RANGE
+   ) ~NEWLINE* NEWLINE
 ;
 
 ip_pim_tail
@@ -546,7 +550,6 @@ ip_route_tail
    )
    (
       nexthopip = IP_ADDRESS
-      | nexthopint = interface_name
       | nexthopprefix = IP_PREFIX
       | distance = DEC
       |
@@ -562,12 +565,10 @@ ip_route_tail
       (
          NAME variable
       )
-   )* NEWLINE
-;
+      // do not move interface_name up
 
-ip_route_vrfc_stanza
-:
-   IP ROUTE ip_route_tail
+      | nexthopint = interface_name
+   )* NEWLINE
 ;
 
 ip_sla_null
@@ -584,16 +585,8 @@ ip_sla_null
       | SAMPLES_OF_HISTORY_KEPT
       | TAG
       | TOS
+      | UDP_JITTER
    ) ~NEWLINE* NEWLINE
-;
-
-ip_ssh
-:
-   SSH
-   (
-      ip_ssh_version
-      | ip_ssh_null
-   )
 ;
 
 ip_ssh_null
@@ -604,6 +597,18 @@ ip_ssh_null
       | SOURCE_INTERFACE
       | TIME_OUT
    ) ~NEWLINE* NEWLINE
+;
+
+ip_ssh_pubkey_chain
+:
+   PUBKEY_CHAIN NEWLINE
+   (
+      (
+         KEY_HASH
+         | QUIT
+         | USERNAME
+      ) ~NEWLINE* NEWLINE
+   )+
 ;
 
 ip_ssh_version
@@ -798,6 +803,7 @@ l_null
       | AUTOHANGUP
       | AUTOSELECT
       | DATABITS
+      | ESCAPE_CHARACTER
       | EXEC
       | FLOWCONTROL
       | FLUSH_AT_ACTIVATION
@@ -816,6 +822,7 @@ l_null
       | STOPBITS
       | TERMINAL_TYPE
       | TIMESTAMP
+      | VACANT_MESSAGE
    ) ~NEWLINE* NEWLINE
 ;
 
@@ -829,6 +836,17 @@ l_transport
    ) prot += variable+ NEWLINE
 ;
 
+l2_null
+:
+   NO?
+   (
+      BRIDGE_DOMAIN
+      | MTU
+      | NEIGHBOR
+      | VPN
+   ) ~NEWLINE* NEWLINE
+;
+
 l2vpn_bridge_group
 :
    BRIDGE GROUP name = variable NEWLINE
@@ -837,12 +855,32 @@ l2vpn_bridge_group
    )*
 ;
 
-l2vpn_stanza
+l2vpn_logging
 :
-   L2VPN NEWLINE
+   LOGGING NEWLINE
    (
-      l2vpn_bridge_group
-      | xconnect_stanza
+      (
+         BRIDGE_DOMAIN
+         | PSEUDOWIRE
+         | VFI
+      ) NEWLINE
+   )+
+;
+
+l2vpn_xconnect
+:
+   XCONNECT GROUP variable NEWLINE
+   (
+      l2vpn_xconnect_p2p
+   )*
+;
+
+l2vpn_xconnect_p2p
+:
+   NO? P2P ~NEWLINE* NEWLINE
+   (
+      lxp_neighbor
+      | lxp_null
    )*
 ;
 
@@ -850,7 +888,17 @@ lbg_bridge_domain
 :
    BRIDGE_DOMAIN name = variable NEWLINE
    (
-      lbgbd_null
+      lbgbd_mac
+      | lbgbd_null
+      | lbgbd_vfi
+   )*
+;
+
+lbgbd_mac
+:
+   NO? MAC ~NEWLINE* NEWLINE
+   (
+      lbgbdm_limit
    )*
 ;
 
@@ -859,7 +907,101 @@ lbgbd_null
    NO?
    (
       INTERFACE
+      | MTU
+      | NEIGHBOR
       | ROUTED
+   ) ~NEWLINE* NEWLINE
+;
+
+lbgbd_vfi
+:
+   NO? VFI ~NEWLINE* NEWLINE
+   (
+      lbgbdv_null
+   )*
+;
+
+lbgbdm_limit
+:
+   NO? LIMIT ~NEWLINE* NEWLINE
+   (
+      lbgbdml_null
+   )*
+;
+
+lbgbdml_null
+:
+   NO?
+   (
+      ACTION
+      | MAXIMUM
+   ) ~NEWLINE* NEWLINE
+;
+
+lbgbdv_null
+:
+   NO?
+   (
+      NEIGHBOR
+   ) ~NEWLINE* NEWLINE
+;
+
+lpts_null
+:
+   NO?
+   (
+      FLOW
+   ) ~NEWLINE* NEWLINE
+;
+
+lxp_neighbor
+:
+   NO? NEIGHBOR ~NEWLINE* NEWLINE
+   (
+      lxpn_l2tp
+      | lxpn_null
+   )*
+;
+
+lxp_null
+:
+   NO?
+   (
+      INTERFACE
+      | MONITOR_SESSION
+   ) ~NEWLINE* NEWLINE
+;
+
+lxpn_null
+:
+   NO?
+   (
+      SOURCE
+   ) ~NEWLINE* NEWLINE
+;
+
+lxpn_l2tp
+:
+   NO? L2TP ~NEWLINE* NEWLINE
+   (
+      lxpnl_null
+   )*
+;
+
+lxpnl_null
+:
+   NO?
+   (
+      LOCAL
+      | REMOTE
+   ) ~NEWLINE* NEWLINE
+;
+
+map_class_null
+:
+   NO?
+   (
+      DIALER
    ) ~NEWLINE* NEWLINE
 ;
 
@@ -872,7 +1014,6 @@ mgmt_api_stanza
             PROTOCOL HTTPS NEWLINE
          )
          | mgmt_null
-         | vrfd_stanza
       )+
    )
 ;
@@ -919,6 +1060,44 @@ mgmt_null
 mgp_stanza
 :
    inband_mgp_stanza
+;
+
+monitor_destination
+:
+   NO? DESTINATION ~NEWLINE* NEWLINE
+   (
+      monitor_destination_null
+   )*
+;
+
+monitor_destination_null
+:
+   NO?
+   (
+      ERSPAN_ID
+      | IP
+      | MTU
+      | ORIGIN
+   ) ~NEWLINE* NEWLINE
+;
+
+monitor_null
+:
+   NO?
+   (
+      DESCRIPTION
+      | DESTINATION
+      | SHUTDOWN
+      | SOURCE
+   ) ~NEWLINE* NEWLINE
+;
+
+monitor_session_null
+:
+   NO?
+   (
+      DESTINATION
+   ) ~NEWLINE* NEWLINE
 ;
 
 mp_null
@@ -1030,6 +1209,7 @@ ntp_common
    | ntp_logging
    | ntp_max_associations
    | ntp_master
+   | ntp_null
    | ntp_peer
    | ntp_server
    | ntp_source
@@ -1058,6 +1238,15 @@ ntp_master
    MASTER NEWLINE
 ;
 
+ntp_null
+:
+   (
+      AUTHENTICATION_KEY
+      | INTERFACE
+      | LOG_INTERNAL_SYNC
+   ) ~NEWLINE* NEWLINE
+;
+
 ntp_peer
 :
    PEER ~NEWLINE* NEWLINE
@@ -1072,6 +1261,10 @@ ntp_server
    (
       (
          KEY key = DEC
+      )
+      |
+      (
+         MINPOLL DEC
       )
       | prefer = PREFER
       |
@@ -1114,9 +1307,12 @@ null_af_multicast_tail
    NSF NEWLINE
 ;
 
-null_afvrfd_stanza
+vrfd_af_null
 :
-   MAXIMUM ~NEWLINE* NEWLINE
+   NO?
+   (
+      MAXIMUM
+   ) ~NEWLINE* NEWLINE
 ;
 
 null_imgp_stanza
@@ -1124,15 +1320,6 @@ null_imgp_stanza
    NO?
    (
       VRF
-   ) ~NEWLINE* NEWLINE
-;
-
-null_vrfd_stanza
-:
-   (
-      RD
-      | ROUTE_TARGET
-      | NO SHUTDOWN
    ) ~NEWLINE* NEWLINE
 ;
 
@@ -1168,11 +1355,6 @@ of_null
       | DESCRIPTION
       | ENABLE
    ) ~NEWLINE* NEWLINE
-;
-
-p2p_stanza
-:
-   P2P VARIABLE NEWLINE INTERFACE ~NEWLINE* NEWLINE INTERFACE ~NEWLINE* NEWLINE
 ;
 
 peer_sa_filter
@@ -1260,10 +1442,17 @@ pim_rp_address
 :
    RP_ADDRESS IP_ADDRESS
    (
-      GROUP_LIST prefix = IP_PREFIX
+      (
+         ACCESS_LIST name = variable
+      )
+      |
+      (
+         GROUP_LIST prefix = IP_PREFIX
+      )
       | OVERRIDE
+      | prefix = IP_PREFIX
       | name = variable
-   )? NEWLINE
+   )* NEWLINE
 ;
 
 pim_rp_announce_filter
@@ -1376,28 +1565,36 @@ role_null
    ) ~NEWLINE* NEWLINE
 ;
 
+router_hsrp_if
+:
+   INTERFACE interface_name NEWLINE router_hsrp_if_af+
+;
+
+router_hsrp_if_af
+:
+   ADDRESS_FAMILY
+   (
+      IPV4
+      | IPV6
+   ) NEWLINE HSRP DEC? NEWLINE router_hsrp_if_af_tail+
+;
+
+router_hsrp_if_af_tail
+:
+   (
+      AUTHENTICATION
+      | ADDRESS
+      | PREEMPT
+      | PRIORITY
+      | TIMERS
+      | TRACK OBJECT
+      | VERSION DEC
+   ) ~NEWLINE* NEWLINE
+;
+
 router_hsrp_stanza
 :
-   ROUTER HSRP NEWLINE router_hsrp_substanza+
-;
-
-router_hsrp_substanza
-:
-   INTERFACE interface_name NEWLINE ADDRESS_FAMILY IPV4 NEWLINE HSRP DEC?
-   (
-      VERSION DEC
-   )? NEWLINE router_hsrp_tail+
-;
-
-router_hsrp_tail
-:
-   (
-      ADDRESS IP_ADDRESS
-      | PREEMPT
-      | PRIORITY DEC
-      | TIMERS DEC+
-      | TRACK OBJECT ~NEWLINE+
-   ) NEWLINE
+   ROUTER HSRP NEWLINE router_hsrp_if+
 ;
 
 router_multicast_stanza
@@ -1506,6 +1703,15 @@ s_ctl_file
    )*
 ;
 
+s_dhcp
+:
+   NO? DHCP ~NEWLINE* NEWLINE
+   (
+      dhcp_null
+      | dhcp_profile
+   )*
+;
+
 s_dial_peer
 :
    DIAL_PEER ~NEWLINE* NEWLINE
@@ -1526,6 +1732,14 @@ s_dial_peer
          | VAD
       ) ~NEWLINE* NEWLINE
    )*
+;
+
+s_domain_name
+:
+   DOMAIN_NAME
+   (
+      name_parts += ~NEWLINE
+   )+ NEWLINE
 ;
 
 s_dot11
@@ -1596,8 +1810,10 @@ s_flow
    (
       EXPORTER
       | EXPORTER_MAP
+      | HARDWARE
       | MONITOR
       | MONITOR_MAP
+      | PLATFORM
       | RECORD
    ) ~NEWLINE* NEWLINE
    (
@@ -1630,14 +1846,55 @@ s_hardware
    )*
 ;
 
-s_ip
+s_hostname
 :
-   IP
    (
-      ip_domain_name
-      | ip_pim
-      | ip_ssh
+      HOSTNAME
+      | SWITCHNAME
    )
+   (
+      name_parts += ~NEWLINE
+   )+ NEWLINE
+;
+
+s_ip_dhcp
+:
+   NO?
+   (
+      IP
+      | IPV6
+   ) DHCP ~NEWLINE* NEWLINE
+   (
+      ip_dhcp_null
+   )*
+;
+
+s_ip_domain_name
+:
+   IP DOMAIN_NAME name = variable (USE_VRF variable)? NEWLINE
+;
+
+s_ip_nat
+:
+   NO? IP NAT
+   (
+      INSIDE
+      | LOG
+      | OUTSIDE
+      | POOL
+      | TRANSLATION
+   ) ~NEWLINE* NEWLINE
+   (
+      ip_nat_null
+   )*
+;
+
+s_ip_pim
+:
+   NO? IP PIM
+   (
+      VRF vrf = variable
+   )? ip_pim_tail
 ;
 
 s_ip_sla
@@ -1651,6 +1908,16 @@ s_ip_sla
 s_ip_source_route
 :
    NO? IP SOURCE_ROUTE NEWLINE
+;
+
+s_ip_ssh
+:
+   IP SSH
+   (
+      ip_ssh_pubkey_chain
+      | ip_ssh_version
+      | ip_ssh_null
+   )
 ;
 
 s_ipc
@@ -1669,6 +1936,24 @@ s_ipsla
       | ipsla_reaction
       | ipsla_responder
       | ipsla_schedule
+   )*
+;
+
+s_l2
+:
+   NO? L2 ~NEWLINE* NEWLINE
+   (
+      l2_null
+   )*
+;
+
+s_l2vpn
+:
+   NO? L2VPN ~NEWLINE* NEWLINE
+   (
+      l2vpn_bridge_group
+      | l2vpn_logging
+      | l2vpn_xconnect
    )*
 ;
 
@@ -1701,6 +1986,14 @@ s_line
    )*
 ;
 
+s_lpts
+:
+   NO? LPTS ~NEWLINE* NEWLINE
+   (
+      lpts_null
+   )*
+;
+
 s_management
 :
    MANAGEMENT
@@ -1717,11 +2010,36 @@ s_management_tail
    | mgmt_null
 ;
 
+s_map_class
+:
+   NO? MAP_CLASS ~NEWLINE* NEWLINE
+   (
+      map_class_null
+   )*
+;
+
 s_media_termination
 :
    NO? MEDIA_TERMINATION ~NEWLINE* NEWLINE
    (
       mt_null
+   )*
+;
+
+s_monitor
+:
+   NO? MONITOR ~NEWLINE* NEWLINE
+   (
+      monitor_destination
+      | monitor_null
+   )*
+;
+
+s_monitor_session
+:
+   NO? MONITOR_SESSION ~NEWLINE* NEWLINE
+   (
+      monitor_session_null
    )*
 ;
 
@@ -1813,6 +2131,14 @@ s_role
    )*
 ;
 
+s_router_vrrp
+:
+   NO? ROUTER VRRP NEWLINE
+   (
+      vrrp_interface
+   )*
+;
+
 s_sccp
 :
    NO? SCCP ~NEWLINE* NEWLINE
@@ -1838,24 +2164,9 @@ s_spanning_tree
 :
    NO? SPANNING_TREE
    (
-      (
-         BACKBONEFAST
-         | BRIDGE
-         | DISPUTE
-         | ETHERCHANNEL
-         | EXTEND
-         | FCOE
-         | LOGGING
-         | LOOPGUARD
-         | MODE
-         | OPTIMIZE
-         | PATHCOST
-         | PORT
-         | PORTFAST
-         | UPLINKFAST
-         | VLAN
-      ) ~NEWLINE*
-   )? NEWLINE
+      spanning_tree_mst
+      | spanning_tree_null
+   )
 ;
 
 s_ssh
@@ -1938,6 +2249,14 @@ s_vlan
    )*
 ;
 
+s_voice
+:
+   NO? VOICE ~NEWLINE* NEWLINE
+   (
+      voice_null
+   )*
+;
+
 s_voice_port
 :
    NO? VOICE_PORT ~NEWLINE* NEWLINE
@@ -1971,6 +2290,26 @@ s_vpn
    )*
 ;
 
+s_vrf_context
+:
+   VRF CONTEXT name = variable NEWLINE
+   (
+      vrfc_ip_route
+   )*
+;
+
+s_vrf_definition
+:
+   VRF DEFINITION? name = variable NEWLINE
+   (
+      vrfd_address_family
+      | vrfd_null
+   )*
+   (
+      EXIT_VRF NEWLINE
+   )?
+;
+
 s_webvpn
 :
    NO? WEBVPN ~NEWLINE* NEWLINE
@@ -1985,6 +2324,11 @@ s_wsma
    (
       wsma_null
    )*
+;
+
+s_xconnect_logging
+:
+   NO? XCONNECT LOGGING ~NEWLINE* NEWLINE
 ;
 
 sccp_null
@@ -2004,6 +2348,44 @@ sntp_server
    (
       VERSION version = DEC
    )? NEWLINE
+;
+
+spanning_tree_mst
+:
+   MST ~NEWLINE* NEWLINE spanning_tree_mst_null*
+;
+
+spanning_tree_mst_null
+:
+   NO?
+   (
+      INSTANCE
+      | NAME
+      | REVISION
+   ) ~NEWLINE* NEWLINE
+;
+
+spanning_tree_null
+:
+   (
+   // intentional blank
+
+      | BACKBONEFAST
+      | BRIDGE
+      | DISPUTE
+      | ETHERCHANNEL
+      | EXTEND
+      | FCOE
+      | LOGGING
+      | LOOPGUARD
+      | MODE
+      | OPTIMIZE
+      | PATHCOST
+      | PORT
+      | PORTFAST
+      | UPLINKFAST
+      | VLAN
+   ) ~NEWLINE* NEWLINE
 ;
 
 srlg_interface_numeric_stanza
@@ -2080,10 +2462,8 @@ stanza
    | certificate_stanza
    | community_set_stanza
    | del_stanza
-   | dhcp_stanza
    | extended_access_list_stanza
    | extended_ipv6_access_list_stanza
-   | hostname_stanza
    | ip_as_path_access_list_stanza
    | ip_as_path_regex_mode_stanza
    | ip_community_list_expanded_stanza
@@ -2093,12 +2473,9 @@ stanza
    | ip_route_stanza
    | ipv6_prefix_list_stanza
    | ipx_sap_access_list_stanza
-   | l2vpn_stanza
    | mgmt_api_stanza
    | mgmt_egress_iface_stanza
    | multicast_routing_stanza
-   | mpls_ldp_stanza
-   | mpls_traffic_eng_stanza
    | no_aaa_group_server_stanza
    | no_failover
    | no_ip_access_list_stanza
@@ -2127,7 +2504,9 @@ stanza
    | s_cos_queue_group
    | s_crypto
    | s_ctl_file
+   | s_dhcp
    | s_dial_peer
+   | s_domain_name
    | s_dot11
    | s_dspfarm
    | s_dynamic_access_policy_record
@@ -2141,19 +2520,33 @@ stanza
    | s_gatekeeper
    | s_global_port_security
    | s_hardware
+   | s_hostname
    | s_interface
-   | s_ip
+   | s_ip_dhcp
+   | s_ip_domain_name
+   | s_ip_nat
+   | s_ip_pim
    | s_ip_sla
    | s_ip_source_route
+   | s_ip_ssh
    | s_ipc
    | s_ipv6_router_ospf
    | s_ipsla
+   | s_l2
+   | s_l2vpn
    | s_line
    | s_logging
+   | s_lpts
    | s_management
    | s_mac_access_list
    | s_mac_access_list_extended
+   | s_map_class
    | s_media_termination
+   | s_monitor
+   | s_monitor_session
+   | s_mpls_label_range
+   | s_mpls_ldp
+   | s_mpls_traffic_eng
    | s_mtu
    | s_name
    | s_no_access_list_extended
@@ -2173,6 +2566,7 @@ stanza
    | s_router_eigrp
    | s_router_ospf
    | s_router_ospfv3
+   | s_router_vrrp
    | s_sccp
    | s_service
    | s_snmp_server
@@ -2186,19 +2580,21 @@ stanza
    | s_track
    | s_tunnel_group
    | s_vlan
+   | s_voice
    | s_voice_port
    | s_vpc
    | s_vpdn_group
    | s_vpn
+   | s_vrf_context
+   | s_vrf_definition
    | s_webvpn
    | s_wsma
+   | s_xconnect_logging
    | srlg_stanza
    | standard_access_list_stanza
    | standard_ipv6_access_list_stanza
    | switching_mode_stanza
    | unrecognized_block_stanza
-   | vrf_context_stanza
-   | vrf_definition_stanza
 ;
 
 statistics_null
@@ -2248,6 +2644,34 @@ track_null
    ) ~NEWLINE* NEWLINE
 ;
 
+vi_address_family
+:
+   NO? ADDRESS_FAMILY ~NEWLINE* NEWLINE
+   (
+      viaf_vrrp
+   )*
+;
+
+viaf_vrrp
+:
+   NO? VRRP ~NEWLINE* NEWLINE
+   (
+      viafv_null
+   )*
+;
+
+viafv_null
+:
+   NO?
+   (
+      ADDRESS
+      | PREEMPT
+      | PRIORITY
+      | TIMERS
+      | TRACK
+   ) ~NEWLINE* NEWLINE
+;
+
 vlan_null
 :
    NO?
@@ -2256,6 +2680,7 @@ vlan_null
       | BACKUPCRF
       | BRIDGE
       | MATCH
+      | MEDIA
       | MTU
       | MULTICAST
       | NAME
@@ -2275,28 +2700,17 @@ vlan_null
    ) ~NEWLINE* NEWLINE
 ;
 
-vrf_context_stanza
+voice_null
 :
-   VRF CONTEXT name = variable NEWLINE vrfc_stanza*
-;
-
-vrf_definition_stanza
-:
-   VRF DEFINITION? name = variable NEWLINE vrfd_stanza*
+   NO?
    (
-      EXIT_VRF NEWLINE
-   )?
-;
-
-vrfc_stanza
-:
-   ip_route_vrfc_stanza
-;
-
-vrfd_stanza
-:
-   address_family_vrfd_stanza
-   | null_vrfd_stanza
+      ALLOW_CONNECTIONS
+      | FAX
+      | H225
+      | H323
+      | RULE
+      | SHUTDOWN
+   ) ~NEWLINE* NEWLINE
 ;
 
 vp_null
@@ -2363,6 +2777,54 @@ vpn_null
    ) ~NEWLINE* NEWLINE
 ;
 
+vrfc_ip_route
+:
+   IP ROUTE ip_route_tail
+;
+
+vrfd_address_family
+:
+   ADDRESS_FAMILY
+   (
+      IPV4
+      | IPV6
+   )
+   (
+      MULTICAST
+      | UNICAST
+   )?
+   (
+      MAX_ROUTE DEC
+   )? NEWLINE
+   (
+      vrfd_af_null
+   )*
+   (
+      EXIT_ADDRESS_FAMILY NEWLINE
+   )?
+;
+
+vrfd_null
+:
+   NO?
+   (
+      RD
+      | ROUTE_TARGET
+      |
+      (
+         NO SHUTDOWN
+      )
+   ) ~NEWLINE* NEWLINE
+;
+
+vrrp_interface
+:
+   NO? INTERFACE interface_name NEWLINE
+   (
+      vi_address_family
+   )* NEWLINE?
+;
+
 webvpn_null
 :
    NO?
@@ -2386,9 +2848,4 @@ wsma_null
       PROFILE
       | TRANSPORT
    ) ~NEWLINE* NEWLINE
-;
-
-xconnect_stanza
-:
-   XCONNECT GROUP variable NEWLINE p2p_stanza*
 ;

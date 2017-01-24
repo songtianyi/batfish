@@ -1,5 +1,9 @@
 package org.batfish.datamodel;
 
+import com.fasterxml.jackson.annotation.JsonPropertyDescription;
+import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaDescription;
+
+@JsonSchemaDescription("A line in an IpAccessList")
 public final class IpAccessListLine extends HeaderSpace {
 
    private static final long serialVersionUID = 1L;
@@ -23,12 +27,20 @@ public final class IpAccessListLine extends HeaderSpace {
       return true;
    }
 
+   @JsonPropertyDescription("The action the underlying access-list will take when this line matches an IPV4 packet.")
    public LineAction getAction() {
       return _action;
    }
 
+   @JsonSchemaDescription("The name of this line in the list")
    public String getName() {
       return _name;
+   }
+
+   @Override
+   public int hashCode() {
+      // TODO: implement better hashcode
+      return 0;
    }
 
    public void setAction(LineAction action) {

@@ -62,7 +62,6 @@ public class Encoder {
         private boolean _keepLocalPref;
         private boolean _keepAdminDist;
         private boolean _keepMed;
-        private boolean _keepDataForwarding;
 
         private Optimizations() {
             _hasEnvironment = false;
@@ -74,7 +73,6 @@ public class Encoder {
             _keepLocalPref = true;
             _keepAdminDist = true;
             _keepMed = true;
-            _keepDataForwarding = true;
         }
 
         private boolean hasRelevantOriginatedRoute(Configuration conf, RoutingProtocol proto) {
@@ -93,7 +91,7 @@ public class Encoder {
             if (Optimizations.ENABLE_SLICING_OPTIMIZATION) {
                 return hasRelevantOriginatedRoute(conf, RoutingProtocol.STATIC);
             } else {
-                return conf.getStaticRoutes().size() > 0;
+                return conf.getDefaultVrf().getStaticRoutes().size() > 0;
             }
         }
 
@@ -111,10 +109,10 @@ public class Encoder {
             });
             configs.forEach((router, conf) -> {
                 List<RoutingProtocol> protos = _protocols.get(router);
-                if (conf.getOspfProcess() != null) {
+                if (conf.getDefaultVrf().getOspfProcess() != null) {
                     protos.add(RoutingProtocol.OSPF);
                 }
-                if (conf.getBgpProcess() != null) {
+                if (conf.getDefaultVrf().getBgpProcess() != null) {
                     protos.add(RoutingProtocol.BGP);
                 }
                 if (needToModelConnected(conf)) {
@@ -147,11 +145,11 @@ public class Encoder {
             val[0] = false;
             _graph.getConfigurations().forEach((router, conf) -> {
                 conf.getRoutingPolicies().forEach((name,pol) -> {
-                    visit(pol.getStatements(), stmt -> {}, expr -> {
-                        if (expr instanceof SetLocalPreference) {
+                    visit(pol.getStatements(), stmt -> {
+                        if (stmt instanceof SetLocalPreference) {
                             val[0] = true;
                         }
-                    });
+                    }, expr -> {});
                 });
             });
             return val[0];
@@ -171,24 +169,6 @@ public class Encoder {
                             val[0] = true;
                         }
                     }, expr -> {});
-                });
-            });
-            return val[0];
-        }
-
-        private boolean computeKeepDataPlane() {
-            if (!Optimizations.ENABLE_SLICING_OPTIMIZATION) {
-                return true;
-            }
-            Boolean[] val = new Boolean[1];
-            val[0] = false;
-            _graph.getConfigurations().forEach((router, conf) -> {
-                conf.getRoutingPolicies().forEach((name,pol) -> {
-                    visit(pol.getStatements(), stmt -> {}, expr -> {
-                        if (expr instanceof MatchIpAccessList) {
-                            val[0] = true;
-                        }
-                    });
                 });
             });
             return val[0];
@@ -274,7 +254,7 @@ public class Encoder {
             }
 
             CallExpr ce = (CallExpr) be;
-            return ce.getCalledPolicyName().equals(BGP_COMMON_FILTER_LIST_NAME);
+            return ce.getCalledPolicyName().contains(BGP_COMMON_FILTER_LIST_NAME);
         }
 
         // Merge export variables into a single copy when no peer-specific export
@@ -291,7 +271,7 @@ public class Encoder {
                         map.put(proto, Optimizations.ENABLE_EXPORT_MERGE_OPTIMIZATION);
                     } else {
                         boolean allDefault = true;
-                        for (Map.Entry<Prefix, BgpNeighbor> e : conf.getBgpProcess().getNeighbors().entrySet()) {
+                        for (Map.Entry<Prefix, BgpNeighbor> e : conf.getDefaultVrf().getBgpProcess().getNeighbors().entrySet()) {
                             BgpNeighbor n = e.getValue();
                             if (!isDefaultBgpExport(conf, n)) {
                                 allDefault = false;
@@ -355,7 +335,6 @@ public class Encoder {
             _keepLocalPref = computeKeepLocalPref();
             _keepAdminDist = computeKeepAdminDistance();
             _keepMed = computeKeepMed();
-            _keepDataForwarding = computeKeepDataPlane();
             initProtocols(_graph.getConfigurations());
             computeRouterIdNeeded();
             computeCanUseSingleBest();
@@ -395,21 +374,15 @@ public class Encoder {
             return _keepMed;
         }
 
-        boolean getKeepDataForwarding() {
-            return _keepDataForwarding;
-        }
     }
 
 
-
+    private static final boolean ENABLE_DEBUGGING = true;
     private static final int BITS = 0;
     private static final int DEFAULT_CISCO_VLAN_OSPF_COST = 1;
-
-    private static final boolean ENABLE_DEBUGGING = false;
-
-    private static final String BGP_NETWORK_FILTER_LIST_NAME = "~BGP_NETWORK_NETWORKS_FILTER~";
-    private static final String BGP_COMMON_FILTER_LIST_NAME = "~BGP_COMMON_EXPORT_POLICY~";
-    private static final String BGP_AGGREGATE_FILTER_LIST_NAME = "~BGP_AGGREGATE_NETWORKS_FILTER:~";
+    private static final String BGP_NETWORK_FILTER_LIST_NAME = "BGP_NETWORK_NETWORKS_FILTER";
+    private static final String BGP_COMMON_FILTER_LIST_NAME = "BGP_COMMON_EXPORT_POLICY";
+    private static final String BGP_AGGREGATE_FILTER_LIST_NAME = "BGP_AGGREGATE_NETWORKS_FILTER";
 
     private Graph _graph;
 
@@ -428,14 +401,32 @@ public class Encoder {
     private List<Expr> _allVariables;
     private List<EdgeVars> _allEdgeVars;
 
-    // construct on the fly
-    // private Map<String, BoolExpr> _equalVars;
-
     private Optimizations _optimizations;
+
     private Context _ctx;
     private Solver _solver;
     private List<Prefix> _destinations;
-    private ArithExpr _destinationVar;
+
+    private ArithExpr _dstIp;
+    private ArithExpr _srcIp;
+    private ArithExpr _dstPort;
+    private ArithExpr _srcPort;
+    private ArithExpr _icmpCode;
+    private ArithExpr _icmpType;
+    private BoolExpr _tcpAck;
+    private BoolExpr _tcpCwr;
+    private BoolExpr _tcpEce;
+    private BoolExpr _tcpFin;
+    private BoolExpr _tcpPsh;
+    private BoolExpr _tcpRst;
+    private BoolExpr _tcpSyn;
+    private BoolExpr _tcpUrg;
+    private ArithExpr _ipProtocol;
+
+    // Debugging information for tracking assertions for unsat core
+    private Map<String, BoolExpr> _trackingVars;
+    private int _trackingNum;
+
 
 
     public Encoder(IBatfish batfish, List<Prefix> destinations) {
@@ -451,22 +442,49 @@ public class Encoder {
     }
 
     private Encoder(List<Prefix> destinations, Graph graph, Context ctx, Solver solver, List<Expr> vars) {
-        _ctx = (ctx == null ? new Context() : ctx);
+        HashMap<String, String> cfg = new HashMap<>();
+
+        // Allow for unsat core when debugging
+        if (ENABLE_DEBUGGING) {
+            cfg.put("proof", "true");
+            cfg.put("auto-config", "false");
+        }
+
+        _ctx = (ctx == null ? new Context(cfg) : ctx);
 
         if (solver == null) {
-            Tactic t1 = _ctx.mkTactic("simplify");
-            Tactic t2 = _ctx.mkTactic("solve-eqs");
-            // Tactic t3 = _ctx.mkTactic("normalize-bounds");
-            // Tactic t4 = _ctx.mkTactic("lia2pb");
-            Tactic t5 = _ctx.mkTactic("smt");
-            Tactic t = _ctx.then(t1, t2, t5);
-            _solver = _ctx.mkSolver(t);
+            if (ENABLE_DEBUGGING) {
+                _solver = _ctx.mkSolver();
+            } else {
+                Tactic t1 = _ctx.mkTactic("simplify");
+                Tactic t2 = _ctx.mkTactic("solve-eqs");
+                // Tactic t3 = _ctx.mkTactic("normalize-bounds");
+                // Tactic t4 = _ctx.mkTactic("lia2pb");
+                Tactic t5 = _ctx.mkTactic("smt");
+                Tactic t = _ctx.then(t1, t2, t5);
+                _solver = _ctx.mkSolver(t);
+            }
         } else {
             _solver = solver;
         }
 
         _destinations = destinations;
-        _destinationVar = _ctx.mkIntConst("destination");
+
+        _dstIp = _ctx.mkIntConst("dst-ip");
+        _srcIp = _ctx.mkIntConst("src-ip");
+        _dstPort = _ctx.mkIntConst("dst-port");
+        _srcPort = _ctx.mkIntConst("src-port");
+        _icmpCode = _ctx.mkIntConst("icmp-code");
+        _icmpType = _ctx.mkIntConst("icmp-type");
+        _tcpAck = _ctx.mkBoolConst("tcp-ack");
+        _tcpCwr = _ctx.mkBoolConst("tcp-cwr");
+        _tcpEce = _ctx.mkBoolConst("tcp-ece");
+        _tcpFin = _ctx.mkBoolConst("tcp-fin");
+        _tcpPsh = _ctx.mkBoolConst("tcp-psh");
+        _tcpRst = _ctx.mkBoolConst("tcp-rst");
+        _tcpSyn = _ctx.mkBoolConst("tcp-syn");
+        _tcpUrg = _ctx.mkBoolConst("tcp-urg");
+        _ipProtocol = _ctx.mkIntConst("ip-protocol");
 
         _graph = graph;
         _protocols = new HashMap<>();
@@ -489,10 +507,28 @@ public class Encoder {
 
         if (vars == null) {
             _allVariables = new ArrayList<>();
-            _allVariables.add(_destinationVar);
+            _allVariables.add(_dstIp);
+            _allVariables.add(_srcIp);
+            _allVariables.add(_dstPort);
+            _allVariables.add(_srcPort);
+            _allVariables.add(_icmpCode);
+            _allVariables.add(_icmpType);
+
+            _allVariables.add(_tcpAck);
+            _allVariables.add(_tcpCwr);
+            _allVariables.add(_tcpEce);
+            _allVariables.add(_tcpFin);
+            _allVariables.add(_tcpPsh);
+            _allVariables.add(_tcpRst);
+            _allVariables.add(_tcpSyn);
+            _allVariables.add(_tcpUrg);
+            _allVariables.add(_ipProtocol);
         } else {
             _allVariables = vars;
         }
+
+        _trackingVars = new HashMap<>();
+        _trackingNum = 0;
 
     }
 
@@ -529,11 +565,7 @@ public class Encoder {
     }
 
     public Map<String, Map<GraphEdge, BoolExpr>> getDataForwarding() {
-        if (_optimizations.getKeepDataForwarding()) {
-            return _dataForwarding;
-        } else {
-            return _controlForwarding;
-        }
+        return _dataForwarding;
     }
 
     public Map<LogicalGraphEdge, LogicalGraphEdge> getOtherEnd() {
@@ -572,13 +604,43 @@ public class Encoder {
         return _destinations;
     }
 
-    public ArithExpr getDestinationVar() {
-        return _destinationVar;
+    public ArithExpr getDstIp() {
+        return _dstIp;
+    }
+
+    public ArithExpr getSrcIp() {
+        return _srcIp;
+    }
+
+    public ArithExpr getDstPort() {
+        return _dstPort;
+    }
+
+    public ArithExpr getSrcPort() {
+        return _srcPort;
+    }
+
+    public ArithExpr getIcmpCode() {
+        return _icmpCode;
+    }
+
+    public ArithExpr getIcmpType() {
+        return _icmpType;
+    }
+
+
+    public Map<String, BoolExpr> getTrackingVars() {
+        return _trackingVars;
     }
 
     private void add(BoolExpr e) {
         BoolExpr be = (BoolExpr) e; //.simplify();
-        _solver.add(be);
+        String name = "Pred" + _trackingNum;
+        _trackingNum = _trackingNum + 1;
+        _trackingVars.put(name, be);
+        // System.out.println("Tracking var: " + name);
+        _solver.assertAndTrack(be, _ctx.mkBoolConst(name));
+        // _solver.add(be);
     }
 
     public boolean overlaps(Prefix p1, Prefix p2) {
@@ -694,7 +756,7 @@ public class Encoder {
             return null;
         }
         if (proto == RoutingProtocol.OSPF) {
-            String exp = conf.getOspfProcess().getExportPolicy();
+            String exp = conf.getDefaultVrf().getOspfProcess().getExportPolicy();
             return conf.getRoutingPolicies().get(exp);
         }
         if (proto == RoutingProtocol.BGP) {
@@ -711,11 +773,17 @@ public class Encoder {
 
     private RoutingPolicy findCommonRoutingPolicy(Configuration conf, RoutingProtocol proto) {
         if (proto == RoutingProtocol.OSPF) {
-            String exp = conf.getOspfProcess().getExportPolicy();
+            String exp = conf.getDefaultVrf().getOspfProcess().getExportPolicy();
             return conf.getRoutingPolicies().get(exp);
         }
         if (proto == RoutingProtocol.BGP) {
-            return conf.getRoutingPolicies().get(BGP_COMMON_FILTER_LIST_NAME);
+            for (Map.Entry<String, RoutingPolicy> entry : conf.getRoutingPolicies().entrySet()) {
+                String name = entry.getKey();
+                if (name.contains(BGP_COMMON_FILTER_LIST_NAME)) {
+                    return entry.getValue();
+                }
+            }
+            return null;
         }
         if (proto == RoutingProtocol.STATIC) {
             return null;
@@ -750,7 +818,7 @@ public class Encoder {
                         ifaceName = "redistribute-" + lre.getFrom().protocolName();
                     }
 
-                    String chName = "choice_" + router + "_" + proto.protocolName() + "_" + ifaceName;
+                    String chName = "choice_" + e.getEdgeVars().getName();
                     BoolExpr choiceVar = _ctx.mkBoolConst(chName);
                     _allVariables.add(choiceVar);
                     edgeMap.put(e, choiceVar);
@@ -782,18 +850,14 @@ public class Encoder {
                 _allVariables.add(cForward);
                 cForwarding.put(edge, cForward);
 
-                if (_optimizations.getKeepDataForwarding()) {
-                    String dName = "data-forwarding_" + router + "_" + iface;
-                    BoolExpr dForward = _ctx.mkBoolConst(dName);
-                    _allVariables.add(dForward);
-                    dForwarding.put(edge, dForward);
-                }
+                String dName = "data-forwarding_" + router + "_" + iface;
+                BoolExpr dForward = _ctx.mkBoolConst(dName);
+                _allVariables.add(dForward);
+                dForwarding.put(edge, dForward);
+
             }
             _controlForwarding.put(router, cForwarding);
-
-            if (_optimizations.getKeepDataForwarding()) {
-                _dataForwarding.put(router, dForwarding);
-            }
+            _dataForwarding.put(router, dForwarding);
         });
     }
 
@@ -944,6 +1008,7 @@ public class Encoder {
                                 m = importInverseMap.get(edge.getPeer()).get(proto);
                             }
 
+
                             if (m != null) {
                                 GraphEdge otherEdge = _graph.getOtherEnd().get(edge);
                                 LogicalGraphEdge other = m.get(otherEdge).get(i / 2);
@@ -1000,8 +1065,8 @@ public class Encoder {
         List<BgpNeighbor> neighbors = new ArrayList<>();
 
         _graph.getConfigurations().forEach((router,conf) -> {
-            if (conf.getBgpProcess() != null) {
-                conf.getBgpProcess().getNeighbors().forEach((pfx, neighbor) -> {
+            if (conf.getDefaultVrf().getBgpProcess() != null) {
+                conf.getDefaultVrf().getBgpProcess().getNeighbors().forEach((pfx, neighbor) -> {
                     ips.add(neighbor.getAddress());
                     neighbors.add(neighbor);
                 });
@@ -1009,7 +1074,7 @@ public class Encoder {
         });
 
         _graph.getConfigurations().forEach((router,conf) -> {
-            if (conf.getBgpProcess() != null) {
+            if (conf.getDefaultVrf().getBgpProcess() != null) {
                 _graph.getEdgeMap().get(router).forEach(ge -> {
                     for (int i = 0; i < ips.size(); i++) {
                         Ip ip = ips.get(i);
@@ -1074,11 +1139,33 @@ public class Encoder {
 
     private void addLowerBoundConstraints() {
 
-        long upperBound = (long) Math.pow(2,32);
+        ArithExpr upperBound4 = _ctx.mkInt( (long) Math.pow(2,4) );
+        ArithExpr upperBound8 = _ctx.mkInt( (long) Math.pow(2,8) );
+        ArithExpr upperBound16 = _ctx.mkInt( (long) Math.pow(2,16) );
+        ArithExpr upperBound32 = _ctx.mkInt( (long) Math.pow(2,32) );
         ArithExpr zero = _ctx.mkInt(0);
 
-        add(_ctx.mkGe(_destinationVar, zero));
-        add(_ctx.mkLt(_destinationVar, _ctx.mkInt(upperBound)));
+        // Valid 32 bit integers
+        add(_ctx.mkGe(_dstIp, zero));
+        add(_ctx.mkGe(_srcIp, zero));
+        add(_ctx.mkLt(_dstIp, upperBound32));
+        add(_ctx.mkLt(_srcIp, upperBound32));
+
+        // Valid 16 bit integer
+        add(_ctx.mkGe(_dstPort,zero));
+        add(_ctx.mkGe(_srcPort,zero));
+        add(_ctx.mkLt(_dstPort,upperBound16));
+        add(_ctx.mkLt(_srcPort,upperBound16));
+
+        // Valid 8 bit integer
+        add(_ctx.mkGe(_icmpType, zero));
+        add(_ctx.mkGe(_ipProtocol,zero));
+        add(_ctx.mkLt(_icmpType, upperBound8));
+        add(_ctx.mkLt(_ipProtocol,upperBound8));
+
+        // Valid 4 bit integer
+        add(_ctx.mkGe(_icmpCode, zero));
+        add(_ctx.mkLt(_icmpCode, upperBound4));
 
         for (EdgeVars e : _allEdgeVars) {
             if (e.getAdminDist() != null) {
@@ -1132,29 +1219,6 @@ public class Encoder {
         return val[0];
     }
 
-    private List<Statement> relevantStatements(List<Statement> statements, RoutingProtocol to, RoutingProtocol from) {
-        List<Statement> acc = new ArrayList<>();
-        if (to == from) {
-            for (Statement s : statements) {
-                if (hasProtocol(s)) {
-                    acc.add(s);
-                }
-            }
-        } else {
-            for (Statement s : statements) {
-                if (hasProtocol(s)) {
-                    if (matchesProtocol(s, from)) {
-                        acc.add(s);
-                        break;
-                    }
-                } else {
-                    acc.add(s);
-                }
-            }
-        }
-        return acc;
-    }
-
     private BoolExpr firstBitsEqual(ArithExpr x, long y, int n) {
         assert(n >= 0 && n <= 32);
         if (n == 0) {
@@ -1178,7 +1242,7 @@ public class Encoder {
         // well formed prefix
         assert(p.getPrefixLength() < lower && lower <= upper);
 
-        BoolExpr lowerBitsMatch = firstBitsEqual(_destinationVar, pfx, len);
+        BoolExpr lowerBitsMatch = firstBitsEqual(_dstIp, pfx, len);
         if (lower == upper) {
             BoolExpr equalLen = _ctx.mkEq(vars.getPrefixLength(), _ctx.mkInt(lower));
             return _ctx.mkAnd( equalLen, lowerBitsMatch );
@@ -1240,7 +1304,7 @@ public class Encoder {
         }
     }
 
-    private BoolExpr computeTransferFunction(EdgeVars other, EdgeVars current, Configuration conf, RoutingProtocol to, RoutingProtocol from, Modifications mods, BooleanExpr expr, Integer addedCost) {
+    private BoolExpr computeTransferFunction(EdgeVars other, EdgeVars current, Configuration conf, RoutingProtocol to, RoutingProtocol from, Modifications mods, BooleanExpr expr, Integer addedCost, boolean inCall) {
 
         if (expr instanceof Conjunction) {
             Conjunction c = (Conjunction) expr;
@@ -1249,7 +1313,7 @@ public class Encoder {
             }
             BoolExpr v = _ctx.mkBool(true);
             for (BooleanExpr x : c.getConjuncts()) {
-                v = _ctx.mkAnd(v, computeTransferFunction(other, current, conf, to, from, mods, x, addedCost));
+                v = _ctx.mkAnd(v, computeTransferFunction(other, current, conf, to, from, mods, x, addedCost, inCall));
             }
             return v;
         }
@@ -1260,17 +1324,19 @@ public class Encoder {
             }
             BoolExpr v = _ctx.mkBool(false);
             for (BooleanExpr x : d.getDisjuncts()) {
-                v = _ctx.mkOr(v, computeTransferFunction(other, current, conf, to, from, mods, x, addedCost));
+                v = _ctx.mkOr(v, computeTransferFunction(other, current, conf, to, from, mods, x, addedCost, inCall));
             }
             return v;
         }
         if (expr instanceof  Not) {
             Not n = (Not) expr;
-            BoolExpr v = computeTransferFunction(other, current, conf, to, from, mods, n.getExpr(), addedCost);
+            BoolExpr v = computeTransferFunction(other, current, conf, to, from, mods, n.getExpr(), addedCost, inCall);
             return _ctx.mkNot(v);
         }
         if (expr instanceof MatchProtocol) {
-            return _ctx.mkBool(true);
+            // TODO: is this right?
+            MatchProtocol mp = (MatchProtocol) expr;
+            return _ctx.mkBool(mp.getProtocol() == from);
         }
         if (expr instanceof MatchPrefixSet) {
             MatchPrefixSet m = (MatchPrefixSet) expr;
@@ -1284,7 +1350,12 @@ public class Encoder {
             // TODO: we really need some sort of SSA form
             // TODO: modifications will not be kept because it depends on the branch choosen
             // Do not copy modifications to keep
-            return computeTransferFunction(other, current, conf, to, from, mods, pol.getStatements(), addedCost);
+            return computeTransferFunction(other, current, conf, to, from, mods, pol.getStatements(), addedCost, true);
+        }
+        if (expr instanceof WithEnvironmentExpr) {
+            // TODO: this is not correct
+            WithEnvironmentExpr we = (WithEnvironmentExpr) expr;
+            return computeTransferFunction(other, current, conf, to, from, mods, we.getExpr(), addedCost, inCall);
         }
 
         throw new BatfishException("TODO: compute expr transfer function: " + expr);
@@ -1373,7 +1444,7 @@ public class Encoder {
     private BoolExpr computeTransferFunction(
             EdgeVars other, EdgeVars current, Configuration conf,
             RoutingProtocol to, RoutingProtocol from, Modifications mods,
-            List<Statement> statements, Integer addedCost) {
+            List<Statement> statements, Integer addedCost, boolean inCall) {
 
         ListIterator<Statement> it = statements.listIterator();
         while (it.hasNext()) {
@@ -1388,10 +1459,18 @@ public class Encoder {
                     return _ctx.mkNot(current.getPermitted());
                 }
                 else if (ss.getType() == ReturnTrue) {
-                    return _ctx.mkBool(true);
+                    if (inCall) {
+                        return _ctx.mkBool(true);
+                    } else {
+                        return applyModifications(conf, to, from, mods, current, other, addedCost);
+                    }
                 }
                 else if (ss.getType() == ReturnFalse) {
-                    return _ctx.mkBool(false);
+                    if (inCall) {
+                        return _ctx.mkBool(false);
+                    } else {
+                        return _ctx.mkNot(current.getPermitted());
+                    }
                 }
                 else if (ss.getType() == SetDefaultActionAccept) {
                     mods.addModification(s);
@@ -1399,6 +1478,11 @@ public class Encoder {
                 else if (ss.getType() == SetDefaultActionReject) {
                     mods.addModification(s);
                 }
+                // TODO: need to set local default action in an environment
+                else if (ss.getType() == ReturnLocalDefaultAction) {
+                    return _ctx.mkBool(false);
+                }
+
                 else {
                     throw new BatfishException("TODO: computeTransferFunction: " + ss.getType());
                 }
@@ -1421,9 +1505,9 @@ public class Encoder {
 
                 Modifications modsTrue = new Modifications(mods);
                 Modifications modsFalse = new Modifications(mods);
-                BoolExpr guard = computeTransferFunction(other, current, conf, to, from, mods, i.getGuard(), addedCost);
-                BoolExpr trueBranch = computeTransferFunction(other, current, conf, to, from, modsTrue, remainingx, addedCost);
-                BoolExpr falseBranch = computeTransferFunction(other, current, conf, to, from, modsFalse, remainingy, addedCost);
+                BoolExpr guard = computeTransferFunction(other, current, conf, to, from, mods, i.getGuard(), addedCost, inCall);
+                BoolExpr trueBranch = computeTransferFunction(other, current, conf, to, from, modsTrue, remainingx, addedCost, inCall);
+                BoolExpr falseBranch = computeTransferFunction(other, current, conf, to, from, modsFalse, remainingy, addedCost, inCall);
                 return If(guard, trueBranch, falseBranch);
 
             } else if (s instanceof SetOspfMetricType || s instanceof SetMetric) {
@@ -1443,31 +1527,22 @@ public class Encoder {
 
 
     private BoolExpr computeTransferFunction(EdgeVars other, EdgeVars current, Configuration conf, RoutingProtocol to, RoutingProtocol from, List<Statement> statements, Integer addedCost) {
-        return computeTransferFunction(other, current, conf, to, from, new Modifications(), statements, addedCost);
+        return computeTransferFunction(other, current, conf, to, from, new Modifications(), statements, addedCost, false);
     }
 
 
     private BoolExpr transferFunction(EdgeVars other, EdgeVars current, RoutingPolicy pol, Configuration conf, RoutingProtocol to, RoutingProtocol from) {
-        List<Statement> relevant = relevantStatements(pol.getStatements(), to, from);
-
         if (ENABLE_DEBUGGING) {
-            System.out.println("---- RELEVANT STATEMENTS ----");
-            System.out.println("to " + to.protocolName() + ", from " + from.protocolName());
-            for (Statement s : relevant) {
-                System.out.println(s);
-            }
-            System.out.println("-----------------------------");
+            System.out.println("------ REDISTRIBUTION ------");
+            System.out.println("From: " + to.protocolName());
+            System.out.println("To: " + from.protocolName());
         }
-
-        BoolExpr transfunc = computeTransferFunction(other, current, conf, to, from, relevant, null);
-
-        if (ENABLE_DEBUGGING) {
+        /* if (ENABLE_DEBUGGING) {
             System.out.println("Transfer function for " + conf.getName());
             System.out.println(transfunc.simplify());
             System.out.println("-----------------------------");
-        }
-
-        return transfunc;
+        } */
+        return computeTransferFunction(other, current, conf, to, from, pol.getStatements(), null);
     }
 
 
@@ -1494,7 +1569,7 @@ public class Encoder {
      * to make things easier for now.
      */
     private void initOspfInterfaceCosts(Configuration conf) {
-        if (conf.getOspfProcess() != null) {
+        if (conf.getDefaultVrf().getOspfProcess() != null) {
             conf.getInterfaces().forEach((interfaceName, i) -> {
                 if (i.getActive()) {
                     Integer ospfCost = i.getOspfCost();
@@ -1506,7 +1581,7 @@ public class Encoder {
                         else {
                             if (i.getBandwidth() != null) {
                                 ospfCost = Math.max(
-                                        (int) (conf.getOspfProcess().getReferenceBandwidth()
+                                        (int) (conf.getDefaultVrf().getOspfProcess().getReferenceBandwidth()
                                                 / i.getBandwidth()),
                                         1);
                             }
@@ -1525,9 +1600,9 @@ public class Encoder {
     }
 
 
-    private BoolExpr isRelevantFor(Prefix p) {
+    private BoolExpr isRelevantFor(Prefix p, ArithExpr ae) {
         long pfx = p.getNetworkAddress().asLong();
-        return firstBitsEqual(_destinationVar, pfx,  p.getPrefixLength());
+        return firstBitsEqual(ae, pfx,  p.getPrefixLength());
     }
 
 
@@ -1535,7 +1610,7 @@ public class Encoder {
         List<Prefix> acc = new ArrayList<>();
 
         if (proto == RoutingProtocol.OSPF) {
-            conf.getOspfProcess().getAreas().forEach((areaID, area) -> {
+            conf.getDefaultVrf().getOspfProcess().getAreas().forEach((areaID, area) -> {
                 if (areaID == 0) {
                     for (Interface iface : area.getInterfaces()) {
                         if (iface.getActive() && iface.getOspfEnabled()) {
@@ -1552,7 +1627,7 @@ public class Encoder {
         if (proto == RoutingProtocol.BGP) {
             conf.getRouteFilterLists().forEach((name, list) -> {
                 for (RouteFilterLine line : list.getLines()) {
-                    if (name.equals(BGP_NETWORK_FILTER_LIST_NAME)) {
+                    if (name.contains(BGP_NETWORK_FILTER_LIST_NAME)) {
                         acc.add(line.getPrefix());
                     }
                 }
@@ -1571,7 +1646,7 @@ public class Encoder {
         }
 
         if (proto == RoutingProtocol.STATIC) {
-            for (StaticRoute sr : conf.getStaticRoutes()) {
+            for (StaticRoute sr : conf.getDefaultVrf().getStaticRoutes()) {
                 if (sr.getNetwork() != null) {
                     acc.add(sr.getNetwork());
                 }
@@ -1682,10 +1757,10 @@ public class Encoder {
 
     private long routerId(Configuration conf, RoutingProtocol proto) {
         if (proto == RoutingProtocol.BGP) {
-            return conf.getBgpProcess().getRouterId().asLong();
+            return conf.getDefaultVrf().getBgpProcess().getRouterId().asLong();
         }
         if (proto == RoutingProtocol.OSPF) {
-            return conf.getOspfProcess().getRouterId().asLong();
+            return conf.getDefaultVrf().getOspfProcess().getRouterId().asLong();
         } else {
             return 0;
         }
@@ -1912,8 +1987,8 @@ public class Encoder {
         });
     }
 
-    private List<LogicalEdge> collectAllImportLogicalEdges(String router, RoutingProtocol proto) {
-        List<LogicalEdge> eList = new ArrayList<>();
+    private Set<LogicalEdge> collectAllImportLogicalEdges(String router, RoutingProtocol proto) {
+        Set<LogicalEdge> eList = new HashSet<>();
         for (ArrayList<LogicalGraphEdge> es : _edgeVariableMap.get(router).get(proto)) {
             for (LogicalGraphEdge lge : es) {
                 if (lge.getEdgeType() == EdgeType.IMPORT) {
@@ -2000,6 +2075,18 @@ public class Encoder {
                 for (LogicalEdge e : collectAllImportLogicalEdges(router, proto)) {
                     EdgeVars vars = correctVars(e);
                     BoolExpr choice = _choiceVariables.get(router).get(proto).get(e);
+
+                    /* System.out.println("Router: " + router);
+                    System.out.println("Proto:  " + proto.protocolName());
+                    System.out.println("Edge:   " + e.getEdgeVars().getName() + "," + e.getEdgeType() + "," + e.getPrefixLen() + "," + e.getClass());
+                    if (e instanceof LogicalGraphEdge) {
+                        LogicalGraphEdge lge = (LogicalGraphEdge) e;
+                        System.out.println("Graph Edge: " + lge.getEdge());
+                    }
+                    System.out.println("Choice: " + choice.toString());
+                    System.out.println("Vars:   " + vars.getName());
+                    System.out.println(""); */
+
                     if (isEdgeUsed(conf, proto, e) && e.getEdgeType() == EdgeType.IMPORT) {
                         BoolExpr isBest = equal(conf, proto, bestVars, vars, e);
 
@@ -2109,25 +2196,255 @@ public class Encoder {
 
     }
 
+
+    private BoolExpr computeWildcardMatch(Set<IpWildcard> wcs, ArithExpr field) {
+        BoolExpr acc = _ctx.mkBool(false);
+        for (IpWildcard wc : wcs) {
+            if (!wc.isPrefix()) {
+                throw new BatfishException("ERROR: computeDstWildcards, non sequential mask detected");
+            }
+            acc = _ctx.mkOr(acc, isRelevantFor(wc.toPrefix(), field));
+        }
+        return (BoolExpr) acc.simplify();
+    }
+
+    private BoolExpr computeValidRange(Set<SubRange> ranges, ArithExpr field) {
+        BoolExpr acc = _ctx.mkBool(false);
+        for (SubRange range : ranges) {
+            int start = range.getStart();
+            int end = range.getEnd();
+            if (start == end) {
+                BoolExpr val = _ctx.mkEq(field, _ctx.mkInt(start));
+                acc = _ctx.mkOr(acc, val);
+            } else {
+                BoolExpr val1 = _ctx.mkGe(field, _ctx.mkInt(start));
+                BoolExpr val2 = _ctx.mkLe(field, _ctx.mkInt(end));
+                acc = _ctx.mkOr(acc, _ctx.mkAnd(val1,val2));
+            }
+        }
+        return (BoolExpr) acc.simplify();
+    }
+
+    private BoolExpr computeTcpFlags(TcpFlags flags) {
+        BoolExpr acc = _ctx.mkBool(true);
+        if (flags.getUseAck()) {
+            acc = _ctx.mkAnd(acc, _ctx.mkEq(_tcpAck, _ctx.mkBool(flags.getAck()))  );
+        }
+        if (flags.getUseCwr()) {
+            acc = _ctx.mkAnd(acc, _ctx.mkEq(_tcpCwr, _ctx.mkBool(flags.getCwr()))  );
+        }
+        if (flags.getUseEce()) {
+            acc = _ctx.mkAnd(acc, _ctx.mkEq(_tcpEce, _ctx.mkBool(flags.getEce()))  );
+        }
+        if (flags.getUseFin()) {
+            acc = _ctx.mkAnd(acc, _ctx.mkEq(_tcpFin, _ctx.mkBool(flags.getFin()))  );
+        }
+        if (flags.getUsePsh()) {
+            acc = _ctx.mkAnd(acc, _ctx.mkEq(_tcpPsh, _ctx.mkBool(flags.getPsh()))  );
+        }
+        if (flags.getUseRst()) {
+            acc = _ctx.mkAnd(acc, _ctx.mkEq(_tcpRst, _ctx.mkBool(flags.getRst()))  );
+        }
+        if (flags.getUseSyn()) {
+            acc = _ctx.mkAnd(acc, _ctx.mkEq(_tcpSyn, _ctx.mkBool(flags.getSyn()))  );
+        }
+        if (flags.getUseUrg()) {
+            acc = _ctx.mkAnd(acc, _ctx.mkEq(_tcpUrg, _ctx.mkBool(flags.getUrg()))  );
+        }
+        return (BoolExpr) acc.simplify();
+    }
+
+    private BoolExpr computeTcpFlags(List<TcpFlags> flags) {
+        BoolExpr acc = _ctx.mkBool(false);
+        for (TcpFlags fs : flags) {
+            acc = _ctx.mkOr(acc, computeTcpFlags(fs));
+        }
+        return (BoolExpr) acc.simplify();
+    }
+
+
+    private BoolExpr computeIpProtocols(Set<IpProtocol> ipProtos) {
+        BoolExpr acc = _ctx.mkBool(false);
+        for (IpProtocol proto : ipProtos) {
+            ArithExpr protoNum = _ctx.mkInt(proto.number());
+            acc = _ctx.mkOr(acc, _ctx.mkEq(protoNum, _ipProtocol));
+        }
+        return (BoolExpr) acc.simplify();
+    }
+
+
+    private BoolExpr computeACL(IpAccessList acl) {
+        // Check if there is an ACL first
+        if (acl == null) {
+            return _ctx.mkBool(true);
+        }
+
+        BoolExpr acc = _ctx.mkBool(false);
+
+        List<IpAccessListLine> lines = new ArrayList<>(acl.getLines());
+        Collections.reverse(lines);
+
+        for (IpAccessListLine l : lines) {
+            BoolExpr local = null;
+
+            // System.out.println("NAME: " + l.getName());
+
+            if (l.getDstIps() != null) {
+                BoolExpr val = computeWildcardMatch(l.getDstIps(), _dstIp);
+                // System.out.println("  DST IP: " + val);
+                local = (local == null ? val : _ctx.mkAnd(local, val));
+            }
+
+            if (l.getSrcIps() != null) {
+                BoolExpr val = computeWildcardMatch(l.getSrcIps(), _srcIp);
+                // System.out.println("  SRC IP: " + val);
+                local = (local == null ? val : _ctx.mkAnd(local, val));
+            }
+
+            if (l.getDscps() != null && !l.getDscps().isEmpty()) {
+                throw new BatfishException("detected dscps");
+            }
+
+            if (l.getDstPorts() != null && !l.getDstPorts().isEmpty()) {
+                BoolExpr val = computeValidRange(l.getDstPorts(), _dstPort);
+                // System.out.println("  DST PORTS: " + val);
+                local = (local == null ? val : _ctx.mkAnd(local, val));
+            }
+
+            if (l.getSrcPorts() != null && !l.getSrcPorts().isEmpty()) {
+                BoolExpr val = computeValidRange(l.getSrcPorts(), _srcPort);
+                // System.out.println("  SRC PORTS: " + val);
+                local = (local == null ? val : _ctx.mkAnd(local, val));
+            }
+
+            if (l.getEcns() != null && !l.getEcns().isEmpty()) {
+                throw new BatfishException("detected ecns");
+            }
+
+            if (l.getTcpFlags() != null && !l.getTcpFlags().isEmpty()) {
+                BoolExpr val = computeTcpFlags(l.getTcpFlags());
+                // System.out.println("  TCP FLAGS: " + val);
+                local = (local == null ? val : _ctx.mkAnd(local, val));
+            }
+
+            if (l.getFragmentOffsets() != null && !l.getFragmentOffsets().isEmpty()) {
+                throw new BatfishException("detected fragment offsets");
+            }
+
+            if (l.getIcmpCodes() != null && !l.getIcmpCodes().isEmpty()) {
+                BoolExpr val = computeValidRange(l.getIcmpCodes(), _icmpCode);
+                // System.out.println("  ICMP CODE: " + val);
+                local = (local == null ? val : _ctx.mkAnd(local, val));
+            }
+
+            if (l.getIcmpTypes() != null && !l.getIcmpTypes().isEmpty()) {
+                BoolExpr val = computeValidRange(l.getIcmpTypes(), _icmpType);
+                // System.out.println("  ICMP TYPE: " + val);
+                local = (local == null ? val : _ctx.mkAnd(local, val));
+            }
+
+            if (l.getStates() != null && !l.getStates().isEmpty()) {
+                throw new BatfishException("detected states");
+            }
+
+            if (l.getIpProtocols() != null && !l.getIpProtocols().isEmpty()) {
+                BoolExpr val = computeIpProtocols(l.getIpProtocols());
+                local = (local == null ? val : _ctx.mkAnd(local, val));
+            }
+
+
+            if (l.getNotDscps() != null && !l.getNotDscps().isEmpty()) {
+                throw new BatfishException("detected NOT dscps");
+            }
+
+            if (l.getNotDstIps() != null && !l.getNotDstIps().isEmpty()) {
+                throw new BatfishException("detected NOT dst ip");
+            }
+
+            if (l.getNotSrcIps() != null && !l.getNotSrcIps().isEmpty()) {
+                throw new BatfishException("detected NOT src ip");
+            }
+
+            if (l.getNotDstPorts() != null && !l.getNotDstPorts().isEmpty()) {
+                throw new BatfishException("detected NOT dst port");
+            }
+
+            if (l.getNotSrcPorts() != null && !l.getNotSrcPorts().isEmpty()) {
+                throw new BatfishException("detected NOT src port");
+            }
+
+            if (l.getNotEcns() != null && !l.getNotEcns().isEmpty()) {
+                throw new BatfishException("detected NOT ecns");
+            }
+
+            if (l.getNotIcmpCodes() != null && !l.getNotIcmpCodes().isEmpty()) {
+                throw new BatfishException("detected NOT icmp codes");
+            }
+
+            if (l.getNotIcmpTypes() != null && !l.getNotIcmpTypes().isEmpty()) {
+                throw new BatfishException("detected NOT icmp types");
+            }
+
+            if (l.getNotFragmentOffsets() != null && !l.getNotFragmentOffsets().isEmpty()) {
+                throw new BatfishException("detected NOT fragment offset");
+            }
+
+            if (l.getNotIpProtocols() != null && !l.getNotIpProtocols().isEmpty()) {
+                throw new BatfishException("detected NOT ip protocols");
+            }
+
+            if (local != null) {
+                // System.out.println("  LOCAL: " + local.simplify());
+                BoolExpr ret;
+                if (l.getAction() == LineAction.ACCEPT) {
+                    ret = _ctx.mkBool(true);
+                } else {
+                    ret = _ctx.mkBool(false);
+                }
+
+                if (l.getNegate()) {
+                    local = _ctx.mkNot(local);
+                }
+
+                acc = If(local, ret, acc);
+            }
+        }
+
+        // System.out.println("ACL RESULT: " + acc.simplify());
+
+        return acc;
+    }
+
+
+    // TODO: too much rightward drift, refactor into lambda
     private void addDataForwardingConstraints() {
-        if (_optimizations.getKeepDataForwarding()) {
-            _graph.getConfigurations().forEach((router, conf) -> {
-                for (RoutingProtocol proto : _protocols.get(router)) {
-                    for (ArrayList<LogicalGraphEdge> eList : _edgeVariableMap.get(router).get(proto)) {
-                        for (LogicalGraphEdge e : eList) {
-                            Interface iface = e.getEdge().getStart();
-                            if (isInterfaceUsed(conf, proto, iface)) {
-                                if (e.getEdgeType() == EdgeType.IMPORT) {
-                                    BoolExpr cForward = _controlForwarding.get(router).get(e.getEdge());
-                                    BoolExpr dForward = _dataForwarding.get(router).get(e.getEdge());
-                                    add(_ctx.mkEq(cForward, dForward));
-                                }
+        _graph.getConfigurations().forEach((router, conf) -> {
+            for (RoutingProtocol proto : _protocols.get(router)) {
+                for (ArrayList<LogicalGraphEdge> eList : _edgeVariableMap.get(router).get(proto)) {
+                    for (LogicalGraphEdge e : eList) {
+                        Interface iface = e.getEdge().getStart();
+                        if (isInterfaceUsed(conf, proto, iface)) {
+                            if (e.getEdgeType() == EdgeType.IMPORT) {
+                                GraphEdge ge = e.getEdge();
+
+                                IpAccessList inbound = ge.getStart().getOutgoingFilter();
+
+                                // System.out.println("Router: " + router);
+                                // System.out.println("Interface: " + ge.getStart().getName());
+
+                                BoolExpr acl = computeACL(inbound);
+
+                                BoolExpr cForward = _controlForwarding.get(router).get(ge);
+                                BoolExpr dForward = _dataForwarding.get(router).get(ge);
+                                BoolExpr notBlocked = _ctx.mkAnd(cForward, acl);
+
+                                add(_ctx.mkEq(notBlocked, dForward));
                             }
                         }
                     }
                 }
-            });
-        }
+            }
+        });
     }
 
     private EdgeVars getBestVars(String router, RoutingProtocol proto) {
@@ -2141,7 +2458,7 @@ public class Encoder {
     public BoolExpr relevantOrigination(List<Prefix> prefixes) {
         BoolExpr acc = _ctx.mkBool(false);
         for (Prefix p : prefixes) {
-            acc = _ctx.mkOr(acc, isRelevantFor(p));
+            acc = _ctx.mkOr(acc, isRelevantFor(p, _dstIp));
         }
         return acc;
     }
@@ -2170,7 +2487,7 @@ public class Encoder {
 
             if (proto == RoutingProtocol.CONNECTED) {
                 Prefix p = iface.getPrefix();
-                BoolExpr relevant = _ctx.mkAnd(_ctx.mkBool(iface.getActive()), isRelevantFor(p));
+                BoolExpr relevant = _ctx.mkAnd(_ctx.mkBool(iface.getActive()), isRelevantFor(p, _dstIp));
                 BoolExpr values =
                         _ctx.mkAnd(
                                 vars.getPermitted(),
@@ -2189,7 +2506,7 @@ public class Encoder {
                 BoolExpr acc = _ctx.mkNot(vars.getPermitted());
                 for (StaticRoute sr : srs) {
                     Prefix p = sr.getNetwork();
-                    BoolExpr relevant = _ctx.mkAnd(_ctx.mkBool(iface.getActive()), isRelevantFor(p));
+                    BoolExpr relevant = _ctx.mkAnd(_ctx.mkBool(iface.getActive()), isRelevantFor(p, _dstIp));
                     BoolExpr values =
                             _ctx.mkAnd(
                                     vars.getPermitted(),
@@ -2229,9 +2546,12 @@ public class Encoder {
                         importFunction = _ctx.mkAnd(per, pfx, lp, ad, met, med, len);
                     }
 
-                    // System.out.println("ROUTER: " + conf.getName());
-                    // System.out.println("IFACE: " + e.getEdge().getStart().getName());
-                    // System.out.println("IMPORT FUNCTION: " + importFunction);
+                    /* if (router.equals("hk2-x3sb-xcg-2-1b")) {
+                        System.out.println("ROUTER: " + conf.getName());
+                        System.out.println("IFACE: " + e.getEdge().getStart().getName());
+                        System.out.println("PEER: " + e.getEdge().getPeer());
+                        System.out.println("IMPORT FUNCTION: " + importFunction);
+                    } */
 
                     add( If(usable, importFunction, val) );
                 } else {
@@ -2275,9 +2595,13 @@ public class Encoder {
                 RoutingPolicy pol = findExportRoutingPolicy(conf, proto, e);
                  if (pol != null) {
                      acc = computeTransferFunction(varsOther, vars, conf, proto, proto, pol.getStatements(), cost);
-                     // System.out.println("EXPORT TRANSFER FUNCTION: " + conf.getName());
-                     // System.out.println(acc);
-                     // System.out.println("");
+
+                     /* if (conf.getName().equals("hk2-x3sb-xcg-2-1a")) {
+                         System.out.println("ROUTER: " + conf.getName());
+                         System.out.println("IFACE: " + e.getEdge().getStart().getName());
+                         System.out.println("PEER: " + e.getEdge().getPeer());
+                         System.out.println("EXPORT FUNCTION: " + acc.simplify());
+                     } */
 
                 } else {
 
@@ -2295,8 +2619,9 @@ public class Encoder {
 
                 // TODO: super inefficient to repeat this for every interface?
                 // TODO: but each prefix sets the length accordingly
+
                 for (Prefix p : originations) {
-                    BoolExpr relevant = _ctx.mkAnd(_ctx.mkBool(iface.getActive()), isRelevantFor(p));
+                    BoolExpr relevant = _ctx.mkAnd(_ctx.mkBool(iface.getActive()), isRelevantFor(p, _dstIp));
                     int adminDistance = defaultAdminDistance(conf, proto);
                     int prefixLength = p.getPrefixLength();
                     BoolExpr values =
@@ -2310,7 +2635,13 @@ public class Encoder {
                                     safeEq(vars.getPrefixLength(), _ctx.mkInt(prefixLength)));
 
                     acc = If(relevant, values, acc);
+
                 }
+
+                /* if (router.contains("hk2-x3sb-xcg-2-1a")) {
+                    System.out.println("Origination:");
+                    System.out.println(acc);
+                } */
 
                 add( acc );
             }
@@ -2400,14 +2731,14 @@ public class Encoder {
             long upper = p.getEndAddress().asLong();
             BoolExpr constraint;
             if (lower == upper) {
-                constraint = _ctx.mkEq(_destinationVar, _ctx.mkInt(lower));
-                // add( _ctx.mkEq(_destinationVar, _ctx.mkInt(lower)) );
+                constraint = _ctx.mkEq(_dstIp, _ctx.mkInt(lower));
+                // add( _ctx.mkEq(_dstIp, _ctx.mkInt(lower)) );
             } else {
-                BoolExpr x = _ctx.mkGe(_destinationVar, _ctx.mkInt(lower));
-                BoolExpr y = _ctx.mkLe(_destinationVar, _ctx.mkInt(upper));
+                BoolExpr x = _ctx.mkGe(_dstIp, _ctx.mkInt(lower));
+                BoolExpr y = _ctx.mkLe(_dstIp, _ctx.mkInt(upper));
                 constraint = _ctx.mkAnd(x,y);
-                // add( _ctx.mkGe(_destinationVar, _ctx.mkInt(lower)) );
-                // add( _ctx.mkLe(_destinationVar, _ctx.mkInt(upper)) );
+                // add( _ctx.mkGe(_dstIp, _ctx.mkInt(lower)) );
+                // add( _ctx.mkLe(_dstIp, _ctx.mkInt(upper)) );
             }
             validDestRange = _ctx.mkOr(validDestRange, constraint);
         }
@@ -2425,13 +2756,13 @@ public class Encoder {
             BoolExpr impl = _ctx.mkImplies(rightLen,rightMask);
             add( impl );
         }
-        BitVecExpr b = _ctx.mkInt2BV(32, (com.microsoft.z3.IntExpr) _destinationVar);
+        BitVecExpr b = _ctx.mkInt2BV(32, (com.microsoft.z3.IntExpr) _dstIp);
         BoolExpr both = _ctx.mkEq( _ctx.mkBVAND(b, mask) , _ctx.mkBVAND(e.getPrefix(),mask));
 
         return both;
         /*
         ArithExpr i = _ctx.mkBV2Int(e.getPrefix(), false);
-        return _ctx.mkEq(_destinationVar, i); */
+        return _ctx.mkEq(_dstIp, i); */
     }
 
     private void addPrefixConstraints() {
@@ -2488,7 +2819,7 @@ public class Encoder {
 
     public void computeEncoding() {
         if (ENABLE_DEBUGGING) {
-            System.out.println(_graph.toString());
+            // System.out.println(_graph.toString());
         }
         initConfigurations();
         computeBgpNeighbors();

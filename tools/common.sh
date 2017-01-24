@@ -19,8 +19,8 @@ export BATFISH_DOCS_DATAMODEL="$BATFISH_DOCS_ROOT/datamodel.json"
 export BATFISH_WIKI_ROOT="$BATFISH_ROOT/../batfish.wiki"
 export BATFISH_WIKI_DATAMODEL="$BATFISH_WIKI_ROOT/Datamodel.md"
 export BATFISH_WIKI_QUESTIONS="$BATFISH_WIKI_ROOT/Questions.md"
-export BATFISH_DATAMODEL_PAGE_SCRIPT="$BATFISH_ROOT/projects/pybatfish/org/batfish/questions_page/datamodel_page.py"
-export BATFISH_QUESTIONS_PAGE_SCRIPT="$BATFISH_ROOT/projects/pybatfish/org/batfish/questions_page/questions_page.py"
+export BATFISH_DATAMODEL_PAGE_SCRIPT="${BATFISH_TOOLS_PATH}/datamodel_page.py"
+export BATFISH_QUESTIONS_PAGE_SCRIPT="${BATFISH_TOOLS_PATH}/questions_page.py"
 
 export COORDINATOR_PATH="$BATFISH_ROOT/projects/coordinator"
 export COORDINATOR="$COORDINATOR_PATH/coordinator"
@@ -33,8 +33,6 @@ export COMMON_JAR="$COMMON_PATH/out/batfish-common-protocol.jar"
 
 export QUESTION_PATH="$BATFISH_ROOT/projects/question"
 export BATFISH_QUESTION_PLUGIN_DIR="$BATFISH_ROOT/projects/question/out"
-
-export PYBATFISH_PATH="$BATFISH_ROOT/projects/pybatfish"
 
 batfish() {
    # if cygwin, shift and replace each parameter
@@ -555,6 +553,9 @@ batfish_replace_symlinks() {
 export -f batfish_replace_symlinks
 
 _batfish_replace_symlinks() {
+   if [[ "$CYGWIN" =~ .*winsymlinks:native.* ]]; then
+      return
+   fi
    cd $BATFISH_ROOT
    if [ -d ".git" ]; then
       echo "(Cygwin workaround) Updating git index to ignore changes to symlinks"
@@ -579,11 +580,6 @@ _batfish_replace_symlink() {
    cp -a "$ABSOLUTE_TARGET" "$SYMLINK" || return 1
 }
 export -f _batfish_replace_symlink
-
-batfish_scrubber() {
-   $BATFISH_ROOT/projects/pybatfish/bin/batfish_scrubber "$@"
-}
-export -f batfish_scrubber
 
 batfish_serialize_independent() {
    batfish_date
@@ -739,6 +735,16 @@ _pybatfish() {
    PYTHONPATH="${PYBATFISH_PATH}:${PYTHONPATH}" python2.7 "$@" || return 1
 }
 export -f _pybatfish
+
+ipybatfish() {
+   bash -c '_ipybatfish "$@"' _ipybatfish "$@" || return 1
+}
+export -f ipybatfish
+
+_ipybatfish() {
+   PYTHONPATH="${PYBATFISH_PATH}:${PYTHONPATH}" ipython2 "$@" || return 1
+}
+export -f _ipybatfish
 
 allinone() {
    # if cygwin, shift and replace each parameter

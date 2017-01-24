@@ -9,7 +9,7 @@ package org.batfish.grammar.cisco;
 }
 
 @members {
-private int lastTokenType = 0;
+private int lastTokenType = -1;
 private boolean enableIPV6_ADDRESS = true;
 private boolean enableIP_ADDRESS = true;
 private boolean enableDEC = true;
@@ -199,6 +199,11 @@ ACTION
    'action'
 ;
 
+ACTION_TYPE
+:
+   'action-type'
+;
+
 ACTIVATE
 :
    'activate'
@@ -247,6 +252,16 @@ ADDRESS_POOL
 ADDRESS_POOLS
 :
    'address-pools'
+;
+
+ADDRESS_RANGE
+:
+   'address-range'
+;
+
+ADDRESS_TABLE
+:
+   'address-table'
 ;
 
 ADDRGROUP
@@ -322,6 +337,11 @@ AES256_SHA1
 AESA
 :
    'aesa'
+;
+
+AF_GROUP
+:
+   'af-group'
 ;
 
 AF11
@@ -419,6 +439,11 @@ AIS_SHUT
    'ais-shut'
 ;
 
+ALARM
+:
+   'alarm'
+;
+
 ALARM_REPORT
 :
    'alarm-report'
@@ -437,6 +462,16 @@ ALERTS
 ALIAS
 :
    'alias'
+;
+
+ALL_ALARMS
+:
+   'all-alarms'
+;
+
+ALL_OF_ROUTER
+:
+   'all-of-router'
 ;
 
 ALL
@@ -512,6 +547,16 @@ ANTENNA
 ANY
 :
    'any'
+;
+
+ANY4
+:
+   'any4'
+;
+
+ANY6
+:
+   'any6'
 ;
 
 ANYCONNECT
@@ -851,6 +896,11 @@ BACKGROUND_ROUTES_ENABLE
    'background-routes-enable'
 ;
 
+BACKUP
+:
+   'backup'
+;
+
 BACKUPCRF
 :
    'backupcrf'
@@ -966,6 +1016,11 @@ BOOT_START_MARKER
    'boot-start-marker'
 ;
 
+BOOTFILE
+:
+   'bootfile'
+;
+
 BOOTP_RELAY
 :
    'bootp-relay'
@@ -984,6 +1039,16 @@ BOOTPC
 BOOTPS
 :
    'bootps'
+;
+
+BORDER
+:
+   'border'
+;
+
+BORDER_ROUTER
+:
+   'border-router'
 ;
 
 BOTH
@@ -1306,6 +1371,16 @@ CLIENT_GROUP
    'client-group'
 ;
 
+CLIENT_IDENTIFIER
+:
+   'client-identifier'
+;
+
+CLIENT_NAME
+:
+   'client-name'
+;
+
 CLIENT_TO_CLIENT
 :
    'client-to-client'
@@ -1409,6 +1484,11 @@ COMMUNITY_LIST
       enableDEC = false;
    }
 
+;
+
+COMMUNITY_MAP
+:
+   'community-map'
 ;
 
 COMMUNITY_SET
@@ -1912,6 +1992,11 @@ DELETE_DYNAMIC_LEARN
    'delete-dynamic-learn'
 ;
 
+DEMAND_CIRCUIT
+:
+   'demand-circuit'
+;
+
 DENY
 :
    'deny'
@@ -1962,6 +2047,11 @@ DESTINATION_SLOT
    'destination-slot'
 ;
 
+DESTINATION_UNREACHABLE
+:
+   'destination-unreachable'
+;
+
 DESTINATION_VRF
 :
    'destination-vrf'
@@ -1990,6 +2080,11 @@ DEVICE_SENSOR
 DISABLE_PEER_AS_CHECK
 :
    'disable-peer-as-check'
+;
+
+DISCRIMINATOR
+:
+   'discriminator'
 ;
 
 DISPUTE
@@ -2040,6 +2135,11 @@ DIAL_PEER
 DIALER
 :
    'dialer'
+;
+
+DIALER_GROUP
+:
+   'dialer-group'
 ;
 
 DIALER_LIST
@@ -2220,6 +2320,11 @@ DSCP
 DSCP_VALUE
 :
    'dscp-value'
+;
+
+DSL
+:
+   'dsl'
 ;
 
 DSP
@@ -2497,6 +2602,11 @@ ENVIRONMENT
    'environment'
 ;
 
+ENVIRONMENT_MONITOR
+:
+   'environment-monitor'
+;
+
 EOF_LITERAL
 :
    'EOF'
@@ -2682,6 +2792,11 @@ EXPECT
    'expect'
 ;
 
+EXPLICIT_NULL
+:
+   'explicit-null'
+;
+
 EXPORT
 :
    'export'
@@ -2839,6 +2954,11 @@ FAST_REROUTE
    'fast-reroute'
 ;
 
+FAX
+:
+   'fax'
+;
+
 FCOE
 :
    'fcoe'
@@ -2969,6 +3089,11 @@ FLUSH_AT_ACTIVATION
 FORCE
 :
    'force'
+;
+
+FOR
+:
+   'for'
 ;
 
 FORMAT
@@ -3231,6 +3356,11 @@ HARDWARE
    'hardware'
 ;
 
+HARDWARE_ADDRESS
+:
+   'hardware-address'
+;
+
 HARDWARE_COUNT
 :
    'hardware-count'
@@ -3329,6 +3459,11 @@ HOMEDIR
 HOP_LIMIT
 :
    'hop-limit'
+;
+
+HOPLIMIT
+:
+   'hoplimit'
 ;
 
 HOPS_OF_STATISTICS_KEPT
@@ -3439,6 +3574,11 @@ ICMP6
 ICMPV6
 :
    'icmpv6'
+;
+
+ID
+:
+   'id'
 ;
 
 ID_MISMATCH
@@ -3596,6 +3736,11 @@ INFORMATIONAL
    'informational'
 ;
 
+INFORMS
+:
+   'informs'
+;
+
 INGRESS
 :
    'ingress'
@@ -3606,6 +3751,11 @@ INHERIT
    'inherit'
 ;
 
+INHERITANCE_DISABLE
+:
+   'inheritance-disable'
+;
+
 INPUT
 :
    'input'
@@ -3614,6 +3764,11 @@ INPUT
 INSERVICE
 :
    'inservice'
+;
+
+INSIDE
+:
+   'inside'
 ;
 
 INSPECT
@@ -3634,6 +3789,11 @@ INSTANCE
 INTEGRITY
 :
    'integrity'
+;
+
+INTERAREA
+:
+   'interarea'
 ;
 
 INTERFACE
@@ -3657,6 +3817,11 @@ INTERNET
 INTERVAL
 :
    'interval'
+;
+
+INTERWORKING
+:
+   'interworking'
 ;
 
 INVALID_SPI_RECOVERY
@@ -3716,7 +3881,7 @@ IPSLA
 
 IPV4
 :
-   'ipv4'
+   [iI] [pP] [vV] '4'
 ;
 
 IPV4_L5
@@ -3726,13 +3891,7 @@ IPV4_L5
 
 IPV6
 :
-   (
-      'ipv6'
-   )
-   |
-   (
-      'IPV6'
-   )
+   [iI] [pP] [vV] '6'
 ;
 
 IPV6_ADDRESS_POOL
@@ -3830,6 +3989,11 @@ KEY_EXCHANGE
    'key-exchange'
 ;
 
+KEY_HASH
+:
+   'key-hash'
+;
+
 KEY_SOURCE
 :
    'key-source'
@@ -3875,6 +4039,11 @@ KSHELL
    'kshell'
 ;
 
+L2
+:
+   'l2'
+;
+
 L2_FILTER
 :
    'l2-filter'
@@ -3883,6 +4052,11 @@ L2_FILTER
 L2_SRC
 :
    'l2-src'
+;
+
+L2PROTOCOL
+:
+   'l2protocol'
 ;
 
 L2PROTOCOL_TUNNEL
@@ -4165,6 +4339,11 @@ LOCATION
    'location' -> pushMode ( M_COMMENT )
 ;
 
+LOCALE
+:
+   'locale'
+;
+
 LOG
 :
    'log'
@@ -4183,6 +4362,11 @@ LOG_ENABLE
 LOG_INPUT
 :
    'log-input'
+;
+
+LOG_INTERNAL_SYNC
+:
+   'log-internal-sync'
 ;
 
 LOG_NEIGHBOR_CHANGES
@@ -4540,6 +4724,11 @@ MESH_GROUP
    'mesh-group'
 ;
 
+MESSAGE_COUNTER
+:
+   'message-counter'
+;
+
 MESSAGE_DIGEST
 :
    'message-digest'
@@ -4625,6 +4814,16 @@ MINIMUM_LINKS
    'minimum-links'
 ;
 
+MINPOLL
+:
+   'minpoll'
+;
+
+MIRROR
+:
+   'mirror'
+;
+
 MLAG
 :
    'mlag'
@@ -4648,6 +4847,11 @@ MLD_REDUCTION
 MLD_REPORT
 :
    'mld-report'
+;
+
+MLDV2
+:
+   'mldv2'
 ;
 
 MLS
@@ -4703,6 +4907,11 @@ MONITOR_INTERFACE
 MONITOR_MAP
 :
    'monitor-map'
+;
+
+MONITOR_SESSION
+:
+   'monitor-session'
 ;
 
 MONITORING
@@ -4768,6 +4977,11 @@ MSIE_PROXY
 MSRPC
 :
    'msrpc'
+;
+
+MST
+:
+   'mst'
 ;
 
 MTA
@@ -4915,6 +5129,11 @@ NEGOTIATE
    'negotiate'
 ;
 
+NEGOTIATED
+:
+   'negotiated'
+;
+
 NEGOTIATION
 :
    'negotiation'
@@ -4928,6 +5147,11 @@ NEIGHBOR
 NEIGHBOR_DOWN
 :
    'neighbor-down'
+;
+
+NEIGHBOR_FILTER
+:
+   'neighbor-filter'
 ;
 
 NEIGHBOR_GROUP
@@ -5035,6 +5259,11 @@ NEXT_HOP_THIRD_PARTY
    'next-hop-third-party'
 ;
 
+NEXT_SERVER
+:
+   'next-server'
+;
+
 NEXTHOP
 :
    'nexthop'
@@ -5058,6 +5287,11 @@ NEXTHOP_ATTRIBUTE
 NHOP_ONLY
 :
    'nhop-only'
+;
+
+NHRP
+:
+   'nhrp'
 ;
 
 NLRI
@@ -5330,6 +5564,36 @@ OSPF
    'ospf'
 ;
 
+OSPF_EXTERNAL_TYPE_1
+:
+   'ospf-external-type-1'
+;
+
+OSPF_EXTERNAL_TYPE_2
+:
+   'ospf-external-type-2'
+;
+
+OSPF_INTER_AREA
+:
+   'ospf-inter-area'
+;
+
+OSPF_INTRA_AREA
+:
+   'ospf-intra-area'
+;
+
+OSPF_NSSA_TYPE_1
+:
+   'ospf-nssa-type-1'
+;
+
+OSPF_NSSA_TYPE_2
+:
+   'ospf-nssa-type-2'
+;
+
 OSPFV3
 :
    'ospfv3'
@@ -5358,6 +5622,16 @@ OUT_OF_BAND
 OUTPUT
 :
    'output'
+;
+
+OUTSIDE
+:
+   'outside'
+;
+
+OVERLOAD
+:
+   'overload'
 ;
 
 OVERLOAD_CONTROL
@@ -5740,6 +6014,11 @@ POLICY_MAP_OUTPUT
    'policy-map-output'
 ;
 
+POOL
+:
+   'pool'
+;
+
 POP2
 :
    'pop2'
@@ -5793,6 +6072,11 @@ PORT_PROFILE
 PORT_SECURITY
 :
    'port-security'
+;
+
+PORT_TYPE
+:
+   'port-type'
 ;
 
 PORT_UNREACHABLE
@@ -5995,6 +6279,11 @@ PROMPT
    'prompt'
 ;
 
+PROPAGATE
+:
+   'propagate'
+;
+
 PROPOSAL
 :
    'proposal'
@@ -6030,6 +6319,11 @@ PROXY_SERVER
    'proxy-server'
 ;
 
+PSEUDOWIRE
+:
+   'pseudowire'
+;
+
 PSEUDOWIRE_CLASS
 :
    'pseudowire-class'
@@ -6043,6 +6337,16 @@ PSH
 PTP
 :
    'ptp'
+;
+
+PUBKEY_CHAIN
+:
+   'pubkey-chain'
+;
+
+PVC
+:
+   'pvc'
 ;
 
 QOS
@@ -6070,6 +6374,11 @@ QOS_POLICY_OUTPUT
    'qos-policy-output'
 ;
 
+QUERY_INTERVAL
+:
+   'query-interval'
+;
+
 QUERY_ONLY
 :
    'query-only'
@@ -6093,6 +6402,11 @@ QUEUE_LENGTH
 QUEUE_LIMIT
 :
    'queue-limit'
+;
+
+QUEUE_MONITOR
+:
+   'queue-monitor'
 ;
 
 QUEUE_SET
@@ -6425,6 +6739,11 @@ RETRIES
    'retries'
 ;
 
+REVERSE_ACCESS
+:
+   'reverse-access'
+;
+
 REVERSE_PATH
 :
    'reverse-path'
@@ -6443,6 +6762,11 @@ REVISION
 REVOCATION_CHECK
 :
    'revocation-check'
+;
+
+REWRITE
+:
+   'rewrite'
 ;
 
 RFC1583COMPATIBILITY
@@ -6525,19 +6849,24 @@ ROUTE_POLICY
    'route-policy'
 ;
 
-ROUTE_SOURCE
-:
-   'route-source'
-;
-
 ROUTE_REFLECTOR_CLIENT
 :
    'route-reflector-client'
 ;
 
+ROUTE_SOURCE
+:
+   'route-source'
+;
+
 ROUTE_TARGET
 :
    'route-target'
+;
+
+ROUTE_TYPE
+:
+   'route-type'
 ;
 
 ROUTED
@@ -6765,6 +7094,11 @@ SDR
    'sdr'
 ;
 
+SDROWNER
+:
+   'SDROwner'
+;
+
 SECONDARY
 :
    'secondary'
@@ -6955,6 +7289,11 @@ SESSION_DISCONNECT_WARNING
    'session-disconnect-warning' -> pushMode ( M_COMMENT )
 ;
 
+SESSION_GROUP
+:
+   'session-group'
+;
+
 SESSION_ID
 :
    'session-id'
@@ -7090,6 +7429,11 @@ SINGLE_TOPOLOGY
    'single-topology'
 ;
 
+SIP_UA
+:
+   'sip-ua'
+;
+
 SITE_ID
 :
    'site-id'
@@ -7223,6 +7567,16 @@ SPAN
 SPANNING_TREE
 :
    'spanning-tree'
+;
+
+SPARSE_DENSE_MODE
+:
+   'sparse-dense-mode'
+;
+
+SPARSE_MODE
+:
+   'sparse-mode'
 ;
 
 SPD
@@ -7457,6 +7811,11 @@ SUBNET
    'subnet'
 ;
 
+SUBNET_MASK
+:
+   'subnet-mask'
+;
+
 SUBNETS
 :
    'subnets'
@@ -7635,6 +7994,11 @@ SYSTEM_MAX
 SYSTEM_PRIORITY
 :
    'system-priority'
+;
+
+SYSTEMOWNER
+:
+   'SystemOwner'
 ;
 
 TABLE_MAP
@@ -7950,6 +8314,11 @@ TRANSCEIVER_TYPE_CHECK
 TRANSLATE
 :
    'translate'
+;
+
+TRANSLATION
+:
+   'translation'
 ;
 
 TRANSLATION_PROFILE
@@ -8302,6 +8671,11 @@ V6
    'v6'
 ;
 
+VACANT_MESSAGE
+:
+   'vacant-message'
+;
+
 VACL
 :
    'vacl'
@@ -8385,6 +8759,11 @@ VIRTUAL_SERVICE
 VIRTUAL_TEMPLATE
 :
    'virtual-template'
+;
+
+VFI
+:
+   'vfi'
 ;
 
 VLAN
@@ -8564,6 +8943,11 @@ WARNINGS
    'warnings'
 ;
 
+WATCH_LIST
+:
+   'watch-list'
+;
+
 WAVELENGTH
 :
    'wavelength'
@@ -8733,6 +9117,11 @@ MAC_ADDRESS_LITERAL
 :
    F_HexDigit F_HexDigit F_HexDigit F_HexDigit '.' F_HexDigit F_HexDigit
    F_HexDigit F_HexDigit '.' F_HexDigit F_HexDigit F_HexDigit F_HexDigit
+;
+
+HEX
+:
+   '0x' F_HexDigit+
 ;
 
 VARIABLE
@@ -8931,8 +9320,8 @@ COMMENT_LINE
 :
    (
       F_Whitespace
-   )* '!'
-   {lastTokenType == NEWLINE}?
+   )* [!#]
+   {lastTokenType == NEWLINE || lastTokenType == -1}?
 
    F_NonNewline* F_Newline+ -> channel ( HIDDEN )
 ;
@@ -8996,11 +9385,6 @@ FORWARD_SLASH
    '/'
 ;
 
-HEX
-:
-   '0x' F_HexDigit+
-;
-
 IP_ADDRESS
 :
    F_DecByte '.'
@@ -9033,14 +9417,16 @@ IPV6_ADDRESS
       )
       |
       (
-         F_HexDigit+
-         {enableIPV6_ADDRESS}?
+         (
+            F_HexDigit+
+            {enableIPV6_ADDRESS}?
 
-         ':' ':'?
-      )+
+            ':' ':'?
+         )+ F_HexDigit*
+      )
    )
    (
-      F_HexDigit+
+      ':' F_DecByte '.' F_DecByte '.' F_DecByte '.' F_DecByte
    )?
 ;
 
@@ -9060,15 +9446,17 @@ IPV6_PREFIX
       )
       |
       (
-         F_HexDigit+
-         {enableIPV6_ADDRESS}?
+         (
+            F_HexDigit+
+            {enableIPV6_ADDRESS}?
 
-         ':' ':'?
-      )+
-      (
-         F_HexDigit+
-      )?
-   ) '/' F_DecByte
+            ':' ':'?
+         )+ F_HexDigit*
+      )
+   )
+   (
+      ':' F_DecByte '.' F_DecByte '.' F_DecByte '.' F_DecByte
+   )? '/' F_DecByte
 ;
 
 NEWLINE
@@ -9760,9 +10148,24 @@ M_Interface_DOLLAR
    '$' -> type ( DOLLAR ) , popMode
 ;
 
+M_Interface_EQ
+:
+   'eq' -> type ( EQ ) , popMode
+;
+
+M_Interface_GT
+:
+   'gt' -> type ( GT ) , popMode
+;
+
 M_Interface_IP
 :
    'ip' -> type ( IP ) , popMode
+;
+
+M_Interface_IPV4
+:
+   'IPv4' -> type ( IPV4 )
 ;
 
 M_Interface_POINT_TO_POINT
@@ -9778,6 +10181,11 @@ M_Interface_POLICY
 M_Interface_L2TRANSPORT
 :
    'l2transport' -> type ( L2TRANSPORT ) , popMode
+;
+
+M_Interface_LT
+:
+   'lt' -> type ( LT ) , popMode
 ;
 
 M_Interface_MODULE
@@ -10004,11 +10412,13 @@ M_NEIGHBOR_IPV6_ADDRESS
          )
          |
          (
-            F_HexDigit+ ':' ':'?
-         )+
+            (
+               F_HexDigit+ ':' ':'?
+            )+ F_HexDigit*
+         )
       )
       (
-         F_HexDigit+
+         ':' F_DecByte '.' F_DecByte '.' F_DecByte '.' F_DecByte
       )?
    ) -> type ( IPV6_ADDRESS ) , popMode
 ;
@@ -10017,19 +10427,23 @@ M_NEIGHBOR_IPV6_PREFIX
 :
    (
       (
-         '::'
+         (
+            '::'
+            (
+               (
+                  F_HexDigit+ ':'
+               )* F_HexDigit+
+            )?
+         )
+         |
          (
             (
-               F_HexDigit+ ':'
-            )* F_HexDigit+
-         )?
+               F_HexDigit+ ':' ':'?
+            )+ F_HexDigit*
+         )
       )
-      |
       (
-         F_HexDigit+ ':' ':'?
-      )+
-      (
-         F_HexDigit+
+         ':' F_DecByte '.' F_DecByte '.' F_DecByte '.' F_DecByte
       )? '/' F_DecByte
    ) -> type ( IPV6_PREFIX ) , popMode
 ;

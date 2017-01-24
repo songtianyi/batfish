@@ -91,7 +91,6 @@ null_block
             | ADJMGR
             | BOOTP_RELAY
             | DECAP_GROUP
-            | DHCP
             | DNS
             | ECMP_GROUP
             | FLOW_AGGREGATION
@@ -104,11 +103,6 @@ null_block
             | INSPECT
             | INTERNAL
             | NAME_SERVER
-            |
-            (
-               OSPF NAME_LOOKUP
-            )
-            | PIM
             | POLICY_LIST
             | RATE_LIMIT
             | RECEIVE
@@ -144,7 +138,6 @@ null_block
             ADJACENCY
             | ADJACENCY_STALE_TIMER
             | CONFLICT_POLICY
-            | DHCP
             | GLOBAL_MTU
             | ENABLE_ACL_CAM_SHARING
             | HARDWARE
@@ -163,16 +156,13 @@ null_block
       | LINECARD
       | LOAD_BALANCE
       | LOGIN
-      | MAC
       | MAC_LEARN
       | MACRO
       | MANAGEMENT_ACCESS
-      | MAP_CLASS
       | MAP_LIST
       | MENU
       | MLAG
       | MODULE
-      | MONITOR
       | MONITOR_INTERFACE
       |
       (
@@ -207,6 +197,7 @@ null_block
       | PLATFORM
       | POLICY_MAP_INPUT
       | POLICY_MAP_OUTPUT
+      | POOL
       | PORT_PROFILE
       | POWEROFF
       | POWER_MGR
@@ -219,10 +210,12 @@ null_block
       | REMOVED
       | RMON
       | ROUTE_ONLY
-      | ROUTER
+      |
       (
-         LOG
-         | VRRP
+         ROUTER
+         (
+            LOG
+         )
       )
       | RP
       | RX_COS_SLOT
@@ -305,11 +298,11 @@ null_inner
          | ADD_VLAN
          | ADDRESS
          | ADDRESS_POOLS
+         | ADDRESS_RANGE
          | ADMINISTRATIVE_WEIGHT
          | ADVERTISE
          | AESA
          | ALLOCATE
-         | ALLOW_CONNECTIONS
          | ALWAYS_ON_VPN
          | APPLICATION
          | ARCHIVE_LENGTH
@@ -355,7 +348,6 @@ null_inner
          | DISTRIBUTION
          | DNS_SERVER
          | DOMAIN_ID
-         | DOMAIN_NAME
          | DROP
          | DS0_GROUP
          | DUAL_ACTIVE
@@ -363,7 +355,6 @@ null_inner
          | EGRESS
          | ENABLED
          | ENCAPSULATION
-         | ERSPAN_ID
          | ESCAPE_CHARACTER
          | EXIT
          | EXPECT
@@ -382,11 +373,10 @@ null_inner
          | FT
          | GATEWAY
          | GID
+         | GROUP
          | GROUP_ALIAS
          | GROUP_LOCK
          | GROUP_POLICY
-         | H225
-         | H323
          | HA_POLICY
          |
          (
@@ -413,6 +403,7 @@ null_inner
             INTERFACE POLICY
          )
          | INTERVAL
+         | INTERWORKING
          |
          (
             (
@@ -509,7 +500,6 @@ null_inner
          | ROUTE
          | ROUTE_TARGET
          | RP_ADDRESS
-         | RULE
          | SA_FILTER
          | SATELLITE
          | SECRET
@@ -590,9 +580,13 @@ null_single
          ACCESS_LIST
          (
             (
-               DEC REMARK
+               DEC
+               | VARIABLE
             )
-            | VARIABLE
+            (
+               EXTENDED
+               | REMARK
+            )
          )
       )
       | ACCOUNTING_PORT
@@ -609,6 +603,7 @@ null_single
       | BOOT_END_MARKER
       | BOOT_START_MARKER
       | BRIDGE
+      | BRIDGE_DOMAIN
       | CALL
       | CARD
       | CCM_MANAGER
@@ -619,19 +614,25 @@ null_single
       | CONFIG_REGISTER
       | CONSOLE
       | CTS
-      | DEC
       | DEFAULT
       | DEVICE_SENSOR
       | DHCPD
       | DIAGNOSTIC
+      |
+      (
+         DIALER
+         (
+            WATCH_LIST
+         )
+      )
       | DIALER_LIST
       | DNS
       | DNS_GUARD
-      | DOMAIN_NAME
       | DOWNLINK
       | DSP
       | DSS
       | ENVIRONMENT
+      | ENVIRONMENT_MONITOR
       | ERRDISABLE
       | ESCAPE_CHARACTER
       | EXCEPTION
@@ -695,7 +696,13 @@ null_single
             | MSDP
             | MULTICAST
             | MULTICAST_ROUTING
-            | NAT
+            |
+            (
+               OSPF
+               (
+                  NAME_LOOKUP
+               )
+            )
             | RADIUS
             | RCMD
             | ROUTING //might want to use this eventually
@@ -735,6 +742,7 @@ null_single
          )
       )
       | ISDN
+      | L2PROTOCOL
       | LDAP_BASE_DN
       | LDAP_LOGIN
       | LDAP_LOGIN_DN
@@ -742,11 +750,22 @@ null_single
       | LDAP_SCOPE
       | LICENSE
       | LLDP
+      | LOAD_INTERVAL
+      | LOCALE
       | LOCATION
+      |
+      (
+         MAC
+         (
+            ADDRESS_TABLE
+         )
+      )
       | MAC_ADDRESS_TABLE
+      | MEMORY
       | MEMORY_SIZE
       | MGCP
       | MICROCODE
+      | MIRROR
       | MLS
       | MODEM
       | MON
@@ -798,6 +817,13 @@ null_single
             | SSH
          )
       )
+      |
+      (
+         OSPFV3
+         (
+            NAME_LOOKUP
+         )
+      )
       | OWNER
       | PAGER
       | PARSER
@@ -813,6 +839,7 @@ null_single
       | PROMPT
       | PROTOCOL_OBJECT
       | QOS
+      | QUEUE_MONITOR
       | QUIT
       | RADIUS_COMMON_PW
       | RADIUS_SERVER
@@ -833,6 +860,7 @@ null_single
       | SERVICE_POLICY
       | SETUP
       | SHELL
+      | SIP_UA
       | SMTP_SERVER
       | SNMP
       | SPD
