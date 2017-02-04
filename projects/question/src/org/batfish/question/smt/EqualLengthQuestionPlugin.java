@@ -18,15 +18,6 @@ import java.util.regex.PatternSyntaxException;
 
 public class EqualLengthQuestionPlugin extends QuestionPlugin {
 
-    public static class EqualLengthAnswerElement implements AnswerElement {
-        @Override
-        public String prettyPrint() throws JsonProcessingException {
-            return "REACHABILITY";
-            // ObjectMapper mapper = new BatfishObjectMapper();
-            // return mapper.writeValueAsString(this);
-        }
-    }
-
     public static class EqualLengthAnswerer extends Answerer {
 
         public EqualLengthAnswerer(Question question, IBatfish batfish) {

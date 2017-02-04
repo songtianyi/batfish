@@ -18,15 +18,6 @@ import java.util.regex.PatternSyntaxException;
 
 public class BoundedLengthQuestionPlugin extends QuestionPlugin {
 
-    public static class BoundedLengthAnswerElement implements AnswerElement {
-        @Override
-        public String prettyPrint() throws JsonProcessingException {
-            return "REACHABILITY";
-            // ObjectMapper mapper = new BatfishObjectMapper();
-            // return mapper.writeValueAsString(this);
-        }
-    }
-
     public static class BoundedLengthAnswerer extends Answerer {
 
         public BoundedLengthAnswerer(Question question, IBatfish batfish) {

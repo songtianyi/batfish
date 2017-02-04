@@ -18,15 +18,6 @@ import java.util.Iterator;
 
 public class ForwardingQuestionPlugin extends QuestionPlugin {
 
-    public static class ForwardingAnswerElement implements AnswerElement {
-        @Override
-        public String prettyPrint() throws JsonProcessingException {
-            return "FORWARDING";
-            // ObjectMapper mapper = new BatfishObjectMapper();
-            // return mapper.writeValueAsString(this);
-        }
-    }
-
     public static class ForwardingAnswerer extends Answerer {
 
         public ForwardingAnswerer(Question question, IBatfish batfish) {

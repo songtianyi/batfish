@@ -4,8 +4,8 @@ public class LogicalGraphEdge extends LogicalEdge {
 
     private GraphEdge _edge;
 
-    public LogicalGraphEdge(GraphEdge edge, EdgeType type, int prefixLen, EdgeVars edgeVars) {
-        super(type, prefixLen, edgeVars);
+    public LogicalGraphEdge(GraphEdge edge, EdgeType type, int prefixLen, SymbolicRecord symbolicRecord) {
+        super(type, prefixLen, symbolicRecord);
         _edge = edge;
     }
 

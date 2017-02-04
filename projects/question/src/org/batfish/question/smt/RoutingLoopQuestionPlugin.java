@@ -18,15 +18,6 @@ import java.util.regex.PatternSyntaxException;
 
 public class RoutingLoopQuestionPlugin extends QuestionPlugin {
 
-    public static class RoutingLoopElement implements AnswerElement {
-        @Override
-        public String prettyPrint() throws JsonProcessingException {
-            return "Routing Loop";
-            // ObjectMapper mapper = new BatfishObjectMapper();
-            // return mapper.writeValueAsString(this);
-        }
-    }
-
     public static class RoutingLoopAnswerer extends Answerer {
 
         public RoutingLoopAnswerer(Question question, IBatfish batfish) {

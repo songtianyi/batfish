@@ -133,8 +133,7 @@ import org.batfish.representation.VendorConfiguration;
 import org.batfish.representation.aws_vpcs.AwsVpcConfiguration;
 import org.batfish.representation.host.HostConfiguration;
 import org.batfish.representation.iptables.IptablesVendorConfiguration;
-import org.batfish.smt.Encoder;
-import org.batfish.smt.answers.*;
+import org.batfish.smt.PropertyChecker;
 import org.batfish.z3.AclLine;
 import org.batfish.z3.AclReachabilityQuerySynthesizer;
 import org.batfish.z3.BlacklistDstIpQuerySynthesizer;
@@ -1018,22 +1017,22 @@ public class Batfish extends PluginConsumer implements AutoCloseable, IBatfish {
 
    @Override
    public AnswerElement smtForwarding(String destination) {
-      return new SmtForwardingAnswerElement(this, destination);
+      return PropertyChecker.computeForwarding(this, destination);
    }
 
    @Override
    public AnswerElement smtReachability(Pattern node1Regex, Pattern ifaceRegex, Pattern node2Regex) {
-      return new SmtReachabilityAnswerElement(this, node1Regex, ifaceRegex, node2Regex);
+      return PropertyChecker.computeReachability(this, node1Regex, ifaceRegex, node2Regex);
    }
 
    @Override
    public AnswerElement smtBlackhole() {
-      return new SmtBlackholeAnswerElement(this);
+      return PropertyChecker.computeBlackHole(this);
    }
 
    @Override
    public AnswerElement smtRoutingLoop() {
-      return new SmtRoutingLoopAnswerElement(this);
+      return PropertyChecker.computeRoutingLoop(this);
    }
 
    @Override
@@ -1041,27 +1040,27 @@ public class Batfish extends PluginConsumer implements AutoCloseable, IBatfish {
       if (bound == null) {
          throw new BatfishException("Missing parameter length bound: (e.g., bound=3)");
       }
-      return new SmtBoundedLengthAnswerElement(this, node1Regex, ifaceRegex, node2Regex, bound);
+      return PropertyChecker.computeBoundedLength(this, node1Regex, ifaceRegex, node2Regex, bound);
    }
 
    @Override
    public AnswerElement smtEqualLength(Pattern node1Regex, Pattern ifaceRegex, Pattern node2Regex) {
-      return new SmtEqualLengthAnswerElement(this, node1Regex, ifaceRegex, node2Regex);
+      return PropertyChecker.computeEqualLength(this, node1Regex, ifaceRegex, node2Regex);
    }
 
    @Override
    public AnswerElement smtMultipathConsistency(Pattern node1Regex, Pattern ifaceRegex) {
-      return new SmtMultipathConsistencyAnswerElement(this, node1Regex, ifaceRegex);
+      return PropertyChecker.computeMultipathConsistency(this, node1Regex, ifaceRegex);
    }
 
    @Override
    public AnswerElement smtLoadBalance(Pattern node1Regex, Pattern ifaceRegex, Pattern node2Regex, Pattern peerRegex, int threshold) {
-      return new SmtLoadBalanceAnswerElement(this, node1Regex, ifaceRegex, node2Regex, peerRegex, threshold);
+      return PropertyChecker.computeLoadBalance(this, node1Regex, ifaceRegex, node2Regex, peerRegex, threshold);
    }
 
    @Override
    public AnswerElement smtLocalConsistency(Pattern routerRegex) {
-      return new SmtLocalConsistencyAnswerElement(this, routerRegex);
+      return PropertyChecker.computeLocalConsistency(this, routerRegex);
    }
 
 

@@ -29,6 +29,7 @@ import org.batfish.main.Warnings;
 import org.batfish.representation.VendorConfiguration;
 import org.batfish.representation.host.HostConfiguration;
 
+@SuppressWarnings("ALL")
 public class ParseVendorConfigurationJob
       extends BatfishJob<ParseVendorConfigurationResult> {
 

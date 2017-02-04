@@ -18,15 +18,6 @@ import java.util.regex.PatternSyntaxException;
 
 public class LocalConsistencyQuestionPlugin extends QuestionPlugin {
 
-    public static class LocalConsistencyAnswerElement implements AnswerElement {
-        @Override
-        public String prettyPrint() throws JsonProcessingException {
-            return "REACHABILITY";
-            // ObjectMapper mapper = new BatfishObjectMapper();
-            // return mapper.writeValueAsString(this);
-        }
-    }
-
     public static class LocalConsistencyAnswerer extends Answerer {
 
         public LocalConsistencyAnswerer(Question question, IBatfish batfish) {

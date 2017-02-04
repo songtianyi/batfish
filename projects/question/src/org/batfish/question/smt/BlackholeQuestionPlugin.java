@@ -18,15 +18,6 @@ import java.util.regex.PatternSyntaxException;
 
 public class BlackholeQuestionPlugin extends QuestionPlugin {
 
-    public static class BlackholeAnswerElement implements AnswerElement {
-        @Override
-        public String prettyPrint() throws JsonProcessingException {
-            return "BLACK HOLE";
-            // ObjectMapper mapper = new BatfishObjectMapper();
-            // return mapper.writeValueAsString(this);
-        }
-    }
-
     public static class BlackholeAnswerer extends Answerer {
 
         public BlackholeAnswerer(Question question, IBatfish batfish) {

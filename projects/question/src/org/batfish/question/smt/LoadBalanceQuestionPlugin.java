@@ -18,15 +18,6 @@ import java.util.regex.PatternSyntaxException;
 
 public class LoadBalanceQuestionPlugin extends QuestionPlugin {
 
-    public static class LoadBalanceAnswerElement implements AnswerElement {
-        @Override
-        public String prettyPrint() throws JsonProcessingException {
-            return "REACHABILITY";
-            // ObjectMapper mapper = new BatfishObjectMapper();
-            // return mapper.writeValueAsString(this);
-        }
-    }
-
     public static class LoadBalanceAnswerer extends Answerer {
 
         public LoadBalanceAnswerer(Question question, IBatfish batfish) {

@@ -1,9 +1,11 @@
 package org.batfish.smt;
 
+import org.batfish.common.BatfishException;
 import org.batfish.common.plugin.IBatfish;
 import org.batfish.datamodel.*;
 import org.batfish.datamodel.collections.EdgeSet;
 import org.batfish.datamodel.collections.NodeInterfacePair;
+import org.batfish.datamodel.routing_policy.RoutingPolicy;
 
 import java.util.*;
 
@@ -22,6 +24,42 @@ public class Graph {
 
     private Map<GraphEdge, GraphEdge> _otherEnd;
 
+    private Map<GraphEdge, BgpNeighbor> _bgpNeighbors;
+
+    private Map<String, List<RoutingProtocol>> _protocols;
+
+    public Graph(IBatfish batfish) {
+        this(batfish, null);
+    }
+
+    public Graph(IBatfish batfish, Set<String> routers) {
+        _batfish = batfish;
+        _configurations = new HashMap<>(_batfish.loadConfigurations());
+        _edgeMap = new HashMap<>();
+        _otherEnd = new HashMap<>();
+        _staticRoutes = new HashMap<>();
+        _neighbors = new HashMap<>();
+        _bgpNeighbors = new HashMap<>();
+        _protocols = new HashMap<>();
+
+        // Remove the routers we don't want to model
+        if (routers != null) {
+            List<String> toRemove = new ArrayList<>();
+            _configurations.forEach((router, conf) -> {
+                if (!routers.contains(router)) {
+                    toRemove.add(router);
+                }
+            });
+            for (String router : toRemove) {
+                _configurations.remove(router);
+            }
+        }
+
+        initGraph();
+        initStaticRoutes();
+        initBgpNeighbors();
+    }
+
     private void initGraph() {
         Topology topology = _batfish.computeTopology(_configurations);
         Map<NodeInterfacePair, Interface> ifaceMap = new HashMap<>();
@@ -29,7 +67,7 @@ public class Graph {
 
         _configurations.forEach((router, conf) -> {
             Set<NodeInterfacePair> ifacePairs = new HashSet<>();
-            conf.getInterfaces().forEach((name,iface) -> {
+            conf.getInterfaces().forEach((name, iface) -> {
                 NodeInterfacePair nip = new NodeInterfacePair(router, name);
                 ifacePairs.add(nip);
                 ifaceMap.put(nip, iface);
@@ -60,7 +98,7 @@ public class Graph {
                         graphEdges.add(ge);
                         // System.out.println("Warning: edge " + ge + " has multiple ends");
                     } else {
-                    // System.out.println("NIP: " + nip.toString());
+                        // System.out.println("NIP: " + nip.toString());
 
                         for (Edge e : es) {
                             // System.out.println("  edge: " + e.toString());
@@ -87,11 +125,13 @@ public class Graph {
         _configurations.forEach((router, conf) -> {
             Map<String, List<StaticRoute>> map = new HashMap<>();
             _staticRoutes.put(router, map);
-            for(GraphEdge ge : _edgeMap.get(router)) {
+            for (GraphEdge ge : _edgeMap.get(router)) {
                 Interface here = ge.getStart();
                 Interface there = ge.getEnd();
+
                 for (StaticRoute sr : conf.getDefaultVrf().getStaticRoutes()) {
 
+                    // Check if next-hop interface is specified
                     String hereName = here.getName();
                     if (hereName.equals(sr.getNextHopInterface())) {
                         List<StaticRoute> srs = map.getOrDefault(hereName, new ArrayList<>());
@@ -99,12 +139,10 @@ public class Graph {
                         map.put(hereName, srs);
                     }
 
+                    // Check if next-hop ip corresponds to direct interface
                     Ip nhIp = sr.getNextHopIp();
-                    boolean isNextHop =
-                            nhIp != null &&
-                            there != null &&
-                            there.getPrefix() != null &&
-                            there.getPrefix().getAddress().equals(nhIp);
+                    boolean isNextHop = nhIp != null && there != null && there.getPrefix() !=
+                            null && there.getPrefix().getAddress().equals(nhIp);
 
                     if (isNextHop) {
                         List<StaticRoute> srs = map.getOrDefault(hereName, new ArrayList<>());
@@ -116,33 +154,120 @@ public class Graph {
         });
     }
 
-    public Graph(IBatfish batfish, Set<String> routers) {
-        _batfish = batfish;
-        _configurations = new HashMap<>(_batfish.loadConfigurations());
-        _edgeMap = new HashMap<>();
-        _otherEnd = new HashMap<>();
-        _staticRoutes = new HashMap<>();
-        _neighbors = new HashMap<>();
+    private void initBgpNeighbors() {
+        List<Ip> ips = new ArrayList<>();
+        List<BgpNeighbor> neighbors = new ArrayList<>();
 
-        // Remove the routers we don't want to model
-        if (routers != null) {
-            List<String> toRemove = new ArrayList<>();
-            _configurations.forEach((router, conf) -> {
-                if (!routers.contains(router)) {
-                    toRemove.add(router);
-                }
-            });
-            for (String router : toRemove) {
-                _configurations.remove(router);
+        _configurations.forEach((router, conf) -> {
+            if (conf.getDefaultVrf().getBgpProcess() != null) {
+                conf.getDefaultVrf().getBgpProcess().getNeighbors().forEach((pfx, neighbor) -> {
+                    ips.add(neighbor.getAddress());
+                    neighbors.add(neighbor);
+                });
             }
-        }
+        });
 
-        initGraph();
-        initStaticRoutes();
+        _configurations.forEach((router, conf) -> {
+            if (conf.getDefaultVrf().getBgpProcess() != null) {
+                _edgeMap.get(router).forEach(ge -> {
+                    for (int i = 0; i < ips.size(); i++) {
+                        Ip ip = ips.get(i);
+                        BgpNeighbor n = neighbors.get(i);
+                        Interface iface = ge.getStart();
+                        if (ip != null && iface.getPrefix().contains(ip)) {
+                            _bgpNeighbors.put(ge, n);
+                        }
+                    }
+                });
+            }
+        });
     }
 
-    public Graph(IBatfish batfish) {
-        this(batfish, null);
+    public boolean isInterfaceUsed(Configuration conf, RoutingProtocol proto, Interface iface) {
+        if (proto == RoutingProtocol.STATIC) {
+            List<StaticRoute> srs = getStaticRoutes().get(conf.getName()).get(iface.getName());
+            return iface.getActive() && srs != null && srs.size() > 0;
+        }
+        return true;
+    }
+
+    public Map<String, Map<String, List<StaticRoute>>> getStaticRoutes() {
+        return _staticRoutes;
+    }
+
+    public RoutingPolicy findCommonRoutingPolicy(String router, RoutingProtocol proto) {
+        Configuration conf = _configurations.get(router);
+        if (proto == RoutingProtocol.OSPF) {
+            String exp = conf.getDefaultVrf().getOspfProcess().getExportPolicy();
+            return conf.getRoutingPolicies().get(exp);
+        }
+        if (proto == RoutingProtocol.BGP) {
+            for (Map.Entry<String, RoutingPolicy> entry : conf.getRoutingPolicies().entrySet()) {
+                String name = entry.getKey();
+                if (name.contains(Encoder.BGP_COMMON_FILTER_LIST_NAME)) {
+                    return entry.getValue();
+                }
+            }
+            return null;
+        }
+        if (proto == RoutingProtocol.STATIC) {
+            return null;
+        }
+        if (proto == RoutingProtocol.CONNECTED) {
+            return null;
+        }
+        throw new BatfishException("TODO: findCommonRoutingPolicy for " + proto.protocolName());
+    }
+
+    public RoutingPolicy findImportRoutingPolicy(String router, RoutingProtocol proto,
+            LogicalGraphEdge e) {
+        Configuration conf = _configurations.get(router);
+        if (proto == RoutingProtocol.CONNECTED) {
+            return null;
+        }
+        if (proto == RoutingProtocol.STATIC) {
+            return null;
+        }
+        if (proto == RoutingProtocol.OSPF) {
+            return null;
+        }
+        if (proto == RoutingProtocol.BGP) {
+            BgpNeighbor n = getBgpNeighbors().get(e.getEdge());
+            if (n == null || n.getImportPolicy() == null) {
+                return null;
+            }
+            return conf.getRoutingPolicies().get(n.getImportPolicy());
+        }
+        throw new BatfishException("TODO: findImportRoutingPolicy: " + proto.protocolName());
+    }
+
+    public Map<GraphEdge, BgpNeighbor> getBgpNeighbors() {
+        return _bgpNeighbors;
+    }
+
+    public RoutingPolicy findExportRoutingPolicy(String router, RoutingProtocol proto,
+            LogicalGraphEdge e) {
+        Configuration conf = _configurations.get(router);
+        if (proto == RoutingProtocol.CONNECTED) {
+            return null;
+        }
+        if (proto == RoutingProtocol.STATIC) {
+            return null;
+        }
+        if (proto == RoutingProtocol.OSPF) {
+            String exp = conf.getDefaultVrf().getOspfProcess().getExportPolicy();
+            return conf.getRoutingPolicies().get(exp);
+        }
+        if (proto == RoutingProtocol.BGP) {
+            BgpNeighbor n = getBgpNeighbors().get(e.getEdge());
+
+            // if no neighbor (e.g., loopback), or no export policy
+            if (n == null || n.getExportPolicy() == null) {
+                return null;
+            }
+            return conf.getRoutingPolicies().get(n.getExportPolicy());
+        }
+        throw new BatfishException("TODO: findExportRoutingPolicy for " + proto.protocolName());
     }
 
     public String toString() {
@@ -179,7 +304,8 @@ public class Graph {
         _staticRoutes.forEach((router, map) -> {
             map.forEach((iface, srs) -> {
                 for (StaticRoute sr : srs) {
-                    sb.append("Router: " + router + ", Interface: " + iface + " --> " + sr.getNetwork().toString() + "\n");
+                    sb.append("Router: " + router + ", Interface: " + iface + " --> " + sr
+                            .getNetwork().toString() + "\n");
                 }
             });
         });
@@ -188,13 +314,8 @@ public class Graph {
         return sb.toString();
     }
 
-
     public Map<String, Configuration> getConfigurations() {
         return _configurations;
-    }
-
-    public Map<String, Map<String, List<StaticRoute>>> getStaticRoutes() {
-        return _staticRoutes;
     }
 
     public Map<String, Set<String>> getNeighbors() {
@@ -208,4 +329,9 @@ public class Graph {
     public Map<GraphEdge, GraphEdge> getOtherEnd() {
         return _otherEnd;
     }
+
+    public Map<String, List<RoutingProtocol>> getProtocols() {
+        return _protocols;
+    }
+
 }

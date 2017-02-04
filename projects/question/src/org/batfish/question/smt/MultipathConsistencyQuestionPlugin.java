@@ -18,15 +18,6 @@ import java.util.regex.PatternSyntaxException;
 
 public class MultipathConsistencyQuestionPlugin extends QuestionPlugin {
 
-    public static class MulipathConsistencyAnswerElement implements AnswerElement {
-        @Override
-        public String prettyPrint() throws JsonProcessingException {
-            return "REACHABILITY";
-            // ObjectMapper mapper = new BatfishObjectMapper();
-            // return mapper.writeValueAsString(this);
-        }
-    }
-
     public static class MulipathConsistencyAnswerer extends Answerer {
 
         public MulipathConsistencyAnswerer(Question question, IBatfish batfish) {

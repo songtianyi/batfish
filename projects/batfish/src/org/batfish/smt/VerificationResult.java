@@ -1,13 +1,19 @@
 package org.batfish.smt;
 
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.microsoft.z3.*;
 
 import java.util.Map;
 
 public class VerificationResult {
 
-    private Encoder _encoder;
+    private static final String VERIFIED_VAR = "verified";
+
+    private static final String MODEL_VAR = "model";
+
+    private static final String STATISTICS_VAR = "statistics";
 
     private boolean _verified;
 
@@ -15,26 +21,32 @@ public class VerificationResult {
 
     private VerificationStats _statistics;
 
-    public VerificationResult(Encoder enc, boolean verified, Map<String, String> model, VerificationStats stats) {
-        _encoder = enc;
+    @JsonCreator
+    public VerificationResult(
+            @JsonProperty(VERIFIED_VAR) boolean verified,
+            @JsonProperty(MODEL_VAR) Map<String, String> model,
+            @JsonProperty(STATISTICS_VAR) VerificationStats stats) {
         _verified = verified;
         _model = model;
         _statistics = stats;
     }
 
+    @JsonProperty(VERIFIED_VAR)
     public boolean getVerified() {
         return _verified;
     }
 
+    @JsonProperty(MODEL_VAR)
     public Map<String,String> getModel() {
         return _model;
     }
 
+    @JsonProperty(STATISTICS_VAR)
     public VerificationStats getStatistics() {
         return _statistics;
     }
 
-    public void debug() {
+    /* public void debug() {
         System.out.println("Number of variables:   " + _statistics.getNumVariables());
         System.out.println("Number of constraints: " + _statistics.getNumConstraints());
         System.out.println("Number of nodes: " + _statistics.getNumNodes());
@@ -45,10 +57,10 @@ public class VerificationResult {
         //for (Expr e : _encoder.getAllVariables()) {
         //    System.out.println(e.toString());
         //}
-        //System.out.println("================= Constraints ==================");
-        //for (BoolExpr be : _encoder.getSolver().getAssertions()) {
-        //   System.out.println(be.simplify());
-        //}
+        System.out.println("================= Constraints ==================");
+        for (BoolExpr be : _encoder.getSolver().getAssertions()) {
+           System.out.println(be.simplify());
+        }
         if (_verified) {
             System.out.println("verified");
         } else {
@@ -76,6 +88,6 @@ public class VerificationResult {
             System.out.println(constraint.simplify());
             System.out.println("");
         }
-    }
+    } */
 
 }

@@ -18,15 +18,6 @@ import java.util.regex.PatternSyntaxException;
 
 public class ReachabilityQuestionPlugin extends QuestionPlugin {
 
-    public static class ReachabilityAnswerElement implements AnswerElement {
-        @Override
-        public String prettyPrint() throws JsonProcessingException {
-            return "REACHABILITY";
-            // ObjectMapper mapper = new BatfishObjectMapper();
-            // return mapper.writeValueAsString(this);
-        }
-    }
-
     public static class ReachabilityAnswerer extends Answerer {
 
         public ReachabilityAnswerer(Question question, IBatfish batfish) {

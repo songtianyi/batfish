@@ -566,7 +566,7 @@ public class Client extends AbstractClient implements IClient {
 
       Pattern pattern = Pattern.compile("([\\w_]+)\\s*=\\s*(.+)");
 
-      String[] params = paramsLine.split("\\|");
+      String[] params = paramsLine.split(",");
 
       _logger.debugf("Found %d parameters\n", params.length);
 

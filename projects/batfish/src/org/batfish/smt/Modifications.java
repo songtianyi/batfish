@@ -1,7 +1,6 @@
 package org.batfish.smt;
 
 
-import org.batfish.common.BatfishException;
 import org.batfish.datamodel.routing_policy.statement.*;
 
 import java.util.ArrayList;
@@ -54,6 +53,38 @@ public class Modifications {
         _deleteCommunities = (h == null ? null : new ArrayList<>(h));
     }
 
+    public PrependAsPath getPrependPath() {
+        return _prependPath;
+    }
+
+    public SetLocalPreference getSetLp() {
+        return _setLp;
+    }
+
+    public SetMetric getSetMetric() {
+        return _setMetric;
+    }
+
+    public SetWeight getSetWeight() {
+        return _setWeight;
+    }
+
+    public SetNextHop getSetNextHop() {
+        return _setNextHop;
+    }
+
+    public List<AddCommunity> getAddCommunities() {
+        return _addCommunities;
+    }
+
+    public List<SetCommunity> getSetCommunities() {
+        return _setCommunities;
+    }
+
+    public List<DeleteCommunity> getDeleteCommunities() {
+        return _deleteCommunities;
+    }
+
     void addModification(Statement stmt) {
         if (stmt instanceof Statements.StaticStatement) {
             Statements.StaticStatement ss = (Statements.StaticStatement) stmt;
@@ -102,76 +133,8 @@ public class Modifications {
         }
     }
 
-
     public boolean getDefaultAccept() {
         return _defaultAccept;
-    }
-
-    public PrependAsPath getPrependPath() {
-        return _prependPath;
-    }
-
-    public SetLocalPreference getSetLp() {
-        return _setLp;
-    }
-
-    public SetMetric getSetMetric() {
-        return _setMetric;
-    }
-
-    public SetWeight getSetWeight() {
-        return _setWeight;
-    }
-
-    public SetNextHop getSetNextHop() {
-        return _setNextHop;
-    }
-
-    public List<AddCommunity> getAddCommunities() {
-        return _addCommunities;
-    }
-
-    public List<SetCommunity> getSetCommunities() {
-        return _setCommunities;
-    }
-
-    public List<DeleteCommunity> getDeleteCommunities() {
-        return _deleteCommunities;
-    }
-
-    @Override
-    public String toString() {
-        return "Modifications{" +
-                "_defaultAccept=" + _defaultAccept +
-                ", _prependPath=" + _prependPath +
-                ", _setLp=" + _setLp +
-                ", _setMetric=" + _setMetric +
-                ", _setWeight=" + _setWeight +
-                ", _setNextHop=" + _setNextHop +
-                ", _addCommunities=" + _addCommunities +
-                ", _setCommunities=" + _setCommunities +
-                ", _deleteCommunities=" + _deleteCommunities +
-                '}';
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-
-        Modifications that = (Modifications) o;
-
-        if (_defaultAccept != that._defaultAccept) return false;
-        if (_prependPath != null ? !_prependPath.equals(that._prependPath) : that._prependPath != null) return false;
-        if (_setLp != null ? !_setLp.equals(that._setLp) : that._setLp != null) return false;
-        if (_setMetric != null ? !_setMetric.equals(that._setMetric) : that._setMetric != null) return false;
-        if (_setWeight != null ? !_setWeight.equals(that._setWeight) : that._setWeight != null) return false;
-        if (_setNextHop != null ? !_setNextHop.equals(that._setNextHop) : that._setNextHop != null) return false;
-        if (_addCommunities != null ? !_addCommunities.equals(that._addCommunities) : that._addCommunities != null)
-            return false;
-        if (_setCommunities != null ? !_setCommunities.equals(that._setCommunities) : that._setCommunities != null)
-            return false;
-        return _deleteCommunities != null ? _deleteCommunities.equals(that._deleteCommunities) : that._deleteCommunities == null;
     }
 
     @Override
@@ -186,5 +149,46 @@ public class Modifications {
         result = 31 * result + (_setCommunities != null ? _setCommunities.hashCode() : 0);
         result = 31 * result + (_deleteCommunities != null ? _deleteCommunities.hashCode() : 0);
         return result;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o)
+            return true;
+        if (o == null || getClass() != o.getClass())
+            return false;
+
+        Modifications that = (Modifications) o;
+
+        if (_defaultAccept != that._defaultAccept)
+            return false;
+        if (_prependPath != null ? !_prependPath.equals(that._prependPath) : that._prependPath !=
+                null)
+            return false;
+        if (_setLp != null ? !_setLp.equals(that._setLp) : that._setLp != null)
+            return false;
+        if (_setMetric != null ? !_setMetric.equals(that._setMetric) : that._setMetric != null)
+            return false;
+        if (_setWeight != null ? !_setWeight.equals(that._setWeight) : that._setWeight != null)
+            return false;
+        if (_setNextHop != null ? !_setNextHop.equals(that._setNextHop) : that._setNextHop != null)
+            return false;
+        if (_addCommunities != null ? !_addCommunities.equals(that._addCommunities) : that
+                ._addCommunities != null)
+            return false;
+        if (_setCommunities != null ? !_setCommunities.equals(that._setCommunities) : that
+                ._setCommunities != null)
+            return false;
+        return _deleteCommunities != null ? _deleteCommunities.equals(that._deleteCommunities) :
+                that._deleteCommunities == null;
+    }
+
+    @Override
+    public String toString() {
+        return "Modifications{" + "_defaultAccept=" + _defaultAccept + ", _prependPath=" +
+                _prependPath + ", _setLp=" + _setLp + ", _setMetric=" + _setMetric + ", " +
+                "_setWeight=" + _setWeight + ", _setNextHop=" + _setNextHop + ", " +
+                "_addCommunities=" + _addCommunities + ", _setCommunities=" + _setCommunities +
+                ", _deleteCommunities=" + _deleteCommunities + '}';
     }
 }

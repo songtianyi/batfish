@@ -1,38 +1,33 @@
 package org.batfish.smt.answers;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import org.batfish.common.plugin.IBatfish;
-import org.batfish.datamodel.Prefix;
-import org.batfish.datamodel.answers.AnswerElement;
-import org.batfish.smt.Encoder;
-import org.batfish.smt.VerificationResult;
+import org.batfish.smt.GraphEdge;
 
-import java.util.Collections;
+import java.util.Set;
 
 
-public class SmtForwardingAnswerElement implements AnswerElement {
+public class SmtForwardingAnswerElement extends SmtOneAnswerElement {
 
-    private VerificationResult _result;
+    private Set<GraphEdge> _edges;
 
-    public SmtForwardingAnswerElement(IBatfish batfish, String destination) {
-        Prefix prefix = new Prefix(destination);
-        Encoder encoder = new Encoder(batfish, Collections.singletonList(prefix));
-        encoder.computeEncoding();
-        if (encoder.getEnvironmentVars().size() > 0) {
-            System.out.println("Warning: forwarding computed for only a single concrete environment");
-        }
-
-        VerificationResult result = encoder.verify();
-        _result = result;
-        result.debug();
+    public Set<GraphEdge> getEdges() {
+        return _edges;
     }
 
-    public VerificationResult getResult() {
-        return _result;
+    public void setEdges(Set<GraphEdge> _edges) {
+        this._edges = _edges;
     }
 
     @Override
     public String prettyPrint() throws JsonProcessingException {
-        return "FORWARDING PRETTY PRINT";
+        StringBuilder sb = new StringBuilder();
+        if (_result.getVerified()) {
+            sb.append("No stable forwarding paths exist.");
+        } else {
+            for (GraphEdge ge : _edges) {
+                sb.append(ge).append("\n");
+            }
+        }
+        return sb.toString();
     }
 }
