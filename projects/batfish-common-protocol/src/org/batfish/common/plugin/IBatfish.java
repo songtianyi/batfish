@@ -2,6 +2,7 @@ package org.batfish.common.plugin;
 
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiFunction;
 import java.util.regex.Pattern;
 
@@ -16,6 +17,8 @@ import org.batfish.datamodel.Ip;
 import org.batfish.datamodel.Topology;
 import org.batfish.datamodel.answers.AnswerElement;
 import org.batfish.datamodel.answers.ConvertConfigurationAnswerElement;
+import org.batfish.datamodel.answers.InitInfoAnswerElement;
+import org.batfish.datamodel.answers.ParseVendorConfigurationAnswerElement;
 import org.batfish.datamodel.assertion.AssertionAst;
 import org.batfish.datamodel.collections.AdvertisementSet;
 import org.batfish.datamodel.collections.InterfaceSet;
@@ -79,10 +82,14 @@ public interface IBatfish extends IPluginConsumer {
 
    FlowHistory getHistory();
 
+   ParseVendorConfigurationAnswerElement getParseVendorConfigurationAnswerElement();
+
    void initBgpAdvertisements(Map<String, Configuration> configurations);
 
    void initBgpOriginationSpaceExplicit(
          Map<String, Configuration> configurations);
+
+   InitInfoAnswerElement initInfo(boolean summary);
 
    void initRemoteBgpNeighbors(Map<String, Configuration> configurations,
          Map<Ip, Set<String>> ipOwners);
@@ -96,6 +103,8 @@ public interface IBatfish extends IPluginConsumer {
    DataPlane loadDataPlane();
 
    AnswerElement multipath(HeaderSpace headerSpace);
+
+   AtomicInteger newBatch(String description, int jobs);
 
    AssertionAst parseAssertion(String text);
 

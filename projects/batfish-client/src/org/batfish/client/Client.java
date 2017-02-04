@@ -30,6 +30,8 @@ import org.batfish.common.BatfishException;
 import org.batfish.common.BfConsts;
 import org.batfish.common.BatfishLogger;
 import org.batfish.common.Pair;
+import org.batfish.common.Task;
+import org.batfish.common.Task.Batch;
 import org.batfish.common.WorkItem;
 import org.batfish.common.CoordConsts.WorkStatusCode;
 import org.batfish.common.plugin.AbstractClient;
@@ -163,8 +165,8 @@ public class Client extends AbstractClient implements IClient {
 
       // upload the question
       boolean resultUpload = _workHelper.uploadQuestion(_currContainerName,
-            _currTestrig, questionName, questionFile,
-            paramsFile.getAbsolutePath());
+            isDelta ? _currDeltaTestrig : _currTestrig, questionName,
+            questionFile, paramsFile.getAbsolutePath());
 
       if (!resultUpload) {
          return false;
@@ -258,22 +260,17 @@ public class Client extends AbstractClient implements IClient {
          return queueWorkResult;
       }
 
-      WorkStatusCode status = _workHelper.getWorkStatus(wItem.getId());
+      Pair<WorkStatusCode, String> response = _workHelper
+            .getWorkStatus(wItem.getId());
 
-      while (status != WorkStatusCode.TERMINATEDABNORMALLY
-            && status != WorkStatusCode.TERMINATEDNORMALLY
-            && status != WorkStatusCode.ASSIGNMENTERROR) {
-
-         _logger.info(". ");
-         _logger.infof("status: %s\n", status);
-
+      while (response.getFirst() != WorkStatusCode.TERMINATEDABNORMALLY
+            && response.getFirst() != WorkStatusCode.TERMINATEDNORMALLY
+            && response.getFirst() != WorkStatusCode.ASSIGNMENTERROR) {
+         printWorkStatusResponse(response);
          Thread.sleep(1 * 1000);
-
-         status = _workHelper.getWorkStatus(wItem.getId());
+         response = _workHelper.getWorkStatus(wItem.getId());
       }
-
-      _logger.info("\n");
-      _logger.infof("final status: %s\n", status);
+      printWorkStatusResponse(response);
 
       // get the answer
       String ansFileName = wItem.getId() + BfConsts.SUFFIX_ANSWER_JSON_FILE;
@@ -302,7 +299,7 @@ public class Client extends AbstractClient implements IClient {
          }
 
          if (outWriter == null) {
-            _logger.output(answerStringToPrint + "\n");
+            _logger.output(answerStringToPrint);
          }
          else {
             outWriter.write(answerStringToPrint);
@@ -354,7 +351,7 @@ public class Client extends AbstractClient implements IClient {
          }
       }
 
-      if (status == WorkStatusCode.TERMINATEDNORMALLY) {
+      if (response.getFirst() == WorkStatusCode.TERMINATEDNORMALLY) {
          return true;
       }
       else {
@@ -597,6 +594,41 @@ public class Client extends AbstractClient implements IClient {
             usage.getFirst(), usage.getSecond());
    }
 
+   private void printWorkStatusResponse(Pair<WorkStatusCode, String> response) {
+
+      if (_logger.getLogLevel() >= BatfishLogger.LEVEL_INFO) {
+         _logger.infof("status: %s\n", response.getFirst());
+
+         BatfishObjectMapper mapper = new BatfishObjectMapper();
+         Task task;
+         try {
+            task = mapper.readValue(response.getSecond(), Task.class);
+         }
+         catch (IOException e) {
+            _logger.errorf("Could not deserliaze task object: %s\n", e);
+            return;
+         }
+
+         if (task == null) {
+            _logger.infof(".... null\n");
+            return;
+         }
+
+         List<Batch> batches = task.getBatches();
+
+         // when log level is INFO, we only print the last batch
+         // else print all
+         for (int i = 0; i < batches.size(); i++) {
+            if (i == batches.size() - 1) {
+               _logger.infof(".... %s\n", batches.get(i).toString());
+            }
+            else {
+               _logger.debugf(".... %s\n", batches.get(i).toString());
+            }
+         }
+      }
+   }
+
    private boolean processCommand(String command) {
       String line = command.trim();
       if (line.length() == 0 || line.startsWith("#")) {
@@ -784,6 +816,7 @@ public class Client extends AbstractClient implements IClient {
                      deltaEnvName);
 
                if (!answerType(qTypeStr, paramsLine, isDelta, outWriter)) {
+                  unsetTestrig(true);
                   return false;
                }
 
@@ -941,7 +974,7 @@ public class Client extends AbstractClient implements IClient {
          }
          case INIT_DELTA_TESTRIG:
          case INIT_TESTRIG: {
-
+            boolean doDelta = command == Command.INIT_DELTA_TESTRIG;
             String testrigLocation = parameters.get(0);
             String testrigName = (parameters.size() > 1) ? parameters.get(1)
                   : DEFAULT_TESTRIG_PREFIX + UUID.randomUUID().toString();
@@ -960,15 +993,17 @@ public class Client extends AbstractClient implements IClient {
             }
 
             if (!uploadTestrigOrEnv(testrigLocation, testrigName, true)) {
+               unsetTestrig(doDelta);
                return false;
             }
 
             _logger.output("Uploaded testrig. Parsing now.\n");
 
             WorkItem wItemParse = _workHelper
-                  .getWorkItemParse(_currContainerName, testrigName);
+                  .getWorkItemParse(_currContainerName, testrigName, false);
 
             if (!execute(wItemParse, outWriter)) {
+               unsetTestrig(doDelta);
                return false;
             }
 
@@ -1040,7 +1075,8 @@ public class Client extends AbstractClient implements IClient {
          case REINIT_DELTA_TESTRIG: {
 
             String testrig;
-            if (command == Command.REINIT_TESTRIG) {
+            boolean isDelta = command != Command.REINIT_TESTRIG;
+            if (!isDelta) {
                _logger.output("Reinitializing testrig. Parsing now.\n");
                testrig = _currTestrig;
             }
@@ -1050,7 +1086,7 @@ public class Client extends AbstractClient implements IClient {
             }
 
             WorkItem wItemParse = _workHelper
-                  .getWorkItemParse(_currContainerName, testrig);
+                  .getWorkItemParse(_currContainerName, testrig, isDelta);
 
             if (!execute(wItemParse, outWriter)) {
                return false;
@@ -1424,6 +1460,19 @@ public class Client extends AbstractClient implements IClient {
       }
       catch (Throwable t) {
          t.printStackTrace();
+      }
+   }
+
+   private void unsetTestrig(boolean doDelta) {
+      if (doDelta) {
+         _currDeltaTestrig = null;
+         _currDeltaEnv = null;
+         _logger.info("Delta testrig and environment are now unset\n");
+      }
+      else {
+         _currTestrig = null;
+         _currEnv = null;
+         _logger.info("Base testrig and environment are now unset\n");
       }
    }
 

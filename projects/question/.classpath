@@ -11,5 +11,6 @@
 	<classpathentry kind="lib" path="/batfish-common-protocol/lib/jsonpath/json-path-assert-2.2.0.jar" sourcepath="/batfish-common-protocol/lib/jsonpath/json-path-assert-2.2.0-sources.jar"/>
 	<classpathentry kind="lib" path="/batfish-common-protocol/lib/hamcrest/java-hamcrest-2.0.0.0.jar" sourcepath="/batfish-common-protocol/lib/hamcrest/java-hamcrest-2.0.0.0-sources.jar"/>
 	<classpathentry kind="lib" path="/batfish/lib/z3/com.microsoft.z3.jar" sourcepath="/batfish/lib/z3/com.microsoft.z3-sources.jar"/>
+	<classpathentry kind="lib" path="/batfish-common-protocol/lib/guava/guava-21.0.jar" sourcepath="/batfish-common-protocol/lib/guava/guava-21.0-sources.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

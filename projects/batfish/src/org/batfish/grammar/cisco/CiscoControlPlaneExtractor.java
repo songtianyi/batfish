@@ -843,7 +843,7 @@ public class CiscoControlPlaneExtractor extends CiscoParserBaseListener
                pushPeer(_currentIpPeerGroup);
             }
             else {
-               String message = "reference to undeclared peer group: '"
+               String message = "Ignoring reference to undeclared peer group: '"
                      + ip.toString() + "'";
                _w.redFlag(message);
                pushPeer(_dummyPeerGroup);
@@ -863,7 +863,7 @@ public class CiscoControlPlaneExtractor extends CiscoParserBaseListener
                pushPeer(pg6);
             }
             else {
-               String message = "reference to undeclared peer group: '"
+               String message = "Ignoring reference to undeclared peer group: '"
                      + ip6.toString() + "'";
                _w.redFlag(message);
                pushPeer(_dummyPeerGroup);
@@ -2921,7 +2921,7 @@ public class CiscoControlPlaneExtractor extends CiscoParserBaseListener
          Ip ip = toIp(ctx.ip);
          IpBgpPeerGroup pg = proc.getIpPeerGroups().get(ip);
          if (pg == null) {
-            String message = "reference to undefined ip peer group: "
+            String message = "ignoring attempt to activate undefined ip peer group: "
                   + ip.toString();
             _w.redFlag(message);
          }
@@ -2933,7 +2933,7 @@ public class CiscoControlPlaneExtractor extends CiscoParserBaseListener
          Ip6 ip6 = toIp6(ctx.ip6);
          Ipv6BgpPeerGroup pg = proc.getIpv6PeerGroups().get(ip6);
          if (pg == null) {
-            String message = "reference to undefined ipv6 peer group: "
+            String message = "ignoring attempt to activate undefined ipv6 peer group: "
                   + ip6.toString();
             _w.redFlag(message);
          }
@@ -2969,7 +2969,7 @@ public class CiscoControlPlaneExtractor extends CiscoParserBaseListener
          IpBgpPeerGroup pg = proc.getIpPeerGroups().get(ip);
          // TODO: see if it is always ok to set active on 'no shutdown'
          if (pg == null) {
-            String message = "reference to undefined ip peer group: "
+            String message = "ignoring attempt to shut down to undefined ip peer group: "
                   + ip.toString();
             _w.redFlag(message);
          }
@@ -2983,7 +2983,7 @@ public class CiscoControlPlaneExtractor extends CiscoParserBaseListener
          Ipv6BgpPeerGroup pg = proc.getIpv6PeerGroups().get(ip6);
          // TODO: see if it is always ok to set active on 'no shutdown'
          if (pg == null) {
-            String message = "reference to undefined ipv6 peer group: "
+            String message = "ignoring attempt to shut down undefined ipv6 peer group: "
                   + ip6.toString();
             _w.redFlag(message);
          }
@@ -4024,8 +4024,20 @@ public class CiscoControlPlaneExtractor extends CiscoParserBaseListener
    }
 
    @Override
+   public void exitSs_file_transfer(Ss_file_transferContext ctx) {
+      String acl = ctx.acl.getText();
+      _configuration.getSnmpAccessLists().add(acl);
+   }
+
+   @Override
    public void exitSs_host(Ss_hostContext ctx) {
       _currentSnmpHost = null;
+   }
+
+   @Override
+   public void exitSs_tftp_server_list(Ss_tftp_server_listContext ctx) {
+      String acl = ctx.name.getText();
+      _configuration.getSnmpAccessLists().add(acl);
    }
 
    @Override
@@ -4242,13 +4254,15 @@ public class CiscoControlPlaneExtractor extends CiscoParserBaseListener
       String msg = String.format("Line %d unrecognized: %s",
             ctx.start.getLine(), line);
       if (_unrecognizedAsRedFlag) {
+         msg += "\nLINES BELOW LINE " + line
+               + " ARE UNLIKELY TO BE PROCESSED CORRECTLY";
          _w.redFlag(msg);
+         _configuration.setUnrecognized(true);
       }
       else {
          _parser.getParserErrorListener().syntaxError(ctx, ctx.getStart(),
                ctx.getStart().getLine(), ctx.getStart().getCharPositionInLine(),
                msg);
-         // throw new BatfishException(msg);
       }
    }
 
@@ -4438,6 +4452,7 @@ public class CiscoControlPlaneExtractor extends CiscoParserBaseListener
       int mtu = Interface.getDefaultMtu();
       iface.setBandwidth(bandwidth);
       iface.setVrf(vrf);
+      initVrf(vrf);
       iface.setMtu(mtu);
    }
 
