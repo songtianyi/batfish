@@ -1104,15 +1104,15 @@ public class Encoder {
 
         if (proto == RoutingProtocol.OSPF) {
             conf.getDefaultVrf().getOspfProcess().getAreas().forEach((areaID, area) -> {
-                if (areaID == 0) {
+                // if (areaID == 0) {
                     for (Interface iface : area.getInterfaces()) {
                         if (iface.getActive() && iface.getOspfEnabled()) {
                             acc.add(iface.getPrefix());
                         }
                     }
-                } else {
-                    throw new BatfishException("Error: only support area 0 at the moment");
-                }
+                // } else {
+                //     throw new BatfishException("Error: only support area 0 at the moment");
+                // }
             });
             return acc;
         }

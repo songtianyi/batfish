@@ -17,6 +17,9 @@ allinone -cmdfile test_rigs/parsing-tests/commands || exit 1
 echo -e "\n  ..... Running java client tests"
 allinone -cmdfile tests/java/commands || exit 1
 
+echo -e "\n  ..... Running java-smt client tests"
+allinone -cmdfile tests/java-smt/commands || exit 1
+
 #Test running separately
 coordinator &
 batfish -servicemode -register -coordinatorhost localhost -loglevel output &
