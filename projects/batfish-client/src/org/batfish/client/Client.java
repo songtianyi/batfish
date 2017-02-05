@@ -549,7 +549,7 @@ public class Client extends AbstractClient implements IClient {
          }
          if (c == '|' && parity) {
             int begin = (last == 0 ? 0 : last+1);
-            params.add( line.substring(begin,i) );
+            params.add( line.substring(begin,i).trim() );
             last = i;
          }
       }

@@ -9,7 +9,6 @@ test tests/java-smt/init-ospf1.ref init-testrig test_rigs/smt-examples/OSPF3
 test tests/java-smt/ospf1-forward.ref get smt-forwarding destination="70.70.70.70/32"
 test tests/java-smt/ospf1-reachable.ref get smt-reachability node1Regex="R3" | ifaceRegex="Loopback.*"
 test tests/java-smt/ospf1-bounded-len.ref get smt-bounded-length node1Regex="R3" | ifaceRegex="Loopback.*" | bound=2
-test tests/java-smt/ospf1-equal-len.ref get smt-equal-length node1Regex="R3"|ifaceRegex="Loopback.*"|node2Regex="(R1|R2)"
 test tests/java-smt/ospf1-routing-loop.ref get smt-routing-loop
 test tests/java-smt/ospf1-blackhole.ref get smt-blackhole
 test tests/java-smt/ospf1-multipath.ref get smt-multipath-consistency node1Regex="R3" | ifaceRegex="Loopback.*"
