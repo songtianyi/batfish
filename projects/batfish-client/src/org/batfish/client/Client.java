@@ -553,7 +553,6 @@ public class Client extends AbstractClient implements IClient {
             last = i;
          }
       }
-
       return params;
    }
 
@@ -562,11 +561,7 @@ public class Client extends AbstractClient implements IClient {
 
       Pattern pattern = Pattern.compile("([\\w_]+)\\s*=\\s*(.+)");
 
-      System.out.println("Got line: " + paramsLine);
-
       List<String> params = splitParams(paramsLine);
-
-      System.out.println("Parsed as: " + params);
 
       _logger.debugf("Found %d parameters\n", params.size());
 
