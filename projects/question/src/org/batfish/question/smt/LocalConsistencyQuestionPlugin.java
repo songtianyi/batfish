@@ -1,7 +1,6 @@
 package org.batfish.question.smt;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import org.batfish.common.Answerer;
 import org.batfish.common.BatfishException;
 import org.batfish.common.plugin.IBatfish;
@@ -45,7 +44,7 @@ public class LocalConsistencyQuestionPlugin extends QuestionPlugin {
 
     public static class LocalConsistencyQuestion extends Question {
 
-        private static final String ROUTER_REGEX_VAR = "routerRegex";
+        private static final String NODE_REGEX_VAR = "nodeRegex";
 
         private String _routerRegex;
 
@@ -67,7 +66,7 @@ public class LocalConsistencyQuestionPlugin extends QuestionPlugin {
 
                 try {
                     switch (paramKey) {
-                        case ROUTER_REGEX_VAR:
+                        case NODE_REGEX_VAR:
                             setRouterRegex(parameters.getString(paramKey));
                             break;
                         default:
@@ -81,7 +80,7 @@ public class LocalConsistencyQuestionPlugin extends QuestionPlugin {
             }
         }
 
-        @JsonProperty(ROUTER_REGEX_VAR)
+        @JsonProperty(NODE_REGEX_VAR)
         public String getRouterRegex() {
             return _routerRegex;
         }

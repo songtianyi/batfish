@@ -1,0 +1,35 @@
+echo # This demo operates over the OSPF3 example in the test_rigs smt directory
+echo # It assumes that it is being run from the top-level directory in the repository.
+
+echo # load the ospf testing 
+init-testrig test_rigs/smt-examples/OSPF3
+
+echo ################
+echo # Compute the forwarding behavior for a particular destination IP
+get smt-forwarding destination="70.70.70.70/32"
+
+echo # Check that all nodes are able to reach the Loopback interface on router R3
+get smt-reachability node1Regex="R3",ifaceRegex="Loopback.*",node2Regex=".*"
+
+echo # Check that the path between R3 and R0 is no longer than 2
+get smt-bounded-length node1Regex="R3",ifaceRegex="Loopback.*",node2Regex="R0",bound=2
+
+echo # Check that routers R1 and R2 have equal length paths
+get smt-equal-length node1Regex="R3",ifaceRegex="Loopback.*",node2Regex="(R1|R2)"
+
+echo # Check multipath consistency for forwarding to a particular interface
+get smt-multipath-consistency node1Regex="R3",ifaceRegex="Loopback.*"
+
+echo # Check that there are no routing loops in the network
+get smt-routing-loop
+
+echo # Check if traffic is ever blackholed on a router that is not at the edge of the network
+get smt-blackhole
+echo ################
+
+echo # load the bgp testing 
+init-testrig test_rigs/smt-examples/ENV2
+
+echo ################
+echo # Check that the two border BGP routers are locally-consistent
+get smt-local-consistency nodeRegex=".*"

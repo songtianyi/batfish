@@ -1,0 +1,392 @@
+!
+!
+!
+
+!
+version 12.4
+service timestamps debug datetime msec
+service timestamps log datetime msec
+no service password-encryption
+!
+hostname Pod_0_Leaf_7
+!
+boot-start-marker
+boot-end-marker
+!
+!
+no aaa new-model
+memory-size iomem 5
+no ip icmp rate-limit unreachable
+ip cef
+!
+!
+!
+!
+no ip domain lookup
+ip auth-proxy max-nodata-conns 3
+ip admission max-nodata-conns 3
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+ip tcp synwait-time 5
+! 
+!
+!
+!
+!
+interface Loopback0
+ ip address 5.0.7.1 255.255.255.255
+!
+interface FastEthernet0/0
+ ip address 1.0.0.15 255.255.255.254
+ duplex auto
+ speed auto
+!
+interface FastEthernet0/1
+ ip address 1.0.1.15 255.255.255.254
+ duplex auto
+ speed auto
+!
+interface FastEthernet0/2
+ ip address 1.0.2.15 255.255.255.254
+ duplex auto
+ speed auto
+!
+interface FastEthernet0/3
+ ip address 1.0.3.15 255.255.255.254
+ duplex auto
+ speed auto
+!
+interface FastEthernet0/4
+ ip address 1.0.4.15 255.255.255.254
+ duplex auto
+ speed auto
+!
+interface FastEthernet0/5
+ ip address 1.0.5.15 255.255.255.254
+ duplex auto
+ speed auto
+!
+interface FastEthernet0/6
+ ip address 1.0.6.15 255.255.255.254
+ duplex auto
+ speed auto
+!
+interface FastEthernet0/7
+ ip address 1.0.7.15 255.255.255.254
+ duplex auto
+ speed auto
+!
+interface FastEthernet0/8
+ ip address 1.0.8.15 255.255.255.254
+ duplex auto
+ speed auto
+!
+interface FastEthernet0/9
+ ip address 1.0.9.15 255.255.255.254
+ duplex auto
+ speed auto
+!
+interface FastEthernet0/10
+ ip address 1.0.10.15 255.255.255.254
+ duplex auto
+ speed auto
+!
+interface FastEthernet0/11
+ ip address 1.0.11.15 255.255.255.254
+ duplex auto
+ speed auto
+!
+interface FastEthernet0/12
+ ip address 1.0.12.15 255.255.255.254
+ duplex auto
+ speed auto
+!
+interface FastEthernet0/13
+ ip address 1.0.13.15 255.255.255.254
+ duplex auto
+ speed auto
+!
+interface FastEthernet0/14
+ ip address 1.0.14.15 255.255.255.254
+ duplex auto
+ speed auto
+!
+interface FastEthernet0/15
+ ip address 1.0.15.15 255.255.255.254
+ duplex auto
+ speed auto
+!
+interface FastEthernet0/16
+ ip address 1.0.16.15 255.255.255.254
+ duplex auto
+ speed auto
+!
+interface FastEthernet0/17
+ ip address 1.0.17.15 255.255.255.254
+ duplex auto
+ speed auto
+!
+interface FastEthernet0/18
+ ip address 1.0.18.15 255.255.255.254
+ duplex auto
+ speed auto
+!
+interface FastEthernet0/19
+ ip address 1.0.19.15 255.255.255.254
+ duplex auto
+ speed auto
+!
+interface FastEthernet0/20
+ ip address 2.0.7.0 255.255.255.254
+ duplex auto
+ speed auto
+!
+interface FastEthernet0/21
+ ip address 2.0.7.2 255.255.255.254
+ duplex auto
+ speed auto
+!
+interface FastEthernet0/22
+ ip address 2.0.7.4 255.255.255.254
+ duplex auto
+ speed auto
+!
+interface FastEthernet0/23
+ ip address 2.0.7.6 255.255.255.254
+ duplex auto
+ speed auto
+!
+interface FastEthernet0/24
+ ip address 2.0.7.8 255.255.255.254
+ duplex auto
+ speed auto
+!
+interface FastEthernet0/25
+ ip address 2.0.7.10 255.255.255.254
+ duplex auto
+ speed auto
+!
+interface FastEthernet0/26
+ ip address 2.0.7.12 255.255.255.254
+ duplex auto
+ speed auto
+!
+interface FastEthernet0/27
+ ip address 2.0.7.14 255.255.255.254
+ duplex auto
+ speed auto
+!
+interface FastEthernet0/28
+ ip address 2.0.7.16 255.255.255.254
+ duplex auto
+ speed auto
+!
+interface FastEthernet0/29
+ ip address 2.0.7.18 255.255.255.254
+ duplex auto
+ speed auto
+!
+interface FastEthernet0/30
+ ip address 2.0.7.20 255.255.255.254
+ duplex auto
+ speed auto
+!
+interface FastEthernet0/31
+ ip address 2.0.7.22 255.255.255.254
+ duplex auto
+ speed auto
+!
+router bgp 50000
+ bgp router-id 5.0.7.1
+ bgp bestpath as-path multipath-relax
+ bgp log-neighbor-changes
+ neighbor 1.0.0.14 remote-as 10000
+ neighbor 1.0.1.14 remote-as 10001
+ neighbor 1.0.2.14 remote-as 10002
+ neighbor 1.0.3.14 remote-as 10003
+ neighbor 1.0.4.14 remote-as 10004
+ neighbor 1.0.5.14 remote-as 10005
+ neighbor 1.0.6.14 remote-as 10006
+ neighbor 1.0.7.14 remote-as 10007
+ neighbor 1.0.8.14 remote-as 10008
+ neighbor 1.0.9.14 remote-as 10009
+ neighbor 1.0.10.14 remote-as 10010
+ neighbor 1.0.11.14 remote-as 10011
+ neighbor 1.0.12.14 remote-as 10012
+ neighbor 1.0.13.14 remote-as 10013
+ neighbor 1.0.14.14 remote-as 10014
+ neighbor 1.0.15.14 remote-as 10015
+ neighbor 1.0.16.14 remote-as 10016
+ neighbor 1.0.17.14 remote-as 10017
+ neighbor 1.0.18.14 remote-as 10018
+ neighbor 1.0.19.14 remote-as 10019
+ neighbor 2.0.7.1 remote-as 60007
+ neighbor 2.0.7.3 remote-as 60007
+ neighbor 2.0.7.5 remote-as 60007
+ neighbor 2.0.7.7 remote-as 60007
+ neighbor 2.0.7.9 remote-as 60007
+ neighbor 2.0.7.11 remote-as 60007
+ neighbor 2.0.7.13 remote-as 60007
+ neighbor 2.0.7.15 remote-as 60007
+ neighbor 2.0.7.17 remote-as 60007
+ neighbor 2.0.7.19 remote-as 60007
+ neighbor 2.0.7.21 remote-as 60007
+ neighbor 2.0.7.23 remote-as 60007
+ !
+ address-family ipv4
+  neighbor 1.0.0.14 activate
+  neighbor 1.0.0.14 soft-reconfiguration inbound
+  neighbor 1.0.0.14 send-community
+  neighbor 1.0.1.14 activate
+  neighbor 1.0.1.14 soft-reconfiguration inbound
+  neighbor 1.0.1.14 send-community
+  neighbor 1.0.2.14 activate
+  neighbor 1.0.2.14 soft-reconfiguration inbound
+  neighbor 1.0.2.14 send-community
+  neighbor 1.0.3.14 activate
+  neighbor 1.0.3.14 soft-reconfiguration inbound
+  neighbor 1.0.3.14 send-community
+  neighbor 1.0.4.14 activate
+  neighbor 1.0.4.14 soft-reconfiguration inbound
+  neighbor 1.0.4.14 send-community
+  neighbor 1.0.5.14 activate
+  neighbor 1.0.5.14 soft-reconfiguration inbound
+  neighbor 1.0.5.14 send-community
+  neighbor 1.0.6.14 activate
+  neighbor 1.0.6.14 soft-reconfiguration inbound
+  neighbor 1.0.6.14 send-community
+  neighbor 1.0.7.14 activate
+  neighbor 1.0.7.14 soft-reconfiguration inbound
+  neighbor 1.0.7.14 send-community
+  neighbor 1.0.8.14 activate
+  neighbor 1.0.8.14 soft-reconfiguration inbound
+  neighbor 1.0.8.14 send-community
+  neighbor 1.0.9.14 activate
+  neighbor 1.0.9.14 soft-reconfiguration inbound
+  neighbor 1.0.9.14 send-community
+  neighbor 1.0.10.14 activate
+  neighbor 1.0.10.14 soft-reconfiguration inbound
+  neighbor 1.0.10.14 send-community
+  neighbor 1.0.11.14 activate
+  neighbor 1.0.11.14 soft-reconfiguration inbound
+  neighbor 1.0.11.14 send-community
+  neighbor 1.0.12.14 activate
+  neighbor 1.0.12.14 soft-reconfiguration inbound
+  neighbor 1.0.12.14 send-community
+  neighbor 1.0.13.14 activate
+  neighbor 1.0.13.14 soft-reconfiguration inbound
+  neighbor 1.0.13.14 send-community
+  neighbor 1.0.14.14 activate
+  neighbor 1.0.14.14 soft-reconfiguration inbound
+  neighbor 1.0.14.14 send-community
+  neighbor 1.0.15.14 activate
+  neighbor 1.0.15.14 soft-reconfiguration inbound
+  neighbor 1.0.15.14 send-community
+  neighbor 1.0.16.14 activate
+  neighbor 1.0.16.14 soft-reconfiguration inbound
+  neighbor 1.0.16.14 send-community
+  neighbor 1.0.17.14 activate
+  neighbor 1.0.17.14 soft-reconfiguration inbound
+  neighbor 1.0.17.14 send-community
+  neighbor 1.0.18.14 activate
+  neighbor 1.0.18.14 soft-reconfiguration inbound
+  neighbor 1.0.18.14 send-community
+  neighbor 1.0.19.14 activate
+  neighbor 1.0.19.14 soft-reconfiguration inbound
+  neighbor 1.0.19.14 send-community
+  neighbor 2.0.7.1 activate
+  neighbor 2.0.7.1 soft-reconfiguration inbound
+  neighbor 2.0.7.1 send-community
+  neighbor 2.0.7.3 activate
+  neighbor 2.0.7.3 soft-reconfiguration inbound
+  neighbor 2.0.7.3 send-community
+  neighbor 2.0.7.5 activate
+  neighbor 2.0.7.5 soft-reconfiguration inbound
+  neighbor 2.0.7.5 send-community
+  neighbor 2.0.7.7 activate
+  neighbor 2.0.7.7 soft-reconfiguration inbound
+  neighbor 2.0.7.7 send-community
+  neighbor 2.0.7.9 activate
+  neighbor 2.0.7.9 soft-reconfiguration inbound
+  neighbor 2.0.7.9 send-community
+  neighbor 2.0.7.11 activate
+  neighbor 2.0.7.11 soft-reconfiguration inbound
+  neighbor 2.0.7.11 send-community
+  neighbor 2.0.7.13 activate
+  neighbor 2.0.7.13 soft-reconfiguration inbound
+  neighbor 2.0.7.13 send-community
+  neighbor 2.0.7.15 activate
+  neighbor 2.0.7.15 soft-reconfiguration inbound
+  neighbor 2.0.7.15 send-community
+  neighbor 2.0.7.17 activate
+  neighbor 2.0.7.17 soft-reconfiguration inbound
+  neighbor 2.0.7.17 send-community
+  neighbor 2.0.7.19 activate
+  neighbor 2.0.7.19 soft-reconfiguration inbound
+  neighbor 2.0.7.19 send-community
+  neighbor 2.0.7.21 activate
+  neighbor 2.0.7.21 soft-reconfiguration inbound
+  neighbor 2.0.7.21 send-community
+  neighbor 2.0.7.23 activate
+  neighbor 2.0.7.23 soft-reconfiguration inbound
+  neighbor 2.0.7.23 send-community
+  no auto-summary
+  no synchronization
+  network 5.0.7.1 mask 255.255.255.255
+ exit-address-family
+!
+ip forward-protocol nd
+!
+!
+no ip http server
+no ip http secure-server
+!
+!
+!
+!
+control-plane
+!
+!
+!
+!
+mgcp behavior g729-variants static-pt
+!
+!
+!
+!
+!
+!
+gatekeeper
+ shutdown
+!
+!
+line con 0
+ exec-timeout 0 0
+ privilege level 15
+ logging synchronous
+line aux 0
+ exec-timeout 0 0
+ privilege level 15
+ logging synchronous
+line vty 0 4
+ login
+!
+!
+end
