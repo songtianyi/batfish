@@ -31,14 +31,14 @@ public class PropertyChecker {
 
         VerificationResult result = encoder.verify();
 
-        Set<GraphEdge> edges = new HashSet<>();
+        List<String> edges = new ArrayList<>();
         if (!result.getVerified()) {
             encoder.getSymbolicDecisions().getDataForwarding().forEach((router, edge, e) -> {
                 String expr = e.toString();
                 if (expr.contains("data-")) {
                     String valuation = result.getModel().get(expr);
                     if (valuation.equals("true")) {
-                        edges.add(edge);
+                        edges.add(edge.toString());
                     }
                 }
             });
@@ -46,6 +46,7 @@ public class PropertyChecker {
 
         SmtForwardingAnswerElement answer = new SmtForwardingAnswerElement();
         answer.setResult(result);
+        Collections.sort(edges);
         answer.setEdges(edges);
 
         return answer;
@@ -282,11 +283,6 @@ public class PropertyChecker {
         Graph graph = new Graph(batfish);
         List<String> routers = PatternUtils.findMatchingNodes(graph, n);
 
-        System.out.println("Looking at routers...");
-        for (String router : routers) {
-            System.out.println("Found Router: " + router);
-        }
-
         Map<String, VerificationResult> result = new HashMap<>();
 
         Prefix destination = new Prefix("0.0.0.0/0");
@@ -294,7 +290,7 @@ public class PropertyChecker {
         int len = routers.size();
         if (len <= 1) {
             SmtManyAnswerElement answer = new SmtManyAnswerElement();
-            answer.setResult(new TreeMap<>());
+            answer.setResult(new HashMap<>());
             return answer;
         }
 
@@ -333,7 +329,7 @@ public class PropertyChecker {
                 String msg = String.format("Routers %s and %s have different interfaces", r1, r2);
                 System.out.println(msg);
                 SmtManyAnswerElement answer = new SmtManyAnswerElement();
-                answer.setResult(null);
+                answer.setResult(new TreeMap<>());
                 return answer;
             }
 
@@ -563,7 +559,7 @@ public class PropertyChecker {
         });
 
         // Collect all routers that use static routes as a
-        // potential place node along a loop
+        // potential node along a loop
         List<String> routers = new ArrayList<>();
         graph.getConfigurations().forEach((router, conf) -> {
             if (conf.getDefaultVrf().getStaticRoutes().size() > 0) {

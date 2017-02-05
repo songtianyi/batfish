@@ -3,17 +3,10 @@
     {
       "class" : "org.batfish.datamodel.answers.ParseVendorConfigurationAnswerElement",
       "parseStatus" : {
-        "R0" : "PASSED",
         "R1" : "PASSED",
-        "R2" : "PASSED",
-        "R3" : "PASSED"
+        "R2" : "PASSED"
       },
       "warnings" : {
-        "R0" : {
-          "Red flags" : {
-            "1" : "MISCELLANEOUS: No hostname set in file: 'testrig/configs/R0.cfg'\n"
-          }
-        },
         "R1" : {
           "Red flags" : {
             "1" : "MISCELLANEOUS: No hostname set in file: 'testrig/configs/R1.cfg'\n"
@@ -23,24 +16,17 @@
           "Red flags" : {
             "1" : "MISCELLANEOUS: No hostname set in file: 'testrig/configs/R2.cfg'\n"
           }
-        },
-        "R3" : {
-          "Red flags" : {
-            "1" : "MISCELLANEOUS: No hostname set in file: 'testrig/configs/R3.cfg'\n"
-          }
         }
       }
     },
-        {
-          "class" : "org.batfish.datamodel.answers.ConvertConfigurationAnswerElement"
-          },
+    {
+      "class" : "org.batfish.datamodel.answers.ConvertConfigurationAnswerElement"
+    },
     {
       "class" : "org.batfish.datamodel.answers.InitInfoAnswerElement",
       "parseStatus" : {
-        "R0" : "PASSED",
         "R1" : "PASSED",
-        "R2" : "PASSED",
-        "R3" : "PASSED"
+        "R2" : "PASSED"
       }
     }
   ],

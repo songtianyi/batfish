@@ -1,0 +1,15 @@
+{
+  "answerElements" : [
+    {
+      "class" : "org.batfish.smt.answers.SmtOneAnswerElement",
+      "result" : {
+        "verified" : true
+      }
+    }
+  ],
+  "question" : {
+    "class" : "org.batfish.question.smt.BlackholeQuestionPlugin$BlackholeQuestion",
+    "differential" : false
+  },
+  "status" : "SUCCESS"
+}

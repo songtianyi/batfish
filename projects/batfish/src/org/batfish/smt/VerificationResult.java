@@ -3,9 +3,9 @@ package org.batfish.smt;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.microsoft.z3.*;
 
 import java.util.Map;
+import java.util.SortedMap;
 
 public class VerificationResult {
 
@@ -13,22 +13,20 @@ public class VerificationResult {
 
     private static final String MODEL_VAR = "model";
 
-    private static final String STATISTICS_VAR = "statistics";
+    // private static final String STATISTICS_VAR = "statistics";
 
     private boolean _verified;
 
-    private Map<String, String> _model;
+    private SortedMap<String, String> _model;
 
-    private VerificationStats _statistics;
+    // private VerificationStats _statistics;
 
     @JsonCreator
     public VerificationResult(
             @JsonProperty(VERIFIED_VAR) boolean verified,
-            @JsonProperty(MODEL_VAR) Map<String, String> model,
-            @JsonProperty(STATISTICS_VAR) VerificationStats stats) {
+            @JsonProperty(MODEL_VAR) SortedMap<String, String> model) {
         _verified = verified;
         _model = model;
-        _statistics = stats;
     }
 
     @JsonProperty(VERIFIED_VAR)
@@ -41,10 +39,10 @@ public class VerificationResult {
         return _model;
     }
 
-    @JsonProperty(STATISTICS_VAR)
-    public VerificationStats getStatistics() {
-        return _statistics;
-    }
+    // @JsonProperty(STATISTICS_VAR)
+    // public VerificationStats getStatistics() {
+    //    return _statistics;
+    //}
 
     /* public void debug() {
         System.out.println("Number of variables:   " + _statistics.getNumVariables());

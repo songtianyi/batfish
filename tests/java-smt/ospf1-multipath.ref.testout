@@ -1,0 +1,26 @@
+{
+  "answerElements" : [
+    {
+      "class" : "org.batfish.smt.answers.SmtManyAnswerElement",
+      "result" : {
+        "R3,Serial0 --> R1,Serial1" : {
+          "verified" : true
+        },
+        "R3,Serial1 --> R2,Serial1" : {
+          "verified" : true
+        },
+        "R3,Loopback0 --> _,_" : {
+          "verified" : true
+        }
+      }
+    }
+  ],
+  "question" : {
+    "class" : "org.batfish.question.smt.MultipathConsistencyQuestionPlugin$MultipathConsistencyQuestion",
+    "differential" : false,
+    "ifaceRegex" : ".*",
+    "node1Regex" : "R3",
+    "node2Regex" : ".*"
+  },
+  "status" : "SUCCESS"
+}

@@ -21,7 +21,6 @@ public class SmtOneAnswerElement implements AnswerElement {
         if (_result.getVerified()) {
             return "verified";
         } else {
-            // TODO: sort these or something?
             StringBuilder sb = new StringBuilder();
             _result.getModel().forEach((var, val) -> {
                 sb.append(var).append(" -> ").append(val).append("\n");

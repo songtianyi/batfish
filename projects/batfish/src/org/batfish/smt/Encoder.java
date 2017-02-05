@@ -307,7 +307,7 @@ public class Encoder {
                 map.put(proto, edgeMap);
 
                 for (LogicalEdge e : collectAllImportLogicalEdges(router, conf, proto)) {
-                    String chName = "choice_" + e.getSymbolicRecord().getName();
+                    String chName = e.getSymbolicRecord().getName() + "_choice";
                     BoolExpr choiceVar = _ctx.mkBoolConst(chName);
                     _allVariables.add(choiceVar);
                     edgeMap.put(e, choiceVar);
@@ -328,6 +328,7 @@ public class Encoder {
         getGraph().getEdgeMap().forEach((router, edges) -> {
             for (GraphEdge edge : edges) {
                 String iface = edge.getStart().getName();
+
                 String cName = "control-forwarding_" + router + "_" + iface;
                 BoolExpr cForward = _ctx.mkBoolConst(cName);
                 _allVariables.add(cForward);
@@ -2092,12 +2093,12 @@ public class Encoder {
                 numConstraints, time);
 
         if (status == Status.UNSATISFIABLE) {
-            return new VerificationResult(true, null, stats);
+            return new VerificationResult(true, null);
         } else if (status == Status.UNKNOWN) {
-            return new VerificationResult(false, null, stats);
+            return new VerificationResult(false, null);
         } else {
             Model m = _solver.getModel();
-            Map<String, String> model = new HashMap<>();
+            SortedMap<String, String> model = new TreeMap<>();
             for (Expr e : _allVariables) {
                 String name = e.toString();
                 Expr val = m.evaluate(e, false);
@@ -2105,7 +2106,7 @@ public class Encoder {
                     model.put(name, val.toString());
                 }
             }
-            return new VerificationResult(false, model, stats);
+            return new VerificationResult(false, model);
         }
     }
 

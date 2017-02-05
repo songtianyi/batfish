@@ -1,0 +1,26 @@
+{
+  "answerElements" : [
+    {
+      "class" : "org.batfish.common.BatfishException$BatfishStackTrace",
+      "answer" : [
+        "org.batfish.common.BatfishException: Failed to answer question",
+        "   at org.batfish.main.Batfish.answer(Batfish.java:422)",
+        "   at org.batfish.main.Batfish.run(Batfish.java:3020)",
+        "   at org.batfish.main.Driver$1.run(Driver.java:304)",
+        "Caused by: org.batfish.common.BatfishException: Missing parameter length bound: (e.g., bound=3)",
+        "   at org.batfish.main.Batfish.smtBoundedLength(Batfish.java:1084)",
+        "   at org.batfish.question.smt.BoundedLengthQuestionPlugin$BoundedLengthAnswerer.answer(BoundedLengthQuestionPlugin.java:46)",
+        "   at org.batfish.main.Batfish.answer(Batfish.java:418)",
+        "   ... 2 more"
+      ]
+    }
+  ],
+  "question" : {
+    "class" : "org.batfish.question.smt.BoundedLengthQuestionPlugin$BoundedLengthQuestion",
+    "differential" : false,
+    "ifaceRegex" : "Loopback.*",
+    "node1Regex" : "R3",
+    "node2Regex" : ".*"
+  },
+  "status" : "FAILURE"
+}

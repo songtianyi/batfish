@@ -1,0 +1,15 @@
+{
+  "answerElements" : [
+    {
+      "class" : "org.batfish.smt.answers.SmtOneAnswerElement",
+      "result" : {
+        "verified" : true
+      }
+    }
+  ],
+  "question" : {
+    "class" : "org.batfish.question.smt.RoutingLoopQuestionPlugin$RoutingLoopQuestion",
+    "differential" : false
+  },
+  "status" : "SUCCESS"
+}

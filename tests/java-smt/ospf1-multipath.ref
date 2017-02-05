@@ -1,0 +1,20 @@
+{
+  "answerElements" : [
+    {
+      "class" : "org.batfish.smt.answers.SmtManyAnswerElement",
+      "result" : {
+        "R3,Loopback0 --> _,_" : {
+          "verified" : true
+        }
+      }
+    }
+  ],
+  "question" : {
+    "class" : "org.batfish.question.smt.MultipathConsistencyQuestionPlugin$MultipathConsistencyQuestion",
+    "differential" : false,
+    "ifaceRegex" : "Loopback.*",
+    "node1Regex" : "R3",
+    "node2Regex" : ".*"
+  },
+  "status" : "SUCCESS"
+}

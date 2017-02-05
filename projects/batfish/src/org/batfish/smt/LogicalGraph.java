@@ -65,7 +65,7 @@ public class LogicalGraph {
             LogicalGraphEdge lge = (LogicalGraphEdge) e;
             GraphEdge ge = lge.getEdge();
             Interface iface = ge.getStart();
-            return getGraph().isInterfaceUsed(conf, proto, iface);
+            return _graph.isInterfaceUsed(conf, proto, iface);
         } else {
             return true;
         }

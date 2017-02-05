@@ -1,39 +1,16 @@
 package org.batfish.client;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
-import java.io.PrintStream;
-import java.io.PrintWriter;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.kjetland.jackson.jsonSchema.JsonSchemaGenerator;
+import jline.console.ConsoleReader;
+import jline.console.completer.Completer;
 import org.apache.commons.io.output.WriterOutputStream;
 import org.apache.commons.lang.exception.ExceptionUtils;
 import org.batfish.client.Settings.RunMode;
-import org.batfish.common.BatfishException;
-import org.batfish.common.BfConsts;
-import org.batfish.common.BatfishLogger;
-import org.batfish.common.Pair;
-import org.batfish.common.Task;
-import org.batfish.common.Task.Batch;
-import org.batfish.common.WorkItem;
+import org.batfish.common.*;
 import org.batfish.common.CoordConsts.WorkStatusCode;
+import org.batfish.common.Task.Batch;
 import org.batfish.common.plugin.AbstractClient;
 import org.batfish.common.plugin.IClient;
 import org.batfish.common.util.BatfishObjectMapper;
@@ -43,12 +20,14 @@ import org.batfish.datamodel.Configuration;
 import org.batfish.datamodel.answers.Answer;
 import org.batfish.datamodel.questions.IEnvironmentCreationQuestion;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.kjetland.jackson.jsonSchema.JsonSchemaGenerator;
-
-import jline.console.ConsoleReader;
-import jline.console.completer.Completer;
+import java.io.*;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
+import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class Client extends AbstractClient implements IClient {
 
@@ -558,14 +537,38 @@ public class Client extends AbstractClient implements IClient {
       return true;
    }
 
+   private List<String> splitParams(String paramsLine) {
+      String line = paramsLine + "|";
+      List<String> params = new ArrayList<>();
+      boolean parity = true;
+      int last = 0;
+      for (int i = 0; i < line.length(); i++) {
+         char c = line.charAt(i);
+         if (c == '"') {
+            parity = !parity;
+         }
+         if (c == '|' && parity) {
+            int begin = (last == 0 ? 0 : last+1);
+            params.add( line.substring(begin,i) );
+            last = i;
+         }
+      }
+
+      return params;
+   }
+
    private Map<String, String> parseParams(String paramsLine) {
       Map<String, String> parameters = new HashMap<>();
 
       Pattern pattern = Pattern.compile("([\\w_]+)\\s*=\\s*(.+)");
 
-      String[] params = paramsLine.split(",");
+      System.out.println("Got line: " + paramsLine);
 
-      _logger.debugf("Found %d parameters\n", params.length);
+      List<String> params = splitParams(paramsLine);
+
+      System.out.println("Parsed as: " + params);
+
+      _logger.debugf("Found %d parameters\n", params.size());
 
       for (String param : params) {
          Matcher matcher = pattern.matcher(param);

@@ -41,10 +41,10 @@ public class SymbolicRecord {
 
         // Represent best variables as the aggregate protocol. Total hack.
         if (proto == RoutingProtocol.AGGREGATE) {
-            _metric = ctx.mkIntConst("metric_" + _name);
-            _localPref = (opts.getKeepLocalPref() ? ctx.mkIntConst("localPref_" + _name) : null);
-            _adminDist = (opts.getKeepAdminDist() ? ctx.mkIntConst("adminDist_" + _name) : null);
-            _med = (opts.getKeepMed() ? ctx.mkIntConst("med_" + _name) : null);
+            _metric = ctx.mkIntConst(_name + "_metric");
+            _localPref = (opts.getKeepLocalPref() ? ctx.mkIntConst(_name + "_localPref") : null);
+            _adminDist = (opts.getKeepAdminDist() ? ctx.mkIntConst(_name + "_adminDist") : null);
+            _med = (opts.getKeepMed() ? ctx.mkIntConst(_name + "_med") : null);
         } else if (proto == RoutingProtocol.CONNECTED) {
             _metric = null;
             _localPref = null;
@@ -53,13 +53,13 @@ public class SymbolicRecord {
         } else if (proto == RoutingProtocol.STATIC) {
             _metric = null;
             _localPref = null;
-            _adminDist = (opts.getKeepAdminDist() ? ctx.mkIntConst("adminDist_" + _name) : null);
+            _adminDist = (opts.getKeepAdminDist() ? ctx.mkIntConst(_name + "_adminDist") : null);
             _med = null;
         } else {
-            _metric = ctx.mkIntConst("metric_" + _name);
-            _localPref = (opts.getKeepLocalPref() ? ctx.mkIntConst("localPref_" + _name) : null);
-            _adminDist = (opts.getKeepAdminDist() ? ctx.mkIntConst("adminDist_" + _name) : null);
-            _med = (opts.getKeepMed() ? ctx.mkIntConst("med_" + _name) : null);
+            _metric = ctx.mkIntConst(_name + "_metric");
+            _localPref = (opts.getKeepLocalPref() ? ctx.mkIntConst(_name + "_localPref") : null);
+            _adminDist = (opts.getKeepAdminDist() ? ctx.mkIntConst(_name + "_adminDist") : null);
+            _med = (opts.getKeepMed() ? ctx.mkIntConst(_name + "_med") : null);
         }
 
         boolean needId;
@@ -70,13 +70,13 @@ public class SymbolicRecord {
         }
 
         if (needId) {
-            _routerId = ctx.mkIntConst("routerID_" + _name);
+            _routerId = ctx.mkIntConst(_name + "_routerID");
         } else {
             _routerId = null;
         }
 
-        _prefixLength = ctx.mkIntConst("prefixLength_" + _name);
-        _permitted = ctx.mkBoolConst("permitted_" + _name);
+        _prefixLength = ctx.mkIntConst(_name + "_prefixLength");
+        _permitted = ctx.mkBoolConst(_name + "_permitted");
     }
 
     public boolean getIsUsed() {
