@@ -6,16 +6,16 @@ import org.batfish.common.plugin.IBatfish;
 import org.batfish.datamodel.*;
 import org.batfish.datamodel.routing_policy.RoutingPolicy;
 import org.batfish.datamodel.routing_policy.expr.*;
-import org.batfish.datamodel.routing_policy.expr.IntExpr;
-import org.batfish.datamodel.routing_policy.statement.*;
+import org.batfish.datamodel.routing_policy.statement.AddCommunity;
+import org.batfish.datamodel.routing_policy.statement.DeleteCommunity;
+import org.batfish.datamodel.routing_policy.statement.RetainCommunity;
+import org.batfish.datamodel.routing_policy.statement.SetCommunity;
 
 import java.util.*;
-
-import static org.batfish.datamodel.routing_policy.statement.Statements.*;
+import java.util.regex.*;
 
 // Features:
 // ---------
-//   - BGP community values (ignore regex for now)
 //   - Avoid loops in BGP when non-standard (or non-common) local-pref internally
 //   - iBGP by comparing local-pref internally
 //     * Requires reachability, and no ACLs for loopbacks
@@ -70,6 +70,12 @@ public class Encoder {
 
     private Map<Interface, BoolExpr> _outboundAcls;
 
+    private Set<CommunityVar> _allCommunities;
+
+    private Map<CommunityVar, java.util.regex.Pattern> _communityRegexes;
+
+    private Map<CommunityVar, List<CommunityVar>> _communityDependencies;
+
     private List<Expr> _allVariables;
 
     private List<SymbolicRecord> _allSymbolicRecords;
@@ -79,8 +85,6 @@ public class Encoder {
     private Solver _solver;
 
     private UnsatCore _unsatCore;
-
-    private Set<String> _communities;
 
 
     public Encoder(IBatfish batfish, List<Prefix> destinations) {
@@ -124,7 +128,6 @@ public class Encoder {
         _symbolicDecisions = new SymbolicDecisions();
         _symbolicFailures = new SymbolicFailures();
         _symbolicPacket = new SymbolicPacket(_ctx, encodingId);
-        _communities = new HashSet<>();
         _allSymbolicRecords = new ArrayList<>();
 
         if (vars == null) {
@@ -151,6 +154,31 @@ public class Encoder {
 
         _inboundAcls = new HashMap<>();
         _outboundAcls = new HashMap<>();
+
+        _allCommunities = findAllCommunities();
+
+        _communityRegexes = new HashMap<>();
+        for (CommunityVar c : _allCommunities) {
+            java.util.regex.Pattern p = java.util.regex.Pattern.compile(c.getValue());
+            _communityRegexes.put(c, p);
+        }
+
+        _communityDependencies = new HashMap<>();
+        for (CommunityVar c1 : _allCommunities) {
+            List<CommunityVar> list = new ArrayList<>();
+            if (!c1.isRegex()) {
+                _communityDependencies.put(c1, list);
+                for (CommunityVar c2 : _allCommunities) {
+                    if (c2.isRegex()) {
+                        java.util.regex.Pattern p = _communityRegexes.get(c2);
+                        Matcher m = p.matcher(c1.getValue());
+                        if (m.matches()) {
+                            list.add(c2);
+                        }
+                    }
+                }
+            }
+        }
 
         _unsatCore = new UnsatCore(ENABLE_DEBUGGING);
     }
@@ -195,73 +223,86 @@ public class Encoder {
         return _outboundAcls;
     }
 
+    public Set<CommunityVar> getAllCommunities() {
+        return _allCommunities;
+    }
+
+    public Map<CommunityVar, java.util.regex.Pattern> getCommunityRegexes() {
+        return _communityRegexes;
+    }
+
+    public Map<CommunityVar, List<CommunityVar>> getCommunityDependencies() {
+        return _communityDependencies;
+    }
+
     private void add(BoolExpr e) {
         _unsatCore.track(_solver, _ctx, e);
     }
 
-    private BoolExpr If(BoolExpr cond, BoolExpr case1, BoolExpr case2) {
-        return (BoolExpr) _ctx.mkITE(cond, case1, case2);
-    }
-
-    private BoolExpr True() {
+    public BoolExpr True() {
         return _ctx.mkBool(true);
     }
 
-    private BoolExpr False() {
+    public BoolExpr False() {
         return _ctx.mkBool(false);
     }
 
-    private BoolExpr Bool(boolean val) {
+    public BoolExpr Bool(boolean val) {
         return _ctx.mkBool(val);
     }
 
-    private BoolExpr Not(BoolExpr e) {
+    public BoolExpr Not(BoolExpr e) {
         return _ctx.mkNot(e);
     }
 
-    private BoolExpr And(BoolExpr... vals) {
+    public BoolExpr And(BoolExpr... vals) {
         return _ctx.mkAnd(vals);
     }
 
-    private BoolExpr Or(BoolExpr... vals) {
+    public BoolExpr Or(BoolExpr... vals) {
         return _ctx.mkOr(vals);
     }
 
-    private BoolExpr Implies(BoolExpr e1, BoolExpr e2) {
+    public BoolExpr Implies(BoolExpr e1, BoolExpr e2) {
         return _ctx.mkImplies(e1, e2);
     }
 
-    private BoolExpr Eq(Expr e1, Expr e2) {
+    public BoolExpr Eq(Expr e1, Expr e2) {
         return _ctx.mkEq(e1, e2);
     }
 
-    private BoolExpr Ge(ArithExpr e1, ArithExpr e2) {
+    public BoolExpr Ge(ArithExpr e1, ArithExpr e2) {
         return _ctx.mkGe(e1, e2);
     }
 
-    private BoolExpr Le(ArithExpr e1, ArithExpr e2) {
+    public BoolExpr Le(ArithExpr e1, ArithExpr e2) {
         return _ctx.mkLe(e1, e2);
     }
 
-    private BoolExpr Gt(ArithExpr e1, ArithExpr e2) {
+    public BoolExpr Gt(ArithExpr e1, ArithExpr e2) {
         return _ctx.mkGt(e1, e2);
     }
 
-    private BoolExpr Lt(ArithExpr e1, ArithExpr e2) {
+    public BoolExpr Lt(ArithExpr e1, ArithExpr e2) {
         return _ctx.mkLt(e1, e2);
     }
 
-    private ArithExpr Int(long l) {
+    public ArithExpr Int(long l) {
         return _ctx.mkInt(l);
     }
 
-    private ArithExpr Sum(ArithExpr e1, ArithExpr e2) {
+    public ArithExpr Sum(ArithExpr e1, ArithExpr e2) {
         return _ctx.mkAdd(e1, e2);
     }
 
-    private ArithExpr Sub(ArithExpr e1, ArithExpr e2) {
+    public ArithExpr Sub(ArithExpr e1, ArithExpr e2) {
         return _ctx.mkSub(e1, e2);
     }
+
+    public BoolExpr If(BoolExpr cond, BoolExpr case1, BoolExpr case2) {
+        return (BoolExpr) _ctx.mkITE(cond, case1, case2);
+    }
+
 
     public boolean overlaps(Prefix p1, Prefix p2) {
         long l1 = p1.getNetworkPrefix().getAddress().asLong();
@@ -292,6 +333,9 @@ public class Encoder {
         if (e.getRouterId() != null) {
             _allVariables.add(e.getRouterId());
         }
+        e.getCommunities().forEach((name, var) -> {
+            _allVariables.add(var);
+        });
     }
 
     private void addChoiceVariables() {
@@ -345,7 +389,7 @@ public class Encoder {
     private void addBestVariables() {
         getGraph().getEdgeMap().forEach((router, edges) -> {
             for (int len = 0; len <= BITS; len++) {
-                SymbolicRecord evBest = new SymbolicRecord(router, RoutingProtocol.AGGREGATE,
+                SymbolicRecord evBest = new SymbolicRecord(this, router, RoutingProtocol.AGGREGATE,
                         "OVERALL", _optimizations, "none", _ctx, len, "BEST", true);
                 addExprs(evBest);
                 _allSymbolicRecords.add(evBest);
@@ -357,7 +401,7 @@ public class Encoder {
             if (!_optimizations.getSliceHasSingleProtocol().contains(router)) {
                 for (RoutingProtocol proto : getGraph().getProtocols().get(router)) {
                     for (int len = 0; len <= BITS; len++) {
-                        SymbolicRecord evBest = new SymbolicRecord(router, proto, proto
+                        SymbolicRecord evBest = new SymbolicRecord(this, router, proto, proto
                                 .protocolName(), _optimizations, "none", _ctx, len, "BEST", true);
                         addExprs(evBest);
                         _allSymbolicRecords.add(evBest);
@@ -423,7 +467,7 @@ public class Encoder {
                                 SymbolicRecord ev1;
                                 if (singleVars == null) {
                                     String name = proto.protocolName();
-                                    ev1 = new SymbolicRecord(router, proto, name, _optimizations,
+                                    ev1 = new SymbolicRecord(this, router, proto, name, _optimizations,
                                             "", _ctx, len, "SINGLE-EXPORT", false);
                                     singleProtoMap.put(proto, ev1);
                                     addExprs(ev1);
@@ -437,7 +481,7 @@ public class Encoder {
 
                             } else {
                                 String name = proto.protocolName();
-                                SymbolicRecord ev1 = new SymbolicRecord(router, proto, name,
+                                SymbolicRecord ev1 = new SymbolicRecord(this, router, proto, name,
                                         _optimizations, ifaceName, _ctx, len, "EXPORT", false);
                                 LogicalGraphEdge eExport = new LogicalGraphEdge(e, EdgeType
                                         .EXPORT, len, ev1);
@@ -457,7 +501,7 @@ public class Encoder {
                                 importEdgeList.add(eImport);
                             } else {
                                 String name = proto.protocolName();
-                                SymbolicRecord ev2 = new SymbolicRecord(router, proto, name,
+                                SymbolicRecord ev2 = new SymbolicRecord(this, router, proto, name,
                                         _optimizations, ifaceName, _ctx, len, "IMPORT", false);
                                 LogicalGraphEdge eImport = new LogicalGraphEdge(e, EdgeType
                                         .IMPORT, len, ev2);
@@ -534,7 +578,7 @@ public class Encoder {
                         String name = "REDIST_FROM_" + p.protocolName().toUpperCase();
                         String ifaceName = "none";
                         int len = 0;
-                        SymbolicRecord e = new SymbolicRecord(router, proto, proto.protocolName()
+                        SymbolicRecord e = new SymbolicRecord(this, router, proto, proto.protocolName()
                                 , _optimizations, ifaceName, _ctx, len, name, false);
                         _allSymbolicRecords.add(e);
                         addExprs(e);
@@ -543,35 +587,6 @@ public class Encoder {
                 }
             }
         });
-    }
-
-    private void computeCommunities() {
-        getGraph().getConfigurations().forEach((router, conf) -> {
-            conf.getCommunityLists().forEach((clName, cl) -> {
-                for (CommunityListLine line : cl.getLines()) {
-                    conf.getRoutingPolicies().forEach((name, pol) -> {
-                        AstVisitor v = new AstVisitor(pol.getStatements());
-                        v.visit(stmt -> {
-                            if (stmt instanceof SetCommunity) {
-                                SetCommunity sc = (SetCommunity) stmt;
-                                CommunitySetExpr ce = sc.getExpr();
-                                if (ce instanceof InlineCommunitySet) {
-                                    InlineCommunitySet c = (InlineCommunitySet) ce;
-                                    // TODO:
-                                }
-                                if (ce instanceof NamedCommunitySet) {
-                                    NamedCommunitySet c = (NamedCommunitySet) ce;
-                                    // TODO:
-                                }
-                            }
-                        }, expr -> {
-
-                        });
-                    });
-                }
-            });
-        });
-
     }
 
     private void computeOptimizations() {
@@ -594,7 +609,7 @@ public class Encoder {
                                         address = n.getAddress().toString();
                                     }
 
-                                    SymbolicRecord vars = new SymbolicRecord(router, proto,
+                                    SymbolicRecord vars = new SymbolicRecord(this, router, proto,
                                             "ENV", _optimizations, address, _ctx, 0, "EXPORT",
                                             false);
                                     addExprs(vars);
@@ -642,6 +657,76 @@ public class Encoder {
         addEnvironmentVariables();
         addFailedLinkVariables();
     }
+
+
+    public Set<CommunityVar> findAllCommunities(Configuration conf, CommunitySetExpr ce) {
+        Set<CommunityVar> comms = new HashSet<>();
+        if (ce instanceof InlineCommunitySet) {
+            InlineCommunitySet c = (InlineCommunitySet) ce;
+            for (CommunitySetElem cse : c.getCommunities()) {
+                if (cse.getPrefix() instanceof LiteralCommunitySetElemHalf &&
+                        cse.getSuffix() instanceof  LiteralCommunitySetElemHalf) {
+                    LiteralCommunitySetElemHalf x = (LiteralCommunitySetElemHalf) cse.getPrefix();
+                    LiteralCommunitySetElemHalf y = (LiteralCommunitySetElemHalf) cse.getSuffix();
+                    int prefixInt = x.getValue();
+                    int suffixInt = y.getValue();
+                    String val = prefixInt + ":" + suffixInt;
+                    Long l = (((long) prefixInt) << 16) | (suffixInt);
+                    CommunityVar var = new CommunityVar(false, val, l);
+                    comms.add(var);
+                } else {
+                    throw new BatfishException("TODO: community non literal: " + cse);
+                }
+            }
+        }
+        if (ce instanceof NamedCommunitySet) {
+            NamedCommunitySet c = (NamedCommunitySet) ce;
+            String cname = c.getName();
+            CommunityList cl = conf.getCommunityLists().get(cname);
+            if (cl != null) {
+                for (CommunityListLine line : cl.getLines()) {
+                    CommunityVar var = new CommunityVar(true, line.getRegex(), null);
+                    comms.add(var);
+                }
+            }
+        }
+        return comms;
+    }
+
+    public Set<CommunityVar> findAllCommunities() {
+        Set<CommunityVar> comms = new HashSet<>();
+        getGraph().getConfigurations().forEach((router, conf) -> {
+            conf.getRoutingPolicies().forEach((name, pol) -> {
+                AstVisitor v = new AstVisitor();
+                v.visit(conf, pol.getStatements(), stmt -> {
+                    if (stmt instanceof SetCommunity) {
+                        SetCommunity sc = (SetCommunity) stmt;
+                        comms.addAll(findAllCommunities(conf, sc.getExpr()));
+                    }
+                    if (stmt instanceof AddCommunity) {
+                        AddCommunity ac = (AddCommunity) stmt;
+                        comms.addAll(findAllCommunities(conf, ac.getExpr()));
+                    }
+                    if (stmt instanceof DeleteCommunity) {
+                        DeleteCommunity dc = (DeleteCommunity) stmt;
+                        comms.addAll(findAllCommunities(conf, dc.getExpr()));
+                    }
+                    if (stmt instanceof RetainCommunity) {
+                        RetainCommunity rc = (RetainCommunity) stmt;
+                        comms.addAll(findAllCommunities(conf, rc.getExpr()));
+                    }
+                }, expr -> {
+                    if (expr instanceof MatchCommunitySet) {
+                        MatchCommunitySet m = (MatchCommunitySet) expr;
+                        CommunitySetExpr ce = m.getExpr();
+                        comms.addAll(findAllCommunities(conf, ce));
+                    }
+                });
+            });
+        });
+        return comms;
+    }
+
 
     private void addBoundConstraints() {
 
@@ -731,7 +816,7 @@ public class Encoder {
         return And(Ge(x, Int(y)), Lt(x, upperBound));
     }
 
-    private BoolExpr isRelevantFor(SymbolicRecord vars, PrefixRange range) {
+    public BoolExpr isRelevantFor(SymbolicRecord vars, PrefixRange range) {
         Prefix p = range.getPrefix();
         SubRange r = range.getLengthRange();
         long pfx = p.getNetworkAddress().asLong();
@@ -753,297 +838,6 @@ public class Encoder {
         }
     }
 
-    private BoolExpr matchFilterList(SymbolicRecord other, RouteFilterList x) {
-        BoolExpr acc = False();
-
-        List<RouteFilterLine> lines = new ArrayList<>(x.getLines());
-        Collections.reverse(lines);
-
-        for (RouteFilterLine line : lines) {
-            Prefix p = line.getPrefix();
-            SubRange r = line.getLengthRange();
-            PrefixRange range = new PrefixRange(p, r);
-            BoolExpr matches = isRelevantFor(other, range);
-
-            switch (line.getAction()) {
-                case ACCEPT:
-                    acc = If(matches, True(), acc);
-                    break;
-
-                case REJECT:
-                    acc = If(matches, False(), acc);
-                    break;
-            }
-        }
-        return acc;
-    }
-
-    private BoolExpr matchPrefixSet(Configuration conf, SymbolicRecord other, PrefixSetExpr e) {
-        if (e instanceof ExplicitPrefixSet) {
-            ExplicitPrefixSet x = (ExplicitPrefixSet) e;
-
-            Set<PrefixRange> ranges = x.getPrefixSpace().getPrefixRanges();
-            if (ranges.isEmpty()) {
-                return True();
-            }
-
-            BoolExpr acc = False();
-            for (PrefixRange range : ranges) {
-                acc = Or(acc, isRelevantFor(other, range));
-            }
-            return acc;
-
-        } else if (e instanceof NamedPrefixSet) {
-            NamedPrefixSet x = (NamedPrefixSet) e;
-            String name = x.getName();
-            RouteFilterList fl = conf.getRouteFilterLists().get(name);
-            return matchFilterList(other, fl);
-
-        } else {
-            throw new BatfishException("TODO: match prefix set: " + e);
-        }
-    }
-
-    private BoolExpr computeTransferFunction(
-            SymbolicRecord other, SymbolicRecord current, Configuration conf, RoutingProtocol to,
-            RoutingProtocol from, Modifications mods, BooleanExpr expr, Integer addedCost,
-            boolean inCall) {
-
-        if (expr instanceof Conjunction) {
-            Conjunction c = (Conjunction) expr;
-            if (c.getConjuncts().size() == 0) {
-                return False();
-            }
-            BoolExpr v = True();
-            for (BooleanExpr x : c.getConjuncts()) {
-                v = And(v, computeTransferFunction(other, current, conf, to, from, mods, x,
-                        addedCost, inCall));
-            }
-            return v;
-        }
-        if (expr instanceof Disjunction) {
-            Disjunction d = (Disjunction) expr;
-            if (d.getDisjuncts().size() == 0) {
-                return True();
-            }
-            BoolExpr v = False();
-            for (BooleanExpr x : d.getDisjuncts()) {
-                v = Or(v, computeTransferFunction(other, current, conf, to, from, mods, x,
-                        addedCost, inCall));
-            }
-            return v;
-        }
-        if (expr instanceof Not) {
-            Not n = (Not) expr;
-            BoolExpr v = computeTransferFunction(other, current, conf, to, from, mods, n.getExpr
-                    (), addedCost, inCall);
-            return Not(v);
-        }
-        if (expr instanceof MatchProtocol) {
-            // TODO: is this right?
-            MatchProtocol mp = (MatchProtocol) expr;
-            return Bool(mp.getProtocol() == from);
-        }
-        if (expr instanceof MatchPrefixSet) {
-            MatchPrefixSet m = (MatchPrefixSet) expr;
-            return matchPrefixSet(conf, other, m.getPrefixSet());
-        }
-        if (expr instanceof CallExpr) {
-            CallExpr c = (CallExpr) expr;
-            String name = c.getCalledPolicyName();
-            RoutingPolicy pol = conf.getRoutingPolicies().get(name);
-
-            // TODO: we really need some sort of SSA form
-            // TODO: modifications will not be kept because it depends on the branch choosen
-            // Do not copy modifications to keep
-            return computeTransferFunction(other, current, conf, to, from, mods, pol
-                    .getStatements(), addedCost, true);
-        }
-        if (expr instanceof WithEnvironmentExpr) {
-            // TODO: this is not correct
-            WithEnvironmentExpr we = (WithEnvironmentExpr) expr;
-            return computeTransferFunction(other, current, conf, to, from, mods, we.getExpr(),
-                    addedCost, inCall);
-        }
-
-        throw new BatfishException("TODO: compute expr transfer function: " + expr);
-    }
-
-    private ArithExpr getOrDefault(ArithExpr x, ArithExpr d) {
-        if (x != null) {
-            return x;
-        }
-        return d;
-    }
-
-    private ArithExpr applyIntExprModification(ArithExpr x, IntExpr e) {
-        if (e instanceof LiteralInt) {
-            LiteralInt z = (LiteralInt) e;
-            return Int(z.getValue());
-        }
-        if (e instanceof DecrementMetric) {
-            DecrementMetric z = (DecrementMetric) e;
-            return Sub(x, Int(z.getSubtrahend()));
-        }
-        if (e instanceof IncrementMetric) {
-            IncrementMetric z = (IncrementMetric) e;
-            return Sum(x, Int(z.getAddend()));
-        }
-        if (e instanceof IncrementLocalPreference) {
-            IncrementLocalPreference z = (IncrementLocalPreference) e;
-            return Sum(x, Int(z.getAddend()));
-        }
-        if (e instanceof DecrementLocalPreference) {
-            DecrementLocalPreference z = (DecrementLocalPreference) e;
-            return Sub(x, Int(z.getSubtrahend()));
-        }
-        throw new BatfishException("TODO: int expr transfer function: " + e);
-    }
-
-    private BoolExpr applyModifications(
-            Configuration conf, RoutingProtocol to, RoutingProtocol from, Modifications mods,
-            SymbolicRecord current, SymbolicRecord other, Integer addedCost) {
-        ArithExpr defaultLen = Int(defaultLength());
-        ArithExpr defaultAd = Int(defaultAdminDistance(conf, from));
-        ArithExpr defaultMed = Int(defaultMed(from));
-        ArithExpr defaultLp = Int(defaultLocalPref());
-        ArithExpr defaultId = Int(defaultId());
-        ArithExpr defaultMet = Int(defaultMetric(from));
-
-        BoolExpr met;
-        ArithExpr otherMet = getOrDefault(other.getMetric(), defaultMet);
-        if (mods.getSetMetric() == null) {
-            met = safeEqAdd(current.getMetric(), otherMet, addedCost);
-        } else {
-            IntExpr ie = mods.getSetMetric().getMetric();
-            ArithExpr val = applyIntExprModification(otherMet, ie);
-            met = safeEqAdd(current.getMetric(), val, addedCost);
-        }
-
-        BoolExpr lp;
-        ArithExpr otherLp = getOrDefault(other.getLocalPref(), defaultLp);
-        if (mods.getSetLp() == null) {
-            lp = safeEq(current.getLocalPref(), otherLp);
-        } else {
-            IntExpr ie = mods.getSetLp().getLocalPreference();
-            lp = safeEq(current.getLocalPref(), applyIntExprModification(otherLp, ie));
-        }
-
-        BoolExpr per = safeEq(current.getPermitted(), other.getPermitted());
-        BoolExpr len = safeEq(current.getPrefixLength(), getOrDefault(other.getPrefixLength(),
-                defaultLen));
-        BoolExpr id = safeEq(current.getRouterId(), getOrDefault(other.getRouterId(), defaultId));
-
-        // TODO: handle AD correctly
-        // TODO: handle MED correctly
-        // TODO: what about transitivity?
-        // TODO: communities are transmitted to neighbors?
-        ArithExpr otherAd = (other.getAdminDist() == null ? defaultAd : other.getAdminDist());
-        ArithExpr otherMed = (other.getMed() == null ? defaultMed : other.getMed());
-
-        BoolExpr ad = safeEq(current.getAdminDist(), otherAd);
-        BoolExpr med = safeEq(current.getMed(), otherMed);
-
-        return And(per, len, ad, med, lp, met, id);
-
-    }
-
-    private BoolExpr computeTransferFunction(
-            SymbolicRecord other, SymbolicRecord current, Configuration conf, RoutingProtocol to,
-            RoutingProtocol from, Modifications mods, List<Statement> statements, Integer
-            addedCost, boolean inCall) {
-
-        ListIterator<Statement> it = statements.listIterator();
-        while (it.hasNext()) {
-            Statement s = it.next();
-
-            if (s instanceof Statements.StaticStatement) {
-                Statements.StaticStatement ss = (Statements.StaticStatement) s;
-                if (ss.getType() == ExitAccept) {
-                    return applyModifications(conf, to, from, mods, current, other, addedCost);
-                } else if (ss.getType() == ExitReject) {
-                    return Not(current.getPermitted());
-                } else if (ss.getType() == ReturnTrue) {
-                    if (inCall) {
-                        return True();
-                    } else {
-                        return applyModifications(conf, to, from, mods, current, other, addedCost);
-                    }
-                } else if (ss.getType() == ReturnFalse) {
-                    if (inCall) {
-                        return False();
-                    } else {
-                        return Not(current.getPermitted());
-                    }
-                } else if (ss.getType() == SetDefaultActionAccept) {
-                    mods.addModification(s);
-                } else if (ss.getType() == SetDefaultActionReject) {
-                    mods.addModification(s);
-                }
-                // TODO: need to set local default action in an environment
-                else if (ss.getType() == ReturnLocalDefaultAction) {
-                    return False();
-                } else {
-                    throw new BatfishException("TODO: computeTransferFunction: " + ss.getType());
-                }
-            } else if (s instanceof If) {
-                If i = (If) s;
-                List<Statement> remainingx = new ArrayList<>(i.getTrueStatements());
-                List<Statement> remainingy = new ArrayList<>(i.getFalseStatements());
-
-                // Copy the remaining statements along both branches
-                if (it.hasNext()) {
-                    ListIterator<Statement> ix = statements.listIterator(it.nextIndex());
-                    ListIterator<Statement> iy = statements.listIterator(it.nextIndex());
-                    while (ix.hasNext()) {
-                        remainingx.add(ix.next());
-                        remainingy.add(iy.next());
-                    }
-                }
-
-                Modifications modsTrue = new Modifications(mods);
-                Modifications modsFalse = new Modifications(mods);
-                BoolExpr guard = computeTransferFunction(other, current, conf, to, from, mods, i
-                        .getGuard(), addedCost, inCall);
-                BoolExpr trueBranch = computeTransferFunction(other, current, conf, to, from,
-                        modsTrue, remainingx, addedCost, inCall);
-                BoolExpr falseBranch = computeTransferFunction(other, current, conf, to, from,
-                        modsFalse, remainingy, addedCost, inCall);
-                return If(guard, trueBranch, falseBranch);
-
-            } else if (s instanceof SetOspfMetricType || s instanceof SetMetric) {
-                mods.addModification(s);
-
-            } else {
-                throw new BatfishException("TODO: statement transfer function: " + s);
-            }
-        }
-
-        if (mods.getDefaultAccept()) {
-            return applyModifications(conf, to, from, mods, current, other, addedCost);
-        } else {
-            return Not(current.getPermitted());
-        }
-    }
-
-    private BoolExpr computeTransferFunction(
-            SymbolicRecord other, SymbolicRecord current, Configuration conf, RoutingProtocol to,
-            RoutingProtocol from, List<Statement> statements, Integer addedCost) {
-        return computeTransferFunction(other, current, conf, to, from, new Modifications(),
-                statements, addedCost, false);
-    }
-
-    private BoolExpr transferFunction(
-            SymbolicRecord other, SymbolicRecord current, RoutingPolicy pol, Configuration conf,
-            RoutingProtocol to, RoutingProtocol from) {
-        if (ENABLE_DEBUGGING) {
-            System.out.println("------ REDISTRIBUTION ------");
-            System.out.println("From: " + to.protocolName());
-            System.out.println("To: " + from.protocolName());
-        }
-        return computeTransferFunction(other, current, conf, to, from, pol.getStatements(), null);
-    }
-
     private void addRedistributionConstraints() {
         getGraph().getConfigurations().forEach((router, conf) -> {
             for (RoutingProtocol proto : getGraph().getProtocols().get(router)) {
@@ -1055,8 +849,8 @@ public class Encoder {
                         SymbolicRecord current = vars.getSymbolicRecord();
                         SymbolicRecord other = _symbolicDecisions.getBestNeighborPerProtocol()
                                                                  .get(router, fromProto);
-                        BoolExpr be = transferFunction(other, current, pol, conf, proto, fromProto);
-                        add(be);
+                        TransferFunction f = new TransferFunction(this, conf, other, current, proto, fromProto, pol.getStatements(),null);
+                        add(f.compute());
                     });
                 }
             }
@@ -1151,14 +945,14 @@ public class Encoder {
         throw new BatfishException("ERROR: getOriginatedNetworks: " + proto.protocolName());
     }
 
-    private BoolExpr safeEq(Expr x, Expr value) {
+    public BoolExpr safeEq(Expr x, Expr value) {
         if (x == null) {
             return True();
         }
         return Eq(x, value);
     }
 
-    private BoolExpr safeEqAdd(ArithExpr x, ArithExpr value, Integer cost) {
+    public BoolExpr safeEqAdd(ArithExpr x, ArithExpr value, Integer cost) {
         if (x == null) {
             return True();
         }
@@ -1168,11 +962,11 @@ public class Encoder {
         return Eq(x, Sum(value, Int(cost)));
     }
 
-    private int defaultId() {
+    public int defaultId() {
         return 0;
     }
 
-    private int defaultMetric(RoutingProtocol proto) {
+    public int defaultMetric(RoutingProtocol proto) {
         if (proto == RoutingProtocol.CONNECTED) {
             return 0;
         }
@@ -1182,18 +976,18 @@ public class Encoder {
         return 0;
     }
 
-    private int defaultMed(RoutingProtocol proto) {
+    public int defaultMed(RoutingProtocol proto) {
         if (proto == RoutingProtocol.BGP) {
             return 100;
         }
         return 0;
     }
 
-    private int defaultLocalPref() {
+    public int defaultLocalPref() {
         return 0;
     }
 
-    private int defaultLength() {
+    public int defaultLength() {
         return 0;
     }
 
@@ -1848,7 +1642,7 @@ public class Encoder {
         return 1;
     }
 
-    private int defaultAdminDistance(Configuration conf, RoutingProtocol proto) {
+    public int defaultAdminDistance(Configuration conf, RoutingProtocol proto) {
         return proto.getDefaultAdministrativeCost(conf.getConfigurationFormat());
     }
 
@@ -1867,9 +1661,12 @@ public class Encoder {
                 Prefix p = iface.getPrefix();
                 BoolExpr relevant = And(Bool(iface.getActive()), isRelevantFor(p, _symbolicPacket
                         .getDstIp()), notFailed);
-                BoolExpr values = And(vars.getPermitted(), safeEq(vars.getPrefixLength(), Int(p
-                        .getPrefixLength())), safeEq(vars.getAdminDist(), Int(1)), safeEq(vars
-                        .getLocalPref(), Int(0)), safeEq(vars.getMetric(), Int(0)));
+                BoolExpr per = vars.getPermitted();
+                BoolExpr len = safeEq(vars.getPrefixLength(), Int(p.getPrefixLength()));
+                BoolExpr ad = safeEq(vars.getAdminDist(), Int(1));
+                BoolExpr lp = safeEq(vars.getLocalPref(), Int(0));
+                BoolExpr met = safeEq(vars.getMetric(), Int(0));
+                BoolExpr values = And(per, len, ad, lp, met);
                 add(If(relevant, values, Not(vars.getPermitted())));
             }
 
@@ -1882,10 +1679,12 @@ public class Encoder {
                     Prefix p = sr.getNetwork();
                     BoolExpr relevant = And(Bool(iface.getActive()), isRelevantFor(p,
                             _symbolicPacket.getDstIp()), notFailed);
-                    BoolExpr values = And(vars.getPermitted(), safeEq(vars.getPrefixLength(), Int
-                            (p.getPrefixLength())), safeEq(vars.getAdminDist(), Int(sr
-                            .getAdministrativeCost())), safeEq(vars.getLocalPref(), Int(0)),
-                            safeEq(vars.getMetric(), Int(0)));
+                    BoolExpr per = vars.getPermitted();
+                    BoolExpr len = safeEq(vars.getPrefixLength(), Int(p.getPrefixLength()));
+                    BoolExpr ad = safeEq(vars.getAdminDist(), Int(sr.getAdministrativeCost()));
+                    BoolExpr lp = safeEq(vars.getLocalPref(), Int(0));
+                    BoolExpr met = safeEq(vars.getMetric(), Int(0));
+                    BoolExpr values = And(per, len, ad, lp, met);
                     acc = If(relevant, values, acc);
                 }
                 add(acc);
@@ -1903,8 +1702,8 @@ public class Encoder {
                     BoolExpr importFunction;
                     RoutingPolicy pol = getGraph().findImportRoutingPolicy(router, proto, e);
                     if (pol != null) {
-                        importFunction = computeTransferFunction(varsOther, vars, conf, proto,
-                                proto, pol.getStatements(), null);
+                        TransferFunction f = new TransferFunction(this, conf, varsOther, vars, proto, proto, pol.getStatements(), null);
+                        importFunction = f.compute();
                     } else {
                         // just copy the export policy in ospf/bgp
                         BoolExpr per = Eq(vars.getPermitted(), varsOther.getPermitted());
@@ -1963,14 +1762,17 @@ public class Encoder {
                 BoolExpr acc;
                 RoutingPolicy pol = getGraph().findExportRoutingPolicy(router, proto, e);
                 if (pol != null) {
-                    acc = computeTransferFunction(varsOther, vars, conf, proto, proto, pol
-                            .getStatements(), cost);
+                    TransferFunction f = new TransferFunction(this, conf, varsOther, vars, proto, proto, pol.getStatements(), cost);
+                    acc = f.compute();
+                    // System.out.println("SIMPLIFIED:\n" + acc.simplify());
                 } else {
-                    acc = And(Eq(vars.getPermitted(), True()), safeEq(vars.getPrefixLength(),
-                            best.getPrefixLength()), safeEq(vars.getAdminDist(), best
-                            .getAdminDist()), safeEq(vars.getMed(), best.getMed()), safeEq(vars
-                            .getLocalPref(), best.getLocalPref()), safeEqAdd(vars.getMetric(),
-                            best.getMetric(), cost));
+                    BoolExpr per = vars.getPermitted();
+                    BoolExpr len = safeEq(vars.getPrefixLength(), best.getPrefixLength());
+                    BoolExpr ad = safeEq(vars.getAdminDist(), best.getAdminDist());
+                    BoolExpr med = safeEq(vars.getMed(), best.getMed());
+                    BoolExpr lp = safeEq(vars.getLocalPref(), best.getLocalPref());
+                    BoolExpr met = safeEqAdd(vars.getMetric(), best.getMetric(), cost);
+                    acc = And(per, len, ad, med, lp, met);
                 }
 
                 acc = If(usable, acc, val);
@@ -1980,11 +1782,13 @@ public class Encoder {
                             _symbolicPacket.getDstIp()));
                     int adminDistance = defaultAdminDistance(conf, proto);
                     int prefixLength = p.getPrefixLength();
-                    BoolExpr values = And(vars.getPermitted(), safeEq(vars.getLocalPref(), Int(0)
-                    ), safeEq(vars.getAdminDist(), Int(adminDistance)), safeEq(vars.getMetric(),
-                            Int(cost)), safeEq(vars.getMed(), Int(100)), safeEq(vars
-                            .getPrefixLength(), Int(prefixLength)));
-
+                    BoolExpr per = vars.getPermitted();
+                    BoolExpr lp = safeEq(vars.getLocalPref(), Int(0));
+                    BoolExpr ad = safeEq(vars.getAdminDist(), Int(adminDistance));
+                    BoolExpr met = safeEq(vars.getMetric(), Int(cost));
+                    BoolExpr med = safeEq(vars.getMed(), Int(100));
+                    BoolExpr len = safeEq(vars.getPrefixLength(), Int(prefixLength));
+                    BoolExpr values = And(per, lp, ad, met, med, len);
                     acc = If(relevant, values, acc);
                 }
 
@@ -2119,7 +1923,6 @@ public class Encoder {
             System.out.println(getGraph().toString());
         }
         initConfigurations();
-        computeCommunities();
         computeOptimizations();
         addVariables();
         addBoundConstraints();

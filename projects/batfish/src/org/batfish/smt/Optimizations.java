@@ -15,19 +15,30 @@ import java.util.*;
 class Optimizations {
 
     private static final boolean ENABLE_IMPORT_EXPORT_MERGE_OPTIMIZATION = true;
+
     private static final boolean ENABLE_EXPORT_MERGE_OPTIMIZATION = true;
+
     private static final boolean ENABLE_SLICING_OPTIMIZATION = true;
 
     private Encoder _encoder;
 
     private boolean _hasEnvironment;
+
     private Set<String> _sliceHasSingleProtocol;
+
+    // TODO: convert to Table2
     private Map<String, EnumMap<RoutingProtocol, Boolean>> _sliceCanKeepSingleExportVar;
+
     private Map<String, EnumMap<RoutingProtocol, List<GraphEdge>>> _sliceCanCombineImportExportVars;
+
     private Map<String, EnumMap<RoutingProtocol, Boolean>> _needRouterIdProto;
+
     private Set<String> _needRouterId;
+
     private boolean _keepLocalPref;
+
     private boolean _keepAdminDist;
+
     private boolean _keepMed;
 
     Optimizations(Encoder encoder) {
@@ -48,7 +59,7 @@ class Optimizations {
         _keepLocalPref = computeKeepLocalPref();
         _keepAdminDist = computeKeepAdminDistance();
         _keepMed = computeKeepMed();
-        initProtocols(_encoder.getGraph());
+        initProtocols();
         computeRouterIdNeeded();
         computeCanUseSingleBest();
         computeCanMergeExportVars();
@@ -76,8 +87,8 @@ class Optimizations {
         val[0] = false;
         _encoder.getGraph().getConfigurations().forEach((router, conf) -> {
             conf.getRoutingPolicies().forEach((name, pol) -> {
-                AstVisitor v = new AstVisitor(pol.getStatements());
-                v.visit(stmt -> {
+                AstVisitor v = new AstVisitor();
+                v.visit(conf, pol.getStatements(), stmt -> {
                     if (stmt instanceof SetLocalPreference) {
                         val[0] = true;
                     }
@@ -95,8 +106,8 @@ class Optimizations {
         val[0] = false;
         _encoder.getGraph().getConfigurations().forEach((router, conf) -> {
             conf.getRoutingPolicies().forEach((name, pol) -> {
-                AstVisitor v = new AstVisitor(pol.getStatements());
-                v.visit(stmt -> {
+                AstVisitor v = new AstVisitor();
+                v.visit(conf, pol.getStatements(), stmt -> {
                     // TODO: how is admin distance set?
                     if (stmt instanceof SetMetric) {
                         val[0] = true;
@@ -116,9 +127,10 @@ class Optimizations {
             return _hasEnvironment; */
     }
 
-    private void initProtocols(Graph g) {
+    private void initProtocols() {
+        Graph g = _encoder.getGraph();
         g.getConfigurations().forEach((router, conf) -> {
-            _encoder.getGraph().getProtocols().put(router, new ArrayList<>());
+            g.getProtocols().put(router, new ArrayList<>());
         });
         g.getConfigurations().forEach((router, conf) -> {
             List<RoutingProtocol> protos = _encoder.getGraph().getProtocols().get(router);
