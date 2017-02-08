@@ -3,6 +3,7 @@ package org.batfish.smt;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.microsoft.z3.BoolExpr;
 
 import java.util.Map;
 import java.util.SortedMap;
@@ -44,26 +45,26 @@ public class VerificationResult {
     //    return _statistics;
     //}
 
-    /* public void debug() {
-        System.out.println("Number of variables:   " + _statistics.getNumVariables());
-        System.out.println("Number of constraints: " + _statistics.getNumConstraints());
-        System.out.println("Number of nodes: " + _statistics.getNumNodes());
-        System.out.println("Number of edges: " + _statistics.getNumEdges());
-        System.out.println("Solving time: " + _statistics.getTime());
+    public void debug(Encoder enc) {
+        // System.out.println("Number of variables:   " + _statistics.getNumVariables());
+        // System.out.println("Number of constraints: " + _statistics.getNumConstraints());
+        // System.out.println("Number of nodes: " + _statistics.getNumNodes());
+        // System.out.println("Number of edges: " + _statistics.getNumEdges());
+        // System.out.println("Solving time: " + _statistics.getTime());
 
         //System.out.println("================= Variables ==================");
         //for (Expr e : _encoder.getAllVariables()) {
         //    System.out.println(e.toString());
         //}
         System.out.println("================= Constraints ==================");
-        for (BoolExpr be : _encoder.getSolver().getAssertions()) {
+        for (BoolExpr be : enc.getSolver().getAssertions()) {
            System.out.println(be.simplify());
         }
         if (_verified) {
             System.out.println("verified");
         } else {
             System.out.println("================= Model ================");
-            _encoder.getDataForwarding().forEach((router, map) -> {
+            enc.getSymbolicDecisions().getDataForwarding().forEach((router, map) -> {
                 map.forEach((edge, e) -> {
                     String expr = e.toString();
                     if (expr.contains("data-")) {
@@ -80,12 +81,14 @@ public class VerificationResult {
             });
         }
 
-        System.out.println("================= Unsat Core ================");
-        for (BoolExpr be : _encoder.getSolver().getUnsatCore()) {
-            BoolExpr constraint = _encoder.getTrackingVars().get(be.toString());
-            System.out.println(constraint.simplify());
-            System.out.println("");
+        if (enc.getUnsatCore().getDoTrack()) {
+            System.out.println("================= Unsat Core ================");
+            for (BoolExpr be : enc.getSolver().getUnsatCore()) {
+                BoolExpr constraint = enc.getUnsatCore().getTrackingVars().get(be.toString());
+                System.out.println(constraint.simplify());
+                System.out.println("");
+            }
         }
-    } */
+    }
 
 }

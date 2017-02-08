@@ -32,4 +32,12 @@ public class UnsatCore {
             solver.add(be);
         }
     }
+
+    public boolean getDoTrack() {
+        return _doTrack;
+    }
+
+    public Map<String, BoolExpr> getTrackingVars() {
+        return _trackingVars;
+    }
 }

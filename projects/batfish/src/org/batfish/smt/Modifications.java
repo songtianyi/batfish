@@ -34,7 +34,7 @@ public class Modifications {
     public Modifications(Encoder encoder, Configuration conf) {
         _encoder = encoder;
         _conf = conf;
-        _defaultAccept = true;
+        _defaultAccept = false;
         _defaultAcceptLocal = false;
         _prependPath = null;
         _setLp = null;
@@ -166,4 +166,7 @@ public class Modifications {
         return _defaultAccept;
     }
 
+    public boolean getDefaultAcceptLocal() {
+        return _defaultAcceptLocal;
+    }
 }

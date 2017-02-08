@@ -31,7 +31,7 @@ public class TransferFunction {
 
     private Integer _addedCost;
 
-    private boolean _inCall;
+    private Stack<Queue<BooleanExpr>> _operands;
 
     private Stack<List<Statement>> _contTrue;
 
@@ -105,10 +105,11 @@ public class TransferFunction {
         BoolExpr acc = _enc.False();
         for (CommunityListLine line : lines) {
             boolean action = (line.getAction() == LineAction.ACCEPT);
-            CommunityVar cvar = new CommunityVar(true, line.getRegex(), null);
+            CommunityVar cvar = new CommunityVar(CommunityVar.Type.REGEX, line.getRegex(), null);
             BoolExpr c = other.getCommunities().get(cvar);
             acc = _enc.If(c, _enc.Bool(action), acc);
         }
+        // return _enc.True();
         return acc;
     }
 
@@ -117,12 +118,13 @@ public class TransferFunction {
             Set<CommunityVar> comms = _enc.findAllCommunities(conf, e);
             BoolExpr acc = _enc.True();
             for (CommunityVar comm : comms) {
-                BoolExpr c = other.getCommunities().get(comm.getValue());
+                BoolExpr c = other.getCommunities().get(comm);
                 if (c == null) {
                     throw new BatfishException("matchCommunitySet: should not be null");
                 }
                 acc = _enc.And(acc, c);
             }
+            // return _enc.True();
             return acc;
         }
 
@@ -135,23 +137,31 @@ public class TransferFunction {
         throw new BatfishException("TODO: match community set");
     }
 
+    private List<Statement> wrapExpr(BooleanExpr expr) {
+        If i = new If();
+        List<Statement> tru = new ArrayList<>();
+        List<Statement> fal = new ArrayList<>();
+        tru.add(new Statements.StaticStatement(ReturnTrue));
+        fal.add(new Statements.StaticStatement(ReturnFalse));
+        i.setGuard(expr);
+        i.setTrueStatements(tru);
+        i.setFalseStatements(fal);
+        return Collections.singletonList(i);
+    }
+
     private BoolExpr compute(BooleanExpr expr, Modifications mods) {
+
         if (expr instanceof Conjunction) {
             Conjunction c = (Conjunction) expr;
-            if (c.getConjuncts().size() == 0) {
-                return _enc.False();
-            }
-            BoolExpr v = _enc.True();
-            for (BooleanExpr x : c.getConjuncts()) {
-                v = _enc.And(v, compute(x, mods));
-            }
-            return v;
+            Queue<BooleanExpr> queue = new ArrayDeque<>(c.getConjuncts());
+            BooleanExpr x = queue.remove();
+            _operands.push(queue);
+            BoolExpr ret = compute(wrapExpr(x), mods);
+            _operands.pop();
+            return ret;
         }
         if (expr instanceof Disjunction) {
             Disjunction d = (Disjunction) expr;
-            if (d.getDisjuncts().size() == 0) {
-                return _enc.True();
-            }
             BoolExpr v = _enc.False();
             for (BooleanExpr x : d.getDisjuncts()) {
                 v = _enc.Or(v, compute(x, mods));
@@ -160,8 +170,9 @@ public class TransferFunction {
         }
         if (expr instanceof Not) {
             Not n = (Not) expr;
-            BoolExpr v = compute(n.getExpr(), mods);
-            return _enc.Not(v);
+            return compute(wrapExpr(n.getExpr()), mods);
+            // BoolExpr v = compute(n.getExpr(), mods);
+            // return _enc.Not(v);
         }
         if (expr instanceof MatchProtocol) {
             MatchProtocol mp = (MatchProtocol) expr;
@@ -171,19 +182,18 @@ public class TransferFunction {
             MatchPrefixSet m = (MatchPrefixSet) expr;
             return matchPrefixSet(_conf, m.getPrefixSet());
         }
-        if (expr instanceof CallExpr) {
+        else if (expr instanceof CallExpr) {
             CallExpr c = (CallExpr) expr;
             String name = c.getCalledPolicyName();
             RoutingPolicy pol = _conf.getRoutingPolicies().get(name);
-            _inCall = true;
             return compute(pol.getStatements(), mods);
         }
-        if (expr instanceof WithEnvironmentExpr) {
+        else if (expr instanceof WithEnvironmentExpr) {
             // TODO: this is not correct
             WithEnvironmentExpr we = (WithEnvironmentExpr) expr;
             return compute(we.getExpr(), mods);
         }
-        if (expr instanceof MatchCommunitySet) {
+        else if (expr instanceof MatchCommunitySet) {
             MatchCommunitySet mcs = (MatchCommunitySet) expr;
             return matchCommunitySet(_conf, mcs.getExpr(), _other);
         }
@@ -257,14 +267,6 @@ public class TransferFunction {
         BoolExpr comms = _enc.True();
 
         // regex matches that now match due to the concrete added value
-        Set<CommunityVar> addedDependencies = new HashSet<>();
-        for (CommunityVar var : mods.getPositiveCommunities()) {
-            List<CommunityVar> dependencies = _enc.getCommunityDependencies().get(var);
-            for (CommunityVar dependency : dependencies) {
-                addedDependencies.add(dependency);
-            }
-        }
-
         // update all community values
         for (Map.Entry<CommunityVar, BoolExpr> entry : _current.getCommunities().entrySet()) {
             CommunityVar cvar = entry.getKey();
@@ -277,12 +279,10 @@ public class TransferFunction {
             else if (mods.getNegativeCommunities().contains(cvar)) {
                 comms = _enc.And(comms, _enc.Not(e));
             }
-            else if (addedDependencies.contains(cvar)) {
-                comms = _enc.And(comms, e);
-            }
-            else {
+            else if (cvar.getType() != CommunityVar.Type.REGEX) {
                 comms = _enc.And(comms, _enc.Eq(e, eOther));
             }
+            // Note: regexes are defined implicitly in terms of OTHER/EXACT
         }
 
         // TODO: handle AD correctly
@@ -298,60 +298,85 @@ public class TransferFunction {
         return _enc.And(per, len, ad, med, lp, met, id, comms);
     }
 
-    private boolean hasStatement(Configuration conf, BooleanExpr be) {
+    private boolean hasStatement(BooleanExpr be) {
         AstVisitor v = new AstVisitor();
         Boolean[] val = new Boolean[1];
         val[0] = false;
-        v.visit(conf, be, stmt -> {
+        v.visit(_conf, be, stmt -> {
             val[0] = true;
         }, expr -> {});
         return val[0];
     }
 
+    private BoolExpr returnTrue(Modifications mods) {
+        if (!_operands.isEmpty() && !_operands.peek().isEmpty()) {
+            Queue<BooleanExpr> queue = _operands.peek();
+            BooleanExpr x = queue.poll();
+            return compute(wrapExpr(x), mods);
+        }
+        else if (!_contTrue.isEmpty()) {
+            List<Statement> t = _contTrue.pop();
+            List<Statement> f = _contFalse.pop();
+            BoolExpr ret = compute(t, mods);
+            _contTrue.push(t);
+            _contFalse.push(f);
+            return ret;
+        } else {
+            return applyModifications(mods);
+        }
+    }
+
+    private BoolExpr returnFalse(Modifications mods) {
+        if (!_operands.isEmpty() && !_operands.peek().isEmpty()) {
+            return compute(_contFalse.peek(), mods);
+        }
+        else if (!_contFalse.isEmpty()) {
+            List<Statement> t = _contTrue.pop();
+            List<Statement> f = _contFalse.pop();
+            BoolExpr ret = compute(f, mods);
+            _contTrue.push(t);
+            _contFalse.push(f);
+            return ret;
+        } else {
+            return _enc.Not(_current.getPermitted());
+        }
+    }
+
+    // TODO: make fewer copies of mods
     private BoolExpr compute(List<Statement> statements, Modifications mods) {
+        Modifications freshMods = new Modifications(mods);
+
         ListIterator<Statement> it = statements.listIterator();
         while (it.hasNext()) {
             Statement s = it.next();
 
             if (s instanceof Statements.StaticStatement) {
                 Statements.StaticStatement ss = (Statements.StaticStatement) s;
-                if (ss.getType() == ExitAccept) {
-                    return applyModifications(mods);
-                } else if (ss.getType() == ExitReject) {
-                    return _enc.Not(_current.getPermitted());
-                } else if (ss.getType() == ReturnTrue) {
-                    if (!_contTrue.isEmpty()) {
-                        Modifications modsTrue = new Modifications(mods);
-                        List<Statement> t = _contTrue.peek();
-                        List<Statement> f = _contFalse.peek();
-                        return compute(t, modsTrue);
-                    } else if (_inCall) {
-                        return _enc.True();
-                    } else {
-                        return applyModifications(mods);
-                    }
-                } else if (ss.getType() == ReturnFalse) {
-                    if (!_contFalse.isEmpty()) {
-                        Modifications modsFalse = new Modifications(mods);
-                        List<Statement> t = _contTrue.peek();
-                        List<Statement> f = _contFalse.peek();
-                        return compute(f, modsFalse);
-                    } else if (_inCall) {
-                        return _enc.False();
-                    } else {
-                        return _enc.Not(_current.getPermitted());
-                    }
+
+                if (ss.getType() == ExitAccept || ss.getType() == ReturnTrue) {
+                    return returnTrue(freshMods);
+
+                } else if (ss.getType() == ExitReject || ss.getType() == ReturnFalse) {
+                    return returnFalse(freshMods);
+
                 } else if (ss.getType() == SetDefaultActionAccept) {
-                    mods.addModification(s);
+                    freshMods.addModification(s);
+
                 } else if (ss.getType() == SetDefaultActionReject) {
-                    mods.addModification(s);
-                }
-                // TODO: need to set local default action in an environment
-                else if (ss.getType() == ReturnLocalDefaultAction) {
-                    return _enc.False();
+                    freshMods.addModification(s);
+
+                } else if (ss.getType() == ReturnLocalDefaultAction) {
+                    // TODO: need to set local default action in an environment
+                    if (freshMods.getDefaultAcceptLocal()) {
+                        return returnTrue(freshMods);
+                    } else {
+                        return returnFalse(freshMods);
+                    }
+
                 } else {
                     throw new BatfishException("TODO: computeTransferFunction: " + ss.getType());
                 }
+
             } else if (s instanceof If) {
                 If i = (If) s;
                 List<Statement> remainingx = new ArrayList<>(i.getTrueStatements());
@@ -370,51 +395,50 @@ public class TransferFunction {
                 Modifications modsTrue = new Modifications(mods);
                 Modifications modsFalse = new Modifications(mods);
 
-                // If it is a pure function, translate directly
-                if (hasStatement(_conf, i.getGuard())) {
+                if (hasStatement(i.getGuard())) {
                     _contTrue.push(remainingx);
                     _contFalse.push(remainingy);
-                    BoolExpr ret = compute(i.getGuard(), mods);
+                    BoolExpr ret = compute(i.getGuard(), freshMods);
                     _contTrue.pop();
                     _contFalse.pop();
                     return ret;
                 } else {
                     BoolExpr trueBranch = compute(remainingx, modsTrue);
                     BoolExpr falseBranch = compute(remainingy, modsFalse);
-                    BoolExpr guard = compute(i.getGuard(), mods);
+                    BoolExpr guard = compute(i.getGuard(), freshMods);
                     return _enc.If(guard, trueBranch, falseBranch);
                 }
 
             } else if (s instanceof SetOspfMetricType || s instanceof SetMetric) {
-                mods.addModification(s);
+                freshMods.addModification(s);
 
             } else if (s instanceof SetLocalPreference) {
-                mods.addModification(s);
+                freshMods.addModification(s);
 
             } else if (s instanceof AddCommunity) {
-                mods.addModification(s);
+                freshMods.addModification(s);
 
             } else if (s instanceof DeleteCommunity) {
-                mods.addModification(s);
+                freshMods.addModification(s);
 
             } else if (s instanceof  RetainCommunity) {
-                mods.addModification(s);
+                freshMods.addModification(s);
 
             } else {
                 throw new BatfishException("TODO: statement transfer function: " + s);
             }
         }
 
-        if (mods.getDefaultAccept()) {
-            return applyModifications(mods);
+        if (freshMods.getDefaultAccept()) {
+            return returnTrue(mods);
         } else {
-            return _enc.Not(_current.getPermitted());
+            return returnFalse(mods);
         }
     }
 
     public BoolExpr compute() {
         Modifications mods = new Modifications(_enc, _conf);
-        _inCall = false;
+        _operands = new Stack<>();
         _contTrue = new Stack<>();
         _contFalse = new Stack<>();
         return compute(_statements, mods);

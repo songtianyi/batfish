@@ -33,8 +33,9 @@ public class SymbolicRecord {
 
     private Map<CommunityVar, BoolExpr> _communities;
 
-    public SymbolicRecord(String router, String protoName, String ifaceName, int prefixLen,
-            String export) {
+
+    public SymbolicRecord(
+            String router, String protoName, String ifaceName, int prefixLen, String export) {
         _name = String.format("%s_%s_%s_%d_%s", router, protoName, ifaceName, prefixLen, export);
         _isUsed = false;
         _isBest = false;
@@ -47,7 +48,8 @@ public class SymbolicRecord {
         _permitted = null;
     }
 
-    public SymbolicRecord(Encoder enc, String router, RoutingProtocol proto, String name, Optimizations opts,
+    public SymbolicRecord(
+            Encoder enc, String router, RoutingProtocol proto, String name, Optimizations opts,
             String iface, Context ctx, int prefixLen, String export, boolean isBest) {
         _name = String.format("%s_%s_%s_%d_%s", router, name, iface, prefixLen, export);
         _isUsed = true;
@@ -94,62 +96,16 @@ public class SymbolicRecord {
 
         _communities = new HashMap<>();
         if (proto == RoutingProtocol.BGP) {
-            for (CommunityVar comm : enc.getAllCommunities()) {
-                String s = comm.getValue();
-                _communities.put(comm, ctx.mkBoolConst(_name + "_community_" + s));
+            for (CommunityVar cvar : enc.getAllCommunities()) {
+                String s = cvar.getValue();
+                if (cvar.getType() == CommunityVar.Type.OTHER) {
+                    s = s + "_OTHER";
+                }
+                _communities.put(cvar, ctx.mkBoolConst(_name + "_community_" + s));
             }
         }
     }
 
-    @Override
-    public boolean equals(Object o) {
-        if (this == o)
-            return true;
-        if (o == null || getClass() != o.getClass())
-            return false;
-
-        SymbolicRecord that = (SymbolicRecord) o;
-
-        if (_isUsed != that._isUsed)
-            return false;
-        if (_isBest != that._isBest)
-            return false;
-        if (_name != null ? !_name.equals(that._name) : that._name != null)
-            return false;
-        if (_prefixLength != null ? !_prefixLength.equals(that._prefixLength) : that
-                ._prefixLength != null)
-            return false;
-        if (_adminDist != null ? !_adminDist.equals(that._adminDist) : that._adminDist != null)
-            return false;
-        if (_localPref != null ? !_localPref.equals(that._localPref) : that._localPref != null)
-            return false;
-        if (_metric != null ? !_metric.equals(that._metric) : that._metric != null)
-            return false;
-        if (_med != null ? !_med.equals(that._med) : that._med != null)
-            return false;
-        if (_routerId != null ? !_routerId.equals(that._routerId) : that._routerId != null)
-            return false;
-        if (_permitted != null ? !_permitted.equals(that._permitted) : that._permitted != null)
-            return false;
-        return _communities != null ? _communities.equals(that._communities) : that._communities
-                == null;
-    }
-
-    @Override
-    public int hashCode() {
-        int result = _name != null ? _name.hashCode() : 0;
-        result = 31 * result + (_isUsed ? 1 : 0);
-        result = 31 * result + (_isBest ? 1 : 0);
-        result = 31 * result + (_prefixLength != null ? _prefixLength.hashCode() : 0);
-        result = 31 * result + (_adminDist != null ? _adminDist.hashCode() : 0);
-        result = 31 * result + (_localPref != null ? _localPref.hashCode() : 0);
-        result = 31 * result + (_metric != null ? _metric.hashCode() : 0);
-        result = 31 * result + (_med != null ? _med.hashCode() : 0);
-        result = 31 * result + (_routerId != null ? _routerId.hashCode() : 0);
-        result = 31 * result + (_permitted != null ? _permitted.hashCode() : 0);
-        result = 31 * result + (_communities != null ? _communities.hashCode() : 0);
-        return result;
-    }
 
     public boolean getIsUsed() {
         return _isUsed;

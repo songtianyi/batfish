@@ -3,14 +3,18 @@ package org.batfish.smt;
 
 public class CommunityVar {
 
-    private boolean _regex;
+    public enum Type {
+        EXACT, REGEX, OTHER
+    }
+
+    private Type _type;
 
     private String _value;
 
     private Long _long;
 
-    public CommunityVar(boolean regex, String value, Long l) {
-        _regex = regex;
+    public CommunityVar(Type type, String value, Long l) {
+        _type = type;
         _value = value;
         _long = l;
     }
@@ -24,7 +28,7 @@ public class CommunityVar {
 
         CommunityVar that = (CommunityVar) o;
 
-        if (_regex != that._regex)
+        if (_type != that._type)
             return false;
         if (_value != null ? !_value.equals(that._value) : that._value != null)
             return false;
@@ -33,14 +37,14 @@ public class CommunityVar {
 
     @Override
     public int hashCode() {
-        int result = (_regex ? 1 : 0);
+        int result = _type != null ? _type.hashCode() : 0;
         result = 31 * result + (_value != null ? _value.hashCode() : 0);
         result = 31 * result + (_long != null ? _long.hashCode() : 0);
         return result;
     }
 
-    public boolean isRegex() {
-        return _regex;
+    public Type getType() {
+        return _type;
     }
 
     public String getValue() {

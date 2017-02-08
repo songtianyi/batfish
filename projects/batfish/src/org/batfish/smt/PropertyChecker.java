@@ -343,6 +343,7 @@ public class PropertyChecker {
             BoolExpr equalEnvs = ctx.mkBool(true);
             BoolExpr equalOutputs = ctx.mkBool(true);
             BoolExpr equalIncomingAcls = ctx.mkBool(true);
+            BoolExpr equalOutgoingAcls = ctx.mkBool(true);
 
             Configuration conf1 = g1.getConfigurations().get(r1);
             Configuration conf2 = g2.getConfigurations().get(r2);
@@ -364,17 +365,29 @@ public class PropertyChecker {
                             SymbolicRecord vars2 = e2.getLogicalGraph().getEnvironmentVars().get
                                     (lge2);
 
-                            BoolExpr acl1 = e1.getIncomingAcls().get(lge1.getEdge().getStart());
-                            BoolExpr acl2 = e2.getIncomingAcls().get(lge2.getEdge().getStart());
+                            BoolExpr aclIn1 = e1.getIncomingAcls().get(lge1.getEdge().getStart());
+                            BoolExpr aclIn2 = e2.getIncomingAcls().get(lge2.getEdge().getStart());
 
-                            if (acl1 == null) {
-                                acl1 = ctx.mkBool(true);
+                            if (aclIn1 == null) {
+                                aclIn1 = ctx.mkBool(true);
                             }
-                            if (acl2 == null) {
-                                acl2 = ctx.mkBool(true);
+                            if (aclIn2 == null) {
+                                aclIn2 = ctx.mkBool(true);
                             }
 
-                            equalIncomingAcls = ctx.mkAnd(equalIncomingAcls, ctx.mkEq(acl1, acl2));
+                            BoolExpr aclOut1 = e1.getOutgoingAcls().get(lge1.getEdge().getStart());
+                            BoolExpr aclOut2 = e2.getOutgoingAcls().get(lge2.getEdge().getStart());
+
+                            if (aclOut1 == null) {
+                                aclOut1 = ctx.mkBool(true);
+                            }
+                            if (aclOut2 == null) {
+                                aclOut2 = ctx.mkBool(true);
+                            }
+
+                            equalIncomingAcls = ctx.mkAnd(equalIncomingAcls, ctx.mkEq(aclIn1, aclIn2));
+                            equalOutgoingAcls = ctx.mkAnd(equalOutgoingAcls, ctx.mkEq(aclOut1, aclOut2));
+
 
                             boolean hasEnv1 = (vars1 != null);
                             boolean hasEnv2 = (vars2 != null);
@@ -382,8 +395,24 @@ public class PropertyChecker {
                             if (hasEnv1 && hasEnv2) {
                                 BoolExpr samePermitted = ctx.mkEq(vars1.getPermitted(),
                                         vars2.getPermitted());
-                                equalEnvs = ctx.mkAnd(equalEnvs, samePermitted, e1.equal(conf1,
-                                        proto1, vars1, vars2, lge1));
+
+                                // Set communities equal
+                                BoolExpr equalComms = e1.True();
+                                for (Map.Entry<CommunityVar, BoolExpr> entry :
+                                        vars1.getCommunities().entrySet()) {
+                                    CommunityVar cvar = entry.getKey();
+                                    BoolExpr ce1 = entry.getValue();
+                                    BoolExpr ce2 = vars2.getCommunities().get(cvar);
+                                    if (ce2 == null) {
+                                        System.out.println("Community: " + cvar.getValue());
+                                        throw new BatfishException("mismatched communities");
+                                    }
+                                    equalComms = e1.And(equalComms, e1.Eq(ce1, ce2));
+                                }
+
+                                BoolExpr equalVars = e1.equal(conf1, proto1, vars1, vars2, lge1);
+                                equalEnvs = ctx.mkAnd(equalEnvs, samePermitted, equalVars, equalComms);
+
                             } else if (hasEnv1 || hasEnv2) {
                                 System.out.println("Edge1: " + lge1);
                                 System.out.println("Edge2: " + lge2);
@@ -424,12 +453,14 @@ public class PropertyChecker {
             BoolExpr equalPackets = p1.mkEqual(p2);
 
             BoolExpr assumptions = ctx.mkAnd(equalEnvs, validDest, equalPackets);
-            BoolExpr required = ctx.mkAnd(sameForwarding, equalOutputs, equalIncomingAcls);
+            BoolExpr required = ctx.mkAnd(sameForwarding, equalOutputs, equalIncomingAcls, equalOutgoingAcls);
 
             solver.add(assumptions);
             solver.add(ctx.mkNot(required));
 
             VerificationResult res = e2.verify();
+
+            // res.debug(e2);
 
             String name = r1 + "<-->" + r2;
             result.put(name, res);

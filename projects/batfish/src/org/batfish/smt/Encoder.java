@@ -28,7 +28,7 @@ import java.util.regex.*;
 //
 // Small items:
 // ------------
-//   - Add upper bounds for variables (what to do with overflow?)
+//   - What to do with overflow?
 //   - Ensure distance is transfered over with redistribution
 //   - Compute multipath correctly (how do we handle some multipath)
 
@@ -36,7 +36,6 @@ import java.util.regex.*;
 /**
  * An object that is responsible for creating a symbolic representation
  * of both the network control and data planes.
- *
  */
 public class Encoder {
 
@@ -51,7 +50,7 @@ public class Encoder {
     static final String BGP_COMMON_FILTER_LIST_NAME = "BGP_COMMON_EXPORT_POLICY";
 
     // static final String BGP_AGGREGATE_FILTER_LIST_NAME = "BGP_AGGREGATE_NETWORKS_FILTER";
-    // Globally unique identifier for distinguishing instances of variables
+    // Globally unique identifier for distinguishing multiple instances of variables
     private static int encodingId = 0;
 
     private List<Prefix> _destinations;
@@ -71,8 +70,6 @@ public class Encoder {
     private Map<Interface, BoolExpr> _outboundAcls;
 
     private Set<CommunityVar> _allCommunities;
-
-    private Map<CommunityVar, java.util.regex.Pattern> _communityRegexes;
 
     private Map<CommunityVar, List<CommunityVar>> _communityDependencies;
 
@@ -155,32 +152,132 @@ public class Encoder {
         _inboundAcls = new HashMap<>();
         _outboundAcls = new HashMap<>();
 
+        initCommunities();
+
+        _unsatCore = new UnsatCore(ENABLE_DEBUGGING);
+    }
+
+    public void initCommunities() {
         _allCommunities = findAllCommunities();
 
-        _communityRegexes = new HashMap<>();
+        // TODO: only add other communities if there is another value that can be matched.
+        // Add an other variable for each regex community
+        List<CommunityVar> others = new ArrayList<>();
         for (CommunityVar c : _allCommunities) {
-            java.util.regex.Pattern p = java.util.regex.Pattern.compile(c.getValue());
-            _communityRegexes.put(c, p);
+            if (c.getType() == CommunityVar.Type.REGEX) {
+                CommunityVar x = new CommunityVar(CommunityVar.Type.OTHER, c.getValue(), c.asLong());
+                others.add(x);
+            }
+        }
+        for (CommunityVar c : others) {
+            _allCommunities.add(c);
+        }
+
+        // Map community regex matches to Java regex
+        Map<CommunityVar, java.util.regex.Pattern> regexes = new HashMap<>();
+        for (CommunityVar c : _allCommunities) {
+            if (c.getType() == CommunityVar.Type.REGEX) {
+                java.util.regex.Pattern p = java.util.regex.Pattern.compile(c.getValue());
+                regexes.put(c, p);
+            }
         }
 
         _communityDependencies = new HashMap<>();
         for (CommunityVar c1 : _allCommunities) {
-            List<CommunityVar> list = new ArrayList<>();
-            if (!c1.isRegex()) {
+            // map exact match to corresponding regexes
+            if (c1.getType() == CommunityVar.Type.REGEX) {
+
+                List<CommunityVar> list = new ArrayList<>();
                 _communityDependencies.put(c1, list);
+                java.util.regex.Pattern p = regexes.get(c1);
+
                 for (CommunityVar c2 : _allCommunities) {
-                    if (c2.isRegex()) {
-                        java.util.regex.Pattern p = _communityRegexes.get(c2);
-                        Matcher m = p.matcher(c1.getValue());
-                        if (m.matches()) {
+                    if (c2.getType() == CommunityVar.Type.EXACT) {
+                        Matcher m = p.matcher(c2.getValue());
+                        if (m.find()) {
+                            list.add(c2);
+                        }
+                    }
+                    if (c2.getType() == CommunityVar.Type.OTHER) {
+                        if (c1.getValue().equals(c2.getValue())) {
                             list.add(c2);
                         }
                     }
                 }
             }
         }
+    }
 
-        _unsatCore = new UnsatCore(ENABLE_DEBUGGING);
+    public Set<CommunityVar> findAllCommunities() {
+        Set<CommunityVar> comms = new HashSet<>();
+        getGraph().getConfigurations().forEach((router, conf) -> {
+            conf.getRoutingPolicies().forEach((name, pol) -> {
+                AstVisitor v = new AstVisitor();
+                v.visit(conf, pol.getStatements(), stmt -> {
+                    if (stmt instanceof SetCommunity) {
+                        SetCommunity sc = (SetCommunity) stmt;
+                        comms.addAll(findAllCommunities(conf, sc.getExpr()));
+                    }
+                    if (stmt instanceof AddCommunity) {
+                        AddCommunity ac = (AddCommunity) stmt;
+                        comms.addAll(findAllCommunities(conf, ac.getExpr()));
+                    }
+                    if (stmt instanceof DeleteCommunity) {
+                        DeleteCommunity dc = (DeleteCommunity) stmt;
+                        comms.addAll(findAllCommunities(conf, dc.getExpr()));
+                    }
+                    if (stmt instanceof RetainCommunity) {
+                        RetainCommunity rc = (RetainCommunity) stmt;
+                        comms.addAll(findAllCommunities(conf, rc.getExpr()));
+                    }
+                }, expr -> {
+                    if (expr instanceof MatchCommunitySet) {
+                        MatchCommunitySet m = (MatchCommunitySet) expr;
+                        CommunitySetExpr ce = m.getExpr();
+                        comms.addAll(findAllCommunities(conf, ce));
+                    }
+                });
+            });
+        });
+        return comms;
+    }
+
+    public Graph getGraph() {
+        return _logicalGraph.getGraph();
+    }
+
+    public Set<CommunityVar> findAllCommunities(Configuration conf, CommunitySetExpr ce) {
+        Set<CommunityVar> comms = new HashSet<>();
+        if (ce instanceof InlineCommunitySet) {
+            InlineCommunitySet c = (InlineCommunitySet) ce;
+            for (CommunitySetElem cse : c.getCommunities()) {
+                if (cse.getPrefix() instanceof LiteralCommunitySetElemHalf && cse.getSuffix()
+                        instanceof LiteralCommunitySetElemHalf) {
+                    LiteralCommunitySetElemHalf x = (LiteralCommunitySetElemHalf) cse.getPrefix();
+                    LiteralCommunitySetElemHalf y = (LiteralCommunitySetElemHalf) cse.getSuffix();
+                    int prefixInt = x.getValue();
+                    int suffixInt = y.getValue();
+                    String val = prefixInt + ":" + suffixInt;
+                    Long l = (((long) prefixInt) << 16) | (suffixInt);
+                    CommunityVar var = new CommunityVar(CommunityVar.Type.EXACT, val, l);
+                    comms.add(var);
+                } else {
+                    throw new BatfishException("TODO: community non literal: " + cse);
+                }
+            }
+        }
+        if (ce instanceof NamedCommunitySet) {
+            NamedCommunitySet c = (NamedCommunitySet) ce;
+            String cname = c.getName();
+            CommunityList cl = conf.getCommunityLists().get(cname);
+            if (cl != null) {
+                for (CommunityListLine line : cl.getLines()) {
+                    CommunityVar var = new CommunityVar(CommunityVar.Type.REGEX, line.getRegex(), null);
+                    comms.add(var);
+                }
+            }
+        }
+        return comms;
     }
 
     public Encoder(Encoder e, Graph graph) {
@@ -227,20 +324,16 @@ public class Encoder {
         return _allCommunities;
     }
 
-    public Map<CommunityVar, java.util.regex.Pattern> getCommunityRegexes() {
-        return _communityRegexes;
-    }
-
     public Map<CommunityVar, List<CommunityVar>> getCommunityDependencies() {
         return _communityDependencies;
     }
 
-    private void add(BoolExpr e) {
-        _unsatCore.track(_solver, _ctx, e);
+    public UnsatCore getUnsatCore() {
+        return _unsatCore;
     }
 
-    public BoolExpr True() {
-        return _ctx.mkBool(true);
+    private void add(BoolExpr e) {
+        _unsatCore.track(_solver, _ctx, e);
     }
 
     public BoolExpr False() {
@@ -255,10 +348,6 @@ public class Encoder {
         return _ctx.mkNot(e);
     }
 
-    public BoolExpr And(BoolExpr... vals) {
-        return _ctx.mkAnd(vals);
-    }
-
     public BoolExpr Or(BoolExpr... vals) {
         return _ctx.mkOr(vals);
     }
@@ -267,28 +356,8 @@ public class Encoder {
         return _ctx.mkImplies(e1, e2);
     }
 
-    public BoolExpr Eq(Expr e1, Expr e2) {
-        return _ctx.mkEq(e1, e2);
-    }
-
-    public BoolExpr Ge(ArithExpr e1, ArithExpr e2) {
-        return _ctx.mkGe(e1, e2);
-    }
-
-    public BoolExpr Le(ArithExpr e1, ArithExpr e2) {
-        return _ctx.mkLe(e1, e2);
-    }
-
     public BoolExpr Gt(ArithExpr e1, ArithExpr e2) {
         return _ctx.mkGt(e1, e2);
-    }
-
-    public BoolExpr Lt(ArithExpr e1, ArithExpr e2) {
-        return _ctx.mkLt(e1, e2);
-    }
-
-    public ArithExpr Int(long l) {
-        return _ctx.mkInt(l);
     }
 
     public ArithExpr Sum(ArithExpr e1, ArithExpr e2) {
@@ -302,7 +371,6 @@ public class Encoder {
     public BoolExpr If(BoolExpr cond, BoolExpr case1, BoolExpr case2) {
         return (BoolExpr) _ctx.mkITE(cond, case1, case2);
     }
-
 
     public boolean overlaps(Prefix p1, Prefix p2) {
         long l1 = p1.getNetworkPrefix().getAddress().asLong();
@@ -389,8 +457,8 @@ public class Encoder {
     private void addBestVariables() {
         getGraph().getEdgeMap().forEach((router, edges) -> {
             for (int len = 0; len <= BITS; len++) {
-                SymbolicRecord evBest = new SymbolicRecord(this, router, RoutingProtocol.AGGREGATE,
-                        "OVERALL", _optimizations, "none", _ctx, len, "BEST", true);
+                SymbolicRecord evBest = new SymbolicRecord(this, router, RoutingProtocol
+                        .AGGREGATE, "OVERALL", _optimizations, "none", _ctx, len, "BEST", true);
                 addExprs(evBest);
                 _allSymbolicRecords.add(evBest);
                 _symbolicDecisions.getBestNeighbor().put(router, evBest);
@@ -467,8 +535,8 @@ public class Encoder {
                                 SymbolicRecord ev1;
                                 if (singleVars == null) {
                                     String name = proto.protocolName();
-                                    ev1 = new SymbolicRecord(this, router, proto, name, _optimizations,
-                                            "", _ctx, len, "SINGLE-EXPORT", false);
+                                    ev1 = new SymbolicRecord(this, router, proto, name,
+                                            _optimizations, "", _ctx, len, "SINGLE-EXPORT", false);
                                     singleProtoMap.put(proto, ev1);
                                     addExprs(ev1);
                                     _allSymbolicRecords.add(ev1);
@@ -481,8 +549,9 @@ public class Encoder {
 
                             } else {
                                 String name = proto.protocolName();
-                                SymbolicRecord ev1 = new SymbolicRecord(this, router, proto, name,
-                                        _optimizations, ifaceName, _ctx, len, "EXPORT", false);
+                                SymbolicRecord ev1 = new SymbolicRecord(this, router, proto,
+                                        name, _optimizations, ifaceName, _ctx, len, "EXPORT",
+                                        false);
                                 LogicalGraphEdge eExport = new LogicalGraphEdge(e, EdgeType
                                         .EXPORT, len, ev1);
                                 exportEdgeList.add(eExport);
@@ -501,8 +570,9 @@ public class Encoder {
                                 importEdgeList.add(eImport);
                             } else {
                                 String name = proto.protocolName();
-                                SymbolicRecord ev2 = new SymbolicRecord(this, router, proto, name,
-                                        _optimizations, ifaceName, _ctx, len, "IMPORT", false);
+                                SymbolicRecord ev2 = new SymbolicRecord(this, router, proto,
+                                        name, _optimizations, ifaceName, _ctx, len, "IMPORT",
+                                        false);
                                 LogicalGraphEdge eImport = new LogicalGraphEdge(e, EdgeType
                                         .IMPORT, len, ev2);
                                 importEdgeList.add(eImport);
@@ -578,8 +648,8 @@ public class Encoder {
                         String name = "REDIST_FROM_" + p.protocolName().toUpperCase();
                         String ifaceName = "none";
                         int len = 0;
-                        SymbolicRecord e = new SymbolicRecord(this, router, proto, proto.protocolName()
-                                , _optimizations, ifaceName, _ctx, len, name, false);
+                        SymbolicRecord e = new SymbolicRecord(this, router, proto, proto
+                                .protocolName(), _optimizations, ifaceName, _ctx, len, name, false);
                         _allSymbolicRecords.add(e);
                         addExprs(e);
                         map2.put(p, new LogicalRedistributionEdge(p, EdgeType.IMPORT, 0, e));
@@ -658,76 +728,6 @@ public class Encoder {
         addFailedLinkVariables();
     }
 
-
-    public Set<CommunityVar> findAllCommunities(Configuration conf, CommunitySetExpr ce) {
-        Set<CommunityVar> comms = new HashSet<>();
-        if (ce instanceof InlineCommunitySet) {
-            InlineCommunitySet c = (InlineCommunitySet) ce;
-            for (CommunitySetElem cse : c.getCommunities()) {
-                if (cse.getPrefix() instanceof LiteralCommunitySetElemHalf &&
-                        cse.getSuffix() instanceof  LiteralCommunitySetElemHalf) {
-                    LiteralCommunitySetElemHalf x = (LiteralCommunitySetElemHalf) cse.getPrefix();
-                    LiteralCommunitySetElemHalf y = (LiteralCommunitySetElemHalf) cse.getSuffix();
-                    int prefixInt = x.getValue();
-                    int suffixInt = y.getValue();
-                    String val = prefixInt + ":" + suffixInt;
-                    Long l = (((long) prefixInt) << 16) | (suffixInt);
-                    CommunityVar var = new CommunityVar(false, val, l);
-                    comms.add(var);
-                } else {
-                    throw new BatfishException("TODO: community non literal: " + cse);
-                }
-            }
-        }
-        if (ce instanceof NamedCommunitySet) {
-            NamedCommunitySet c = (NamedCommunitySet) ce;
-            String cname = c.getName();
-            CommunityList cl = conf.getCommunityLists().get(cname);
-            if (cl != null) {
-                for (CommunityListLine line : cl.getLines()) {
-                    CommunityVar var = new CommunityVar(true, line.getRegex(), null);
-                    comms.add(var);
-                }
-            }
-        }
-        return comms;
-    }
-
-    public Set<CommunityVar> findAllCommunities() {
-        Set<CommunityVar> comms = new HashSet<>();
-        getGraph().getConfigurations().forEach((router, conf) -> {
-            conf.getRoutingPolicies().forEach((name, pol) -> {
-                AstVisitor v = new AstVisitor();
-                v.visit(conf, pol.getStatements(), stmt -> {
-                    if (stmt instanceof SetCommunity) {
-                        SetCommunity sc = (SetCommunity) stmt;
-                        comms.addAll(findAllCommunities(conf, sc.getExpr()));
-                    }
-                    if (stmt instanceof AddCommunity) {
-                        AddCommunity ac = (AddCommunity) stmt;
-                        comms.addAll(findAllCommunities(conf, ac.getExpr()));
-                    }
-                    if (stmt instanceof DeleteCommunity) {
-                        DeleteCommunity dc = (DeleteCommunity) stmt;
-                        comms.addAll(findAllCommunities(conf, dc.getExpr()));
-                    }
-                    if (stmt instanceof RetainCommunity) {
-                        RetainCommunity rc = (RetainCommunity) stmt;
-                        comms.addAll(findAllCommunities(conf, rc.getExpr()));
-                    }
-                }, expr -> {
-                    if (expr instanceof MatchCommunitySet) {
-                        MatchCommunitySet m = (MatchCommunitySet) expr;
-                        CommunitySetExpr ce = m.getExpr();
-                        comms.addAll(findAllCommunities(conf, ce));
-                    }
-                });
-            });
-        });
-        return comms;
-    }
-
-
     private void addBoundConstraints() {
 
         ArithExpr upperBound4 = Int((long) Math.pow(2, 4));
@@ -782,6 +782,24 @@ public class Encoder {
         }
     }
 
+    // TODO: optimize this function
+    private void addCommunityConstraints() {
+        for (SymbolicRecord r : _allSymbolicRecords) {
+            r.getCommunities().forEach((cvar, e) -> {
+                if (cvar.getType() == CommunityVar.Type.REGEX) {
+                    BoolExpr acc = False();
+                    List<CommunityVar> deps = _communityDependencies.get(cvar);
+                    for (CommunityVar dep : deps) {
+                        BoolExpr depExpr = r.getCommunities().get(dep);
+                        acc = Or(acc, depExpr);
+                    }
+                    // System.out.println("Community constraint:\n" + acc.simplify());
+                    add( acc );
+                }
+            });
+        }
+    }
+
     private void addFailedConstraints(int k) {
         List<ArithExpr> vars = new ArrayList<>();
         _symbolicFailures.getFailedInternalLinks().forEach((router, peer, var) -> {
@@ -806,16 +824,6 @@ public class Encoder {
         }
     }
 
-    private BoolExpr firstBitsEqual(ArithExpr x, long y, int n) {
-        assert (n >= 0 && n <= 32);
-        if (n == 0) {
-            return True();
-        }
-        long bound = (long) Math.pow(2, 32 - n);
-        ArithExpr upperBound = Int(y + bound);
-        return And(Ge(x, Int(y)), Lt(x, upperBound));
-    }
-
     public BoolExpr isRelevantFor(SymbolicRecord vars, PrefixRange range) {
         Prefix p = range.getPrefix();
         SubRange r = range.getLengthRange();
@@ -838,6 +846,44 @@ public class Encoder {
         }
     }
 
+    private BoolExpr firstBitsEqual(ArithExpr x, long y, int n) {
+        assert (n >= 0 && n <= 32);
+        if (n == 0) {
+            return True();
+        }
+        long bound = (long) Math.pow(2, 32 - n);
+        ArithExpr upperBound = Int(y + bound);
+        return And(Ge(x, Int(y)), Lt(x, upperBound));
+    }
+
+    public BoolExpr Eq(Expr e1, Expr e2) {
+        return _ctx.mkEq(e1, e2);
+    }
+
+    public ArithExpr Int(long l) {
+        return _ctx.mkInt(l);
+    }
+
+    public BoolExpr And(BoolExpr... vals) {
+        return _ctx.mkAnd(vals);
+    }
+
+    public BoolExpr Ge(ArithExpr e1, ArithExpr e2) {
+        return _ctx.mkGe(e1, e2);
+    }
+
+    public BoolExpr Le(ArithExpr e1, ArithExpr e2) {
+        return _ctx.mkLe(e1, e2);
+    }
+
+    public BoolExpr True() {
+        return _ctx.mkBool(true);
+    }
+
+    public BoolExpr Lt(ArithExpr e1, ArithExpr e2) {
+        return _ctx.mkLt(e1, e2);
+    }
+
     private void addRedistributionConstraints() {
         getGraph().getConfigurations().forEach((router, conf) -> {
             for (RoutingProtocol proto : getGraph().getProtocols().get(router)) {
@@ -849,7 +895,8 @@ public class Encoder {
                         SymbolicRecord current = vars.getSymbolicRecord();
                         SymbolicRecord other = _symbolicDecisions.getBestNeighborPerProtocol()
                                                                  .get(router, fromProto);
-                        TransferFunction f = new TransferFunction(this, conf, other, current, proto, fromProto, pol.getStatements(),null);
+                        TransferFunction f = new TransferFunction(this, conf, other, current,
+                                proto, fromProto, pol.getStatements(), null);
                         add(f.compute());
                     });
                 }
@@ -900,11 +947,11 @@ public class Encoder {
         if (proto == RoutingProtocol.OSPF) {
             conf.getDefaultVrf().getOspfProcess().getAreas().forEach((areaID, area) -> {
                 // if (areaID == 0) {
-                    for (Interface iface : area.getInterfaces()) {
-                        if (iface.getActive() && iface.getOspfEnabled()) {
-                            acc.add(iface.getPrefix());
-                        }
+                for (Interface iface : area.getInterfaces()) {
+                    if (iface.getActive() && iface.getOspfEnabled()) {
+                        acc.add(iface.getPrefix());
                     }
+                }
                 // } else {
                 //     throw new BatfishException("Error: only support area 0 at the moment");
                 // }
@@ -1702,8 +1749,11 @@ public class Encoder {
                     BoolExpr importFunction;
                     RoutingPolicy pol = getGraph().findImportRoutingPolicy(router, proto, e);
                     if (pol != null) {
-                        TransferFunction f = new TransferFunction(this, conf, varsOther, vars, proto, proto, pol.getStatements(), null);
+                        TransferFunction f = new TransferFunction(this, conf, varsOther, vars,
+                                proto, proto, pol.getStatements(), null);
                         importFunction = f.compute();
+                        // System.out.println("IMPORT FUNCTION: " + router + " " + varsOther.getName());
+                        // System.out.println(importFunction.simplify());
                     } else {
                         // just copy the export policy in ospf/bgp
                         BoolExpr per = Eq(vars.getPermitted(), varsOther.getPermitted());
@@ -1762,9 +1812,14 @@ public class Encoder {
                 BoolExpr acc;
                 RoutingPolicy pol = getGraph().findExportRoutingPolicy(router, proto, e);
                 if (pol != null) {
-                    TransferFunction f = new TransferFunction(this, conf, varsOther, vars, proto, proto, pol.getStatements(), cost);
+                    TransferFunction f = new TransferFunction(this, conf, varsOther, vars, proto,
+                            proto, pol.getStatements(), cost);
                     acc = f.compute();
-                    // System.out.println("SIMPLIFIED:\n" + acc.simplify());
+                    // System.out.println("EXPORT FUNCTION: " + router + " " + varsOther.getName());
+                    // System.out.println(acc);
+                    // System.out.println("SIMPLIFIED: " + router + " " + varsOther.getName());
+                    // System.out.println(acc.simplify());
+
                 } else {
                     BoolExpr per = vars.getPermitted();
                     BoolExpr len = safeEq(vars.getPrefixLength(), best.getPrefixLength());
@@ -1914,10 +1969,6 @@ public class Encoder {
         }
     }
 
-    public Graph getGraph() {
-        return _logicalGraph.getGraph();
-    }
-
     public void computeEncoding() {
         if (ENABLE_DEBUGGING) {
             System.out.println(getGraph().toString());
@@ -1926,6 +1977,7 @@ public class Encoder {
         computeOptimizations();
         addVariables();
         addBoundConstraints();
+        addCommunityConstraints();
         addFailedConstraints(0);
         addRedistributionConstraints();
         addTransferFunction();
