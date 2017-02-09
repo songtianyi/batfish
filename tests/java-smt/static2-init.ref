@@ -1,0 +1,34 @@
+{
+  "answerElements" : [
+    {
+      "class" : "org.batfish.datamodel.answers.ParseVendorConfigurationAnswerElement",
+      "parseStatus" : {
+        "R1" : "PASSED",
+        "R2" : "PASSED"
+      },
+      "warnings" : {
+        "R1" : {
+          "Red flags" : {
+            "1" : "MISCELLANEOUS: No hostname set in file: 'testrig/configs/R1.cfg'\n"
+          }
+        },
+        "R2" : {
+          "Red flags" : {
+            "1" : "MISCELLANEOUS: No hostname set in file: 'testrig/configs/R2.cfg'\n"
+          }
+        }
+      }
+    },
+    {
+      "class" : "org.batfish.datamodel.answers.ConvertConfigurationAnswerElement"
+    },
+    {
+      "class" : "org.batfish.datamodel.answers.InitInfoAnswerElement",
+      "parseStatus" : {
+        "R1" : "PASSED",
+        "R2" : "PASSED"
+      }
+    }
+  ],
+  "status" : "SUCCESS"
+}
