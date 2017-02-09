@@ -18,14 +18,6 @@ public class SmtOneAnswerElement implements AnswerElement {
 
     @Override
     public String prettyPrint() throws JsonProcessingException {
-        if (_result.getVerified()) {
-            return "verified";
-        } else {
-            StringBuilder sb = new StringBuilder();
-            _result.getModel().forEach((var, val) -> {
-                sb.append(var).append(" -> ").append(val).append("\n");
-            });
-            return sb.toString();
-        }
+        return _result.prettyPrint(null);
     }
 }

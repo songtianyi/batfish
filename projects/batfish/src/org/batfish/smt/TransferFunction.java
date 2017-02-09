@@ -59,16 +59,8 @@ public class TransferFunction {
             SubRange r = line.getLengthRange();
             PrefixRange range = new PrefixRange(p, r);
             BoolExpr matches = _enc.isRelevantFor(_other, range);
-
-            switch (line.getAction()) {
-                case ACCEPT:
-                    acc = _enc.If(matches, _enc.True(), acc);
-                    break;
-
-                case REJECT:
-                    acc = _enc.If(matches, _enc.False(), acc);
-                    break;
-            }
+            BoolExpr action = _enc.Bool(line.getAction() == LineAction.ACCEPT);
+            acc = _enc.If(matches, action, acc);
         }
         return acc;
     }
@@ -109,7 +101,6 @@ public class TransferFunction {
             BoolExpr c = other.getCommunities().get(cvar);
             acc = _enc.If(c, _enc.Bool(action), acc);
         }
-        // return _enc.True();
         return acc;
     }
 
@@ -124,7 +115,6 @@ public class TransferFunction {
                 }
                 acc = _enc.And(acc, c);
             }
-            // return _enc.True();
             return acc;
         }
 

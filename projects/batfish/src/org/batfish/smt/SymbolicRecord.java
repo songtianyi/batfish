@@ -17,6 +17,8 @@ public class SymbolicRecord {
 
     private boolean _isBest;
 
+    private boolean _isEnv;
+
     private ArithExpr _prefixLength;
 
     private ArithExpr _adminDist;
@@ -39,6 +41,7 @@ public class SymbolicRecord {
         _name = String.format("%s_%s_%s_%d_%s", router, protoName, ifaceName, prefixLen, export);
         _isUsed = false;
         _isBest = false;
+        _isEnv = false;
         _prefixLength = null;
         _metric = null;
         _localPref = null;
@@ -50,10 +53,11 @@ public class SymbolicRecord {
 
     public SymbolicRecord(
             Encoder enc, String router, RoutingProtocol proto, String name, Optimizations opts,
-            String iface, Context ctx, int prefixLen, String export, boolean isBest) {
+            String iface, Context ctx, int prefixLen, String export) {
         _name = String.format("%s_%s_%s_%d_%s", router, name, iface, prefixLen, export);
         _isUsed = true;
-        _isBest = isBest;
+        _isBest = _name.contains("_BEST_");
+        _isEnv = _name.contains("_ENV_");
 
         // Represent best variables as the aggregate protocol. Total hack.
         if (proto == RoutingProtocol.AGGREGATE) {
@@ -113,6 +117,14 @@ public class SymbolicRecord {
 
     public String getName() {
         return _name;
+    }
+
+    public boolean isBest() {
+        return _isBest;
+    }
+
+    public boolean isEnv() {
+        return _isEnv;
     }
 
     public ArithExpr getMetric() {

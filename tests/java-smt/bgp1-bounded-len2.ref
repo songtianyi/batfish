@@ -3,7 +3,11 @@
     {
       "class" : "org.batfish.smt.answers.SmtManyAnswerElement",
       "result" : {
-        "R1,Loopback0 --> _,_" : {
+        "R1,Loopback0" : {
+          "forwardingModel" : [
+            "R1,Loopback0 --> _,_",
+            "R2,Serial0 --> R1,Serial0"
+          ],
           "model" : {
             "R1_OVERALL_none_0_BEST_metric" : "0",
             "R1_OVERALL_none_0_BEST_permitted" : "true",
@@ -60,6 +64,9 @@
             "path-length_R2" : "1",
             "src-ip0" : "0",
             "src-port0" : "0"
+          },
+          "packetModel" : {
+            "dstIp" : "42.42.42.1"
           },
           "verified" : false
         }

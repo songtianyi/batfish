@@ -10,19 +10,33 @@ public class SymbolicPacket {
     private Context _ctx;
 
     private ArithExpr _dstIp;
+
     private ArithExpr _srcIp;
+
     private ArithExpr _dstPort;
+
     private ArithExpr _srcPort;
+
     private ArithExpr _icmpCode;
+
     private ArithExpr _icmpType;
+
     private BoolExpr _tcpAck;
+
     private BoolExpr _tcpCwr;
+
     private BoolExpr _tcpEce;
+
     private BoolExpr _tcpFin;
+
     private BoolExpr _tcpPsh;
+
     private BoolExpr _tcpRst;
+
     private BoolExpr _tcpSyn;
+
     private BoolExpr _tcpUrg;
+
     private ArithExpr _ipProtocol;
 
     public SymbolicPacket(Context ctx, int id) {
@@ -87,11 +101,9 @@ public class SymbolicPacket {
         return _icmpType;
     }
 
-
     public BoolExpr getTcpAck() {
         return _tcpAck;
     }
-
 
     public BoolExpr getTcpCwr() {
         return _tcpCwr;

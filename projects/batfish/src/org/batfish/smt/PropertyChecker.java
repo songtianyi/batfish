@@ -9,7 +9,6 @@ import org.batfish.datamodel.Prefix;
 import org.batfish.datamodel.RoutingProtocol;
 import org.batfish.datamodel.StaticRoute;
 import org.batfish.datamodel.answers.AnswerElement;
-import org.batfish.smt.answers.SmtForwardingAnswerElement;
 import org.batfish.smt.answers.SmtManyAnswerElement;
 import org.batfish.smt.answers.SmtOneAnswerElement;
 import org.batfish.smt.utils.PatternUtils;
@@ -23,32 +22,13 @@ public class PropertyChecker {
         Prefix prefix = new Prefix(destination);
         Encoder encoder = new Encoder(batfish, Collections.singletonList(prefix));
         encoder.computeEncoding();
-
         if (encoder.getLogicalGraph().getEnvironmentVars().size() > 0) {
             System.out.println("Warning: forwarding computed for only a single concrete " +
                     "environment");
         }
-
         VerificationResult result = encoder.verify();
-
-        List<String> edges = new ArrayList<>();
-        if (!result.getVerified()) {
-            encoder.getSymbolicDecisions().getDataForwarding().forEach((router, edge, e) -> {
-                String expr = e.toString();
-                if (expr.contains("data-")) {
-                    String valuation = result.getModel().get(expr);
-                    if (valuation.equals("true")) {
-                        edges.add(edge.toString());
-                    }
-                }
-            });
-        }
-
-        SmtForwardingAnswerElement answer = new SmtForwardingAnswerElement();
+        SmtOneAnswerElement answer = new SmtOneAnswerElement();
         answer.setResult(result);
-        Collections.sort(edges);
-        answer.setEdges(edges);
-
         return answer;
     }
 
@@ -79,7 +59,7 @@ public class PropertyChecker {
             solver.add(allReach);
 
             VerificationResult res = enc.verify();
-            result.put(ge.toString(), res);
+            result.put(ge.getRouter() + "," + ge.getStart().getName(), res);
         }
 
         SmtManyAnswerElement answer = new SmtManyAnswerElement();
@@ -179,7 +159,7 @@ public class PropertyChecker {
             solver.add(allBounded);
 
             VerificationResult res = enc.verify();
-            result.put(ge.toString(), res);
+            result.put(ge.getRouter() + "," + ge.getStart().getName(), res);
         }
 
         SmtManyAnswerElement answer = new SmtManyAnswerElement();
@@ -216,7 +196,7 @@ public class PropertyChecker {
             solver.add(ctx.mkNot(allEqual));
 
             VerificationResult res = enc.verify();
-            result.put(ge.toString(), res);
+            result.put(ge.getRouter() + "," + ge.getStart().getName(), res);
         }
 
         SmtManyAnswerElement answer = new SmtManyAnswerElement();
@@ -271,7 +251,7 @@ public class PropertyChecker {
             solver.add(ctx.mkNot(evenLoads));
 
             VerificationResult res = enc.verify();
-            result.put(ge.toString(), res);
+            result.put(ge.getRouter() + "," + ge.getStart().getName(), res);
         }
 
         SmtManyAnswerElement answer = new SmtManyAnswerElement();
@@ -568,7 +548,7 @@ public class PropertyChecker {
             solver.add(acc);
             VerificationResult res = enc.verify();
             // result.debug();
-            result.put(ge.toString(), res);
+            result.put(ge.getRouter() + "," + ge.getStart().getName(), res);
         }
 
         SmtManyAnswerElement answer = new SmtManyAnswerElement();

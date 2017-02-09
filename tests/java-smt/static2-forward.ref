@@ -1,12 +1,12 @@
 {
   "answerElements" : [
     {
-      "class" : "org.batfish.smt.answers.SmtForwardingAnswerElement",
-      "edges" : [
-        "R1,Serial0 --> R2,Serial0",
-        "R2,Serial0 --> R1,Serial0"
-      ],
+      "class" : "org.batfish.smt.answers.SmtOneAnswerElement",
       "result" : {
+        "forwardingModel" : [
+          "R1,Serial0 --> R2,Serial0",
+          "R2,Serial0 --> R1,Serial0"
+        ],
         "model" : {
           "R1_OVERALL_none_0_BEST_metric" : "0",
           "R1_OVERALL_none_0_BEST_permitted" : "true",
@@ -35,6 +35,9 @@
           "ip-protocol1" : "0",
           "src-ip1" : "0",
           "src-port1" : "0"
+        },
+        "packetModel" : {
+          "dstIp" : "172.0.0.0"
         },
         "verified" : false
       }

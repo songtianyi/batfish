@@ -5,8 +5,8 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.microsoft.z3.BoolExpr;
 
-import java.util.Map;
 import java.util.SortedMap;
+import java.util.SortedSet;
 
 public class VerificationResult {
 
@@ -14,20 +14,40 @@ public class VerificationResult {
 
     private static final String MODEL_VAR = "model";
 
-    // private static final String STATISTICS_VAR = "statistics";
+    private static final String PACKET_MODEL_VAR = "packetModel";
+
+    private static final String ENV_MODEL_VAR = "environmentModel";
+
+    private static final String FWD_MODEL_VAR = "forwardingModel";
+
+    private static final String FAILURE_MODEL_VAR = "failuresModel";
 
     private boolean _verified;
 
     private SortedMap<String, String> _model;
 
-    // private VerificationStats _statistics;
+    private SortedMap<String, String> _packetModel;
+
+    private SortedMap<String, SortedMap<String, String>> _envModel;
+
+    private SortedSet<String> _fwdModel;
+
+    private SortedSet<String> _failures;
 
     @JsonCreator
     public VerificationResult(
             @JsonProperty(VERIFIED_VAR) boolean verified,
-            @JsonProperty(MODEL_VAR) SortedMap<String, String> model) {
+            @JsonProperty(MODEL_VAR) SortedMap<String, String> model,
+            @JsonProperty(PACKET_MODEL_VAR) SortedMap<String, String> packetModel,
+            @JsonProperty(ENV_MODEL_VAR) SortedMap<String, SortedMap<String, String>> envModel,
+            @JsonProperty(FWD_MODEL_VAR) SortedSet<String> fwdModel,
+            @JsonProperty(FAILURE_MODEL_VAR) SortedSet<String> failures) {
         _verified = verified;
         _model = model;
+        _packetModel = packetModel;
+        _envModel = envModel;
+        _fwdModel = fwdModel;
+        _failures = failures;
     }
 
     @JsonProperty(VERIFIED_VAR)
@@ -36,26 +56,81 @@ public class VerificationResult {
     }
 
     @JsonProperty(MODEL_VAR)
-    public Map<String,String> getModel() {
+    public SortedMap<String,String> getModel() {
         return _model;
     }
 
-    // @JsonProperty(STATISTICS_VAR)
-    // public VerificationStats getStatistics() {
-    //    return _statistics;
-    //}
+    @JsonProperty(PACKET_MODEL_VAR)
+    public SortedMap<String, String> getPacketModel() {
+        return _packetModel;
+    }
+
+    @JsonProperty(ENV_MODEL_VAR)
+    public SortedMap<String, SortedMap<String, String>> getEnvModel() {
+        return _envModel;
+    }
+
+    @JsonProperty(FWD_MODEL_VAR)
+    public SortedSet<String> getFwdModel() {
+        return _fwdModel;
+    }
+
+    @JsonProperty(FAILURE_MODEL_VAR)
+    public SortedSet<String> getFailures() {
+        return _failures;
+    }
+
+    public String prettyPrint(String iface) {
+        StringBuilder sb = new StringBuilder();
+        if (_verified) {
+            sb.append("\nVerified");
+        } else {
+            if (iface != null) {
+                sb.append("\nExample Found (").append(iface).append(")").append(":\n");
+            } else {
+                sb.append("\nExample Found:\n");
+            }
+            sb.append("==========================================\n");
+            sb.append("Packet:\n");
+            sb.append("----------------------\n");
+            _packetModel.forEach((key, val) -> {
+                sb.append(key).append(": ").append(val).append("\n");
+            });
+            if (_envModel != null) {
+                sb.append("\n");
+                sb.append("Environment Messages:\n");
+                sb.append("----------------------");
+                System.out.println("ENV MODEL: " + _envModel);
+                _envModel.forEach((edge, map) -> {
+                    sb.append("\n").append(edge).append(":\n");
+                    map.forEach((key,val) -> {
+                        sb.append("  ").append(key).append(": ").append(val).append("\n");
+                    });
+                });
+            }
+            if (_fwdModel != null) {
+                sb.append("\n");
+                sb.append("Final Forwarding:\n");
+                sb.append("----------------------\n");
+                for (String s : _fwdModel) {
+                    sb.append(s).append("\n");
+                }
+            }
+            if (_failures != null) {
+                sb.append("\n");
+                sb.append("Link Failures:\n");
+                sb.append("----------------------");
+                for (String s : _failures) {
+                    sb.append(s).append("\n");
+                }
+            }
+            sb.append("==========================================\n");
+        }
+        return sb.toString();
+    }
+
 
     public void debug(Encoder enc) {
-        // System.out.println("Number of variables:   " + _statistics.getNumVariables());
-        // System.out.println("Number of constraints: " + _statistics.getNumConstraints());
-        // System.out.println("Number of nodes: " + _statistics.getNumNodes());
-        // System.out.println("Number of edges: " + _statistics.getNumEdges());
-        // System.out.println("Solving time: " + _statistics.getTime());
-
-        //System.out.println("================= Variables ==================");
-        //for (Expr e : _encoder.getAllVariables()) {
-        //    System.out.println(e.toString());
-        //}
         System.out.println("================= Constraints ==================");
         for (BoolExpr be : enc.getSolver().getAssertions()) {
            System.out.println(be.simplify());

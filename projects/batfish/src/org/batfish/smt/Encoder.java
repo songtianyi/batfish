@@ -458,7 +458,7 @@ public class Encoder {
         getGraph().getEdgeMap().forEach((router, edges) -> {
             for (int len = 0; len <= BITS; len++) {
                 SymbolicRecord evBest = new SymbolicRecord(this, router, RoutingProtocol
-                        .AGGREGATE, "OVERALL", _optimizations, "none", _ctx, len, "BEST", true);
+                        .AGGREGATE, "OVERALL", _optimizations, "none", _ctx, len, "BEST");
                 addExprs(evBest);
                 _allSymbolicRecords.add(evBest);
                 _symbolicDecisions.getBestNeighbor().put(router, evBest);
@@ -470,7 +470,7 @@ public class Encoder {
                 for (RoutingProtocol proto : getGraph().getProtocols().get(router)) {
                     for (int len = 0; len <= BITS; len++) {
                         SymbolicRecord evBest = new SymbolicRecord(this, router, proto, proto
-                                .protocolName(), _optimizations, "none", _ctx, len, "BEST", true);
+                                .protocolName(), _optimizations, "none", _ctx, len, "BEST");
                         addExprs(evBest);
                         _allSymbolicRecords.add(evBest);
                         _symbolicDecisions.getBestNeighborPerProtocol().put(router, proto, evBest);
@@ -536,7 +536,7 @@ public class Encoder {
                                 if (singleVars == null) {
                                     String name = proto.protocolName();
                                     ev1 = new SymbolicRecord(this, router, proto, name,
-                                            _optimizations, "", _ctx, len, "SINGLE-EXPORT", false);
+                                            _optimizations, "", _ctx, len, "SINGLE-EXPORT");
                                     singleProtoMap.put(proto, ev1);
                                     addExprs(ev1);
                                     _allSymbolicRecords.add(ev1);
@@ -550,8 +550,7 @@ public class Encoder {
                             } else {
                                 String name = proto.protocolName();
                                 SymbolicRecord ev1 = new SymbolicRecord(this, router, proto,
-                                        name, _optimizations, ifaceName, _ctx, len, "EXPORT",
-                                        false);
+                                        name, _optimizations, ifaceName, _ctx, len, "EXPORT");
                                 LogicalGraphEdge eExport = new LogicalGraphEdge(e, EdgeType
                                         .EXPORT, len, ev1);
                                 exportEdgeList.add(eExport);
@@ -571,8 +570,7 @@ public class Encoder {
                             } else {
                                 String name = proto.protocolName();
                                 SymbolicRecord ev2 = new SymbolicRecord(this, router, proto,
-                                        name, _optimizations, ifaceName, _ctx, len, "IMPORT",
-                                        false);
+                                        name, _optimizations, ifaceName, _ctx, len, "IMPORT");
                                 LogicalGraphEdge eImport = new LogicalGraphEdge(e, EdgeType
                                         .IMPORT, len, ev2);
                                 importEdgeList.add(eImport);
@@ -649,7 +647,7 @@ public class Encoder {
                         String ifaceName = "none";
                         int len = 0;
                         SymbolicRecord e = new SymbolicRecord(this, router, proto, proto
-                                .protocolName(), _optimizations, ifaceName, _ctx, len, name, false);
+                                .protocolName(), _optimizations, ifaceName, _ctx, len, name);
                         _allSymbolicRecords.add(e);
                         addExprs(e);
                         map2.put(p, new LogicalRedistributionEdge(p, EdgeType.IMPORT, 0, e));
@@ -680,8 +678,7 @@ public class Encoder {
                                     }
 
                                     SymbolicRecord vars = new SymbolicRecord(this, router, proto,
-                                            "ENV", _optimizations, address, _ctx, 0, "EXPORT",
-                                            false);
+                                            "ENV", _optimizations, address, _ctx, 0, "EXPORT");
                                     addExprs(vars);
                                     _allSymbolicRecords.add(vars);
                                     _logicalGraph.getEnvironmentVars().put(e, vars);
@@ -1908,6 +1905,9 @@ public class Encoder {
             if (vars.getMetric() != null) {
                 add(Implies(notPermitted, Eq(vars.getMetric(), zero)));
             }
+            vars.getCommunities().forEach((cvar, e) -> {
+                add(Implies(notPermitted, Not(e)));
+            });
         }
     }
 
@@ -1952,20 +1952,170 @@ public class Encoder {
                 numConstraints, time);
 
         if (status == Status.UNSATISFIABLE) {
-            return new VerificationResult(true, null);
+            return new VerificationResult(true, null, null, null, null, null);
         } else if (status == Status.UNKNOWN) {
-            return new VerificationResult(false, null);
+            throw new BatfishException("ERROR: satisfiability unknown");
         } else {
             Model m = _solver.getModel();
+            SortedMap<Expr, String> valuation = new TreeMap<>();
             SortedMap<String, String> model = new TreeMap<>();
+
+            // Full model
             for (Expr e : _allVariables) {
                 String name = e.toString();
                 Expr val = m.evaluate(e, false);
                 if (!val.equals(e)) {
-                    model.put(name, val.toString());
+                    String s = val.toString();
+                    model.put(name, s);
+                    valuation.put(e, s);
                 }
             }
-            return new VerificationResult(false, model);
+
+
+            // Packet model
+            String dstIp = valuation.get(_symbolicPacket.getDstIp());
+            String srcIp = valuation.get(_symbolicPacket.getSrcIp());
+            String dstPt = valuation.get(_symbolicPacket.getDstPort());
+            String srcPt = valuation.get(_symbolicPacket.getSrcPort());
+            String icmpCode = valuation.get(_symbolicPacket.getIcmpCode());
+            String icmpType = valuation.get(_symbolicPacket.getIcmpType());
+            String ipProtocol = valuation.get(_symbolicPacket.getIpProtocol());
+            String tcpAck = valuation.get(_symbolicPacket.getTcpAck());
+            String tcpCwr = valuation.get(_symbolicPacket.getTcpCwr());
+            String tcpEce = valuation.get(_symbolicPacket.getTcpEce());
+            String tcpFin = valuation.get(_symbolicPacket.getTcpFin());
+            String tcpPsh = valuation.get(_symbolicPacket.getTcpPsh());
+            String tcpRst = valuation.get(_symbolicPacket.getTcpRst());
+            String tcpSyn = valuation.get(_symbolicPacket.getTcpSyn());
+            String tcpUrg = valuation.get(_symbolicPacket.getTcpUrg());
+
+            SortedMap<String,String> packetModel = new TreeMap<>();
+
+            Ip dip = new Ip(Long.parseLong(dstIp));
+            Ip sip = new Ip(Long.parseLong(srcIp));
+
+            packetModel.put("dstIp", dip.toString());
+
+            if (sip.asLong() != 0) {
+                packetModel.put("srcIp", sip.toString());
+            }
+            if (dstPt != null && !dstPt.equals("0")) {
+                packetModel.put("dstPort", dstPt);
+            }
+            if (srcPt != null && !srcPt.equals("0")) {
+                packetModel.put("srcPort", srcPt);
+            }
+            if (icmpCode != null && !icmpCode.equals("0")) {
+                packetModel.put("icmpCode", icmpCode); // TODO: convert to be readable
+            }
+            if (icmpType != null && !icmpType.equals("0")) {
+                packetModel.put("icmpType", icmpType); // TODO: convert to be readable
+            }
+            if (ipProtocol != null && !ipProtocol.equals("0")) {
+                packetModel.put("ipProtocol", ipProtocol); // TODO: convert this to be readable
+            }
+            if (tcpAck != null && tcpAck.equals("true")) {
+                packetModel.put("tcpAck", "set");
+            }
+            if (tcpCwr != null && tcpCwr.equals("true")) {
+                packetModel.put("tcpCwr", "set");
+            }
+            if (tcpEce != null && tcpEce.equals("true")) {
+                packetModel.put("tcpEce", "set");
+            }
+            if (tcpFin != null && tcpFin.equals("true")) {
+                packetModel.put("tcpFin", "set");
+            }
+            if (tcpPsh != null && tcpPsh.equals("true")) {
+                packetModel.put("tcpPsh", "set");
+            }
+            if (tcpRst != null && tcpRst.equals("true")) {
+                packetModel.put("tcpRst", "set");
+            }
+            if (tcpSyn != null && tcpSyn.equals("true")) {
+                packetModel.put("tcpSyn", "set");
+            }
+            if (tcpUrg != null && tcpUrg.equals("true")) {
+                packetModel.put("tcpUrg", "set");
+            }
+
+            // Environment model
+            SortedMap<String, SortedMap<String, String>> envModel = new TreeMap<>();
+            _logicalGraph.getEnvironmentVars().forEach((lge, r) -> {
+
+                if (valuation.get(r.getPermitted()).equals("true")) {
+                    SortedMap<String, String> recordMap = new TreeMap<>();
+                    GraphEdge ge = lge.getEdge();
+                    String nodeIface = ge.getRouter() + "," + ge.getStart().getName() + " (BGP)";
+                    envModel.put(nodeIface, recordMap);
+                    if (r.getPrefixLength() != null) {
+                        String x = valuation.get(r.getPrefixLength());
+                        if (x != null) {
+                            int len = Integer.parseInt(x);
+                            Prefix p1 = new Prefix(dip, len);
+                            Prefix p2 = p1.getNetworkPrefix();
+                            recordMap.put("prefix", p2.toString());
+                        }
+                    }
+                    if (r.getAdminDist() != null) {
+                        String x = valuation.get(r.getAdminDist());
+                        if (x != null) {
+                            recordMap.put("admin distance", x);
+                        }
+                    }
+                    if (r.getLocalPref() != null) {
+                        String x = valuation.get(r.getLocalPref());
+                        if (x != null) {
+                            recordMap.put("local preference", x);
+                        }
+                    }
+                    if (r.getMetric() != null) {
+                        String x = valuation.get(r.getMetric());
+                        if (x != null) {
+                            recordMap.put("protocol metric", x);
+                        }
+                    }
+                    if (r.getMed() != null) {
+                        String x = valuation.get(r.getMed());
+                        if (x != null) {
+                            recordMap.put("multi-exit disc.", valuation.get(r.getMed()));
+                        }
+                    }
+
+                    r.getCommunities().forEach((cvar, e) -> {
+                        String c = valuation.get(e);
+                        // TODO: what about OTHER type?
+                        if (c.equals("true") && cvar.getType() == CommunityVar.Type.EXACT) {
+                            recordMap.put("community (" + cvar.getValue() + ")", "set");
+                        }
+                    });
+                }
+            });
+
+            // Forwarding Model
+            SortedSet<String> fwdModel = new TreeSet<>();
+            _symbolicDecisions.getDataForwarding().forEach((router, edge, e) -> {
+                String s = valuation.get(e);
+                if (s != null && s.equals("true")) {
+                    fwdModel.add(edge.toString());
+                }
+            });
+
+            SortedSet<String> failures = new TreeSet<>();
+            _symbolicFailures.getFailedInternalLinks().forEach((x,y,e) -> {
+                String s = valuation.get(e);
+                if (s != null && s.equals("true")) {
+                    failures.add("link(" + x + "," + y + ")");
+                }
+            });
+            _symbolicFailures.getFailedEdgeLinks().forEach((ge,e) -> {
+                String s = valuation.get(e);
+                if (s != null && s.equals("true")) {
+                    failures.add("link(" + ge.getRouter() + "," + ge.getStart().getName() + ")" );
+                }
+            });
+
+            return new VerificationResult(false, model, packetModel, envModel, fwdModel, failures);
         }
     }
 

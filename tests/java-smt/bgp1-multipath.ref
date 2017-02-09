@@ -3,7 +3,7 @@
     {
       "class" : "org.batfish.smt.answers.SmtManyAnswerElement",
       "result" : {
-        "R1,Loopback0 --> _,_" : {
+        "R1,Loopback0" : {
           "verified" : true
         }
       }

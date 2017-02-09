@@ -34,15 +34,15 @@
     {
       "class" : "org.batfish.datamodel.answers.ConvertConfigurationAnswerElement"
     },
-    {
-      "class" : "org.batfish.datamodel.answers.InitInfoAnswerElement",
-      "parseStatus" : {
-        "R0" : "PASSED",
-        "R1" : "PASSED",
-        "R2" : "PASSED",
-        "R3" : "PASSED"
-      }
+        {
+          "class" : "org.batfish.datamodel.answers.InitInfoAnswerElement",
+          "parseStatus" : {
+            "R0" : "PASSED",
+            "R1" : "PASSED",
+            "R2" : "PASSED",
+            "R3" : "PASSED"
+          }
+        }
+      ],
+      "status" : "SUCCESS"
     }
-  ],
-  "status" : "SUCCESS"
-}

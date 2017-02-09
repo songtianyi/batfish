@@ -24,15 +24,11 @@ public class SmtManyAnswerElement implements AnswerElement {
             for (Map.Entry<String, VerificationResult> e : _result.entrySet()) {
                 VerificationResult r = e.getValue();
                 if (!r.getVerified()) {
-                    StringBuilder sb = new StringBuilder();
-                    r.getModel().forEach((var, val) -> {
-                        sb.append(var).append(" -> ").append(val).append("\n");
-                    });
-                    return sb.toString();
+                    return r.prettyPrint(e.getKey());
                 }
             }
         }
-        return "verified";
+        return "\nVerified";
     }
 
 }
