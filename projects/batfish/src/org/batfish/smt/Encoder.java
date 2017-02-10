@@ -1809,6 +1809,7 @@ public class Encoder {
                 BoolExpr acc;
                 RoutingPolicy pol = getGraph().findExportRoutingPolicy(router, proto, e);
                 if (pol != null) {
+                    // System.out.println("Got export function for: " + router);
                     TransferFunction f = new TransferFunction(this, conf, varsOther, vars, proto,
                             proto, pol.getStatements(), cost);
                     acc = f.compute();

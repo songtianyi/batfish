@@ -355,19 +355,7 @@ public class PropertyChecker {
                                 aclIn2 = ctx.mkBool(true);
                             }
 
-                            BoolExpr aclOut1 = e1.getOutgoingAcls().get(lge1.getEdge().getStart());
-                            BoolExpr aclOut2 = e2.getOutgoingAcls().get(lge2.getEdge().getStart());
-
-                            if (aclOut1 == null) {
-                                aclOut1 = ctx.mkBool(true);
-                            }
-                            if (aclOut2 == null) {
-                                aclOut2 = ctx.mkBool(true);
-                            }
-
                             equalIncomingAcls = ctx.mkAnd(equalIncomingAcls, ctx.mkEq(aclIn1, aclIn2));
-                            equalOutgoingAcls = ctx.mkAnd(equalOutgoingAcls, ctx.mkEq(aclOut1, aclOut2));
-
 
                             boolean hasEnv1 = (vars1 != null);
                             boolean hasEnv2 = (vars2 != null);

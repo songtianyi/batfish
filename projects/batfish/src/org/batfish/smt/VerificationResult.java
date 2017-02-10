@@ -36,11 +36,10 @@ public class VerificationResult {
 
     @JsonCreator
     public VerificationResult(
-            @JsonProperty(VERIFIED_VAR) boolean verified,
-            @JsonProperty(MODEL_VAR) SortedMap<String, String> model,
-            @JsonProperty(PACKET_MODEL_VAR) SortedMap<String, String> packetModel,
-            @JsonProperty(ENV_MODEL_VAR) SortedMap<String, SortedMap<String, String>> envModel,
-            @JsonProperty(FWD_MODEL_VAR) SortedSet<String> fwdModel,
+            @JsonProperty(VERIFIED_VAR) boolean verified, @JsonProperty(MODEL_VAR)
+            SortedMap<String, String> model, @JsonProperty(PACKET_MODEL_VAR) SortedMap<String,
+            String> packetModel, @JsonProperty(ENV_MODEL_VAR) SortedMap<String, SortedMap<String,
+            String>> envModel, @JsonProperty(FWD_MODEL_VAR) SortedSet<String> fwdModel,
             @JsonProperty(FAILURE_MODEL_VAR) SortedSet<String> failures) {
         _verified = verified;
         _model = model;
@@ -56,7 +55,7 @@ public class VerificationResult {
     }
 
     @JsonProperty(MODEL_VAR)
-    public SortedMap<String,String> getModel() {
+    public SortedMap<String, String> getModel() {
         return _model;
     }
 
@@ -86,9 +85,9 @@ public class VerificationResult {
             sb.append("\nVerified");
         } else {
             if (iface != null) {
-                sb.append("\nExample Found (").append(iface).append(")").append(":\n");
+                sb.append("\nCounterexample Found (").append(iface).append(")").append(":\n");
             } else {
-                sb.append("\nExample Found:\n");
+                sb.append("\nCounterexample Found:\n");
             }
             sb.append("==========================================\n");
             sb.append("Packet:\n");
@@ -100,10 +99,9 @@ public class VerificationResult {
                 sb.append("\n");
                 sb.append("Environment Messages:\n");
                 sb.append("----------------------");
-                System.out.println("ENV MODEL: " + _envModel);
                 _envModel.forEach((edge, map) -> {
                     sb.append("\n").append(edge).append(":\n");
-                    map.forEach((key,val) -> {
+                    map.forEach((key, val) -> {
                         sb.append("  ").append(key).append(": ").append(val).append("\n");
                     });
                 });
@@ -133,7 +131,7 @@ public class VerificationResult {
     public void debug(Encoder enc) {
         System.out.println("================= Constraints ==================");
         for (BoolExpr be : enc.getSolver().getAssertions()) {
-           System.out.println(be.simplify());
+            System.out.println(be.simplify());
         }
         if (_verified) {
             System.out.println("verified");
@@ -151,7 +149,7 @@ public class VerificationResult {
                 });
             });
             System.out.println("");
-             _model.forEach((var,val) -> {
+            _model.forEach((var, val) -> {
                 System.out.println(var + "=" + val);
             });
         }

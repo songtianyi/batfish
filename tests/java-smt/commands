@@ -35,3 +35,10 @@ test tests/java-smt/env2-local2.ref get smt-local-consistency nodeRegex=""
 test tests/java-smt/static2-init.ref init-testrig test_rigs/smt-examples/STATIC2
 test tests/java-smt/static2-forward.ref get smt-forwarding destination="172.0.0.0/32"
 test tests/java-smt/static2-loop.ref get smt-routing-loop
+
+# redistribution of different protocols
+# test tests/java-smt/redistribute1-init.ref init-testrig test_rigs/smt-examples/REDISTRIBUTE1
+# test tests/java-smt/redistribute1-forwarding1.ref get smt-forwarding destination="70.70.70.70/32"
+# test tests/java-smt/redistribute1-forwarding2.ref get smt-forwarding destination="69.69.69.0/32"
+# test tests/java-smt/redistribute1-forwarding3.ref get smt-forwarding destination="180.0.0.0/32"
+# test tests/java-smt/redistribute1-forwarding4.ref get smt-forwarding destination="140.0.0.0/32"
