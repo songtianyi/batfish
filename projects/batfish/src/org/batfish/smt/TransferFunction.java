@@ -141,12 +141,14 @@ public class TransferFunction {
 
     private BoolExpr compute(BooleanExpr expr, Modifications mods) {
 
+        Modifications freshMods = new Modifications(mods);
+
         if (expr instanceof Conjunction) {
             Conjunction c = (Conjunction) expr;
             Queue<BooleanExpr> queue = new ArrayDeque<>(c.getConjuncts());
             BooleanExpr x = queue.remove();
             _operands.push(queue);
-            BoolExpr ret = compute(wrapExpr(x), mods);
+            BoolExpr ret = compute(wrapExpr(x), freshMods);
             _operands.pop();
             return ret;
         }
@@ -154,19 +156,23 @@ public class TransferFunction {
             Disjunction d = (Disjunction) expr;
             BoolExpr v = _enc.False();
             for (BooleanExpr x : d.getDisjuncts()) {
-                v = _enc.Or(v, compute(x, mods));
+                v = _enc.Or(v, compute(x, freshMods));
             }
             return v;
         }
         if (expr instanceof Not) {
             Not n = (Not) expr;
-            return compute(wrapExpr(n.getExpr()), mods);
+            return compute(wrapExpr(n.getExpr()), freshMods);
             // BoolExpr v = compute(n.getExpr(), mods);
             // return _enc.Not(v);
         }
         if (expr instanceof MatchProtocol) {
             MatchProtocol mp = (MatchProtocol) expr;
-            return _enc.Bool(mp.getProtocol() == _from);
+            RoutingProtocol p = mp.getProtocol();
+            if (_other.getProtocolHistory() == null) {
+                return _enc.Bool(mp.getProtocol() == _from);
+            }
+            return _other.getProtocolHistory().checkIfProtocol(p);
         }
         if (expr instanceof MatchPrefixSet) {
             MatchPrefixSet m = (MatchPrefixSet) expr;
@@ -176,12 +182,12 @@ public class TransferFunction {
             CallExpr c = (CallExpr) expr;
             String name = c.getCalledPolicyName();
             RoutingPolicy pol = _conf.getRoutingPolicies().get(name);
-            return compute(pol.getStatements(), mods);
+            return compute(pol.getStatements(), freshMods);
         }
         else if (expr instanceof WithEnvironmentExpr) {
             // TODO: this is not correct
             WithEnvironmentExpr we = (WithEnvironmentExpr) expr;
-            return compute(we.getExpr(), mods);
+            return compute(we.getExpr(), freshMods);
         }
         else if (expr instanceof MatchCommunitySet) {
             MatchCommunitySet mcs = (MatchCommunitySet) expr;
@@ -253,7 +259,6 @@ public class TransferFunction {
                 defaultLen));
         BoolExpr id = _enc.safeEq(_current.getRouterId(), getOrDefault(_other.getRouterId(), defaultId));
 
-
         BoolExpr comms = _enc.True();
 
         // regex matches that now match due to the concrete added value
@@ -282,10 +287,13 @@ public class TransferFunction {
         ArithExpr otherAd = (_other.getAdminDist() == null ? defaultAd : _other.getAdminDist());
         ArithExpr otherMed = (_other.getMed() == null ? defaultMed : _other.getMed());
 
+        // Set the protocol histories equal if needed
+
+        BoolExpr history = _enc.equalHistories(_from, _current, _other);
         BoolExpr ad = _enc.safeEq(_current.getAdminDist(), otherAd);
         BoolExpr med = _enc.safeEq(_current.getMed(), otherMed);
 
-        return _enc.And(per, len, ad, med, lp, met, id, comms);
+        return _enc.And(per, len, ad, med, lp, met, id, comms, history);
     }
 
     private boolean hasStatement(BooleanExpr be) {
@@ -382,9 +390,6 @@ public class TransferFunction {
                     }
                 }
 
-                Modifications modsTrue = new Modifications(mods);
-                Modifications modsFalse = new Modifications(mods);
-
                 if (hasStatement(i.getGuard())) {
                     _contTrue.push(remainingx);
                     _contFalse.push(remainingy);
@@ -393,6 +398,8 @@ public class TransferFunction {
                     _contFalse.pop();
                     return ret;
                 } else {
+                    Modifications modsTrue = new Modifications(freshMods);
+                    Modifications modsFalse = new Modifications(freshMods);
                     BoolExpr trueBranch = compute(remainingx, modsTrue);
                     BoolExpr falseBranch = compute(remainingy, modsFalse);
                     BoolExpr guard = compute(i.getGuard(), freshMods);

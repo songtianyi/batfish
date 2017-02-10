@@ -6,13 +6,10 @@ import org.batfish.common.plugin.IBatfish;
 import org.batfish.datamodel.*;
 import org.batfish.datamodel.routing_policy.RoutingPolicy;
 import org.batfish.datamodel.routing_policy.expr.*;
-import org.batfish.datamodel.routing_policy.statement.AddCommunity;
-import org.batfish.datamodel.routing_policy.statement.DeleteCommunity;
-import org.batfish.datamodel.routing_policy.statement.RetainCommunity;
-import org.batfish.datamodel.routing_policy.statement.SetCommunity;
+import org.batfish.datamodel.routing_policy.statement.*;
 
 import java.util.*;
-import java.util.regex.*;
+import java.util.regex.Matcher;
 
 // Features:
 // ---------
@@ -165,7 +162,8 @@ public class Encoder {
         List<CommunityVar> others = new ArrayList<>();
         for (CommunityVar c : _allCommunities) {
             if (c.getType() == CommunityVar.Type.REGEX) {
-                CommunityVar x = new CommunityVar(CommunityVar.Type.OTHER, c.getValue(), c.asLong());
+                CommunityVar x = new CommunityVar(CommunityVar.Type.OTHER, c.getValue(), c.asLong
+                        ());
                 others.add(x);
             }
         }
@@ -272,7 +270,8 @@ public class Encoder {
             CommunityList cl = conf.getCommunityLists().get(cname);
             if (cl != null) {
                 for (CommunityListLine line : cl.getLines()) {
-                    CommunityVar var = new CommunityVar(CommunityVar.Type.REGEX, line.getRegex(), null);
+                    CommunityVar var = new CommunityVar(CommunityVar.Type.REGEX, line.getRegex(),
+                            null);
                     comms.add(var);
                 }
             }
@@ -401,6 +400,9 @@ public class Encoder {
         if (e.getRouterId() != null) {
             _allVariables.add(e.getRouterId());
         }
+        if (e.getProtocolHistory() != null && e.getProtocolHistory().getBitvec() != null) {
+            _allVariables.add(e.getProtocolHistory().getBitvec());
+        }
         e.getCommunities().forEach((name, var) -> {
             _allVariables.add(var);
         });
@@ -455,10 +457,14 @@ public class Encoder {
     }
 
     private void addBestVariables() {
+
         getGraph().getEdgeMap().forEach((router, edges) -> {
             for (int len = 0; len <= BITS; len++) {
-                SymbolicRecord evBest = new SymbolicRecord(this, router, RoutingProtocol
-                        .AGGREGATE, "OVERALL", _optimizations, "none", _ctx, len, "BEST");
+
+                String name = String.format("%s_%s_%s_%s", router, "OVERALL", "none", "BEST");
+
+                SymbolicRecord evBest = new SymbolicRecord(this, name, router, RoutingProtocol
+                        .AGGREGATE, _optimizations, _ctx, null);
                 addExprs(evBest);
                 _allSymbolicRecords.add(evBest);
                 _symbolicDecisions.getBestNeighbor().put(router, evBest);
@@ -468,9 +474,21 @@ public class Encoder {
         getGraph().getEdgeMap().forEach((router, edges) -> {
             if (!_optimizations.getSliceHasSingleProtocol().contains(router)) {
                 for (RoutingProtocol proto : getGraph().getProtocols().get(router)) {
+
+                    Set<RoutingProtocol> redistributed = _logicalGraph.getRedistributedProtocols
+                            ().get(router, proto);
+
+
+                    String name = String.format("%s_%s_%s_%s", router, proto.protocolName(),
+                            "none", "BEST");
+                    String historyName = name + "_history";
+
+                    ProtocolHistory h = new ProtocolHistory(this, proto, redistributed,
+                            historyName);
+
                     for (int len = 0; len <= BITS; len++) {
-                        SymbolicRecord evBest = new SymbolicRecord(this, router, proto, proto
-                                .protocolName(), _optimizations, "none", _ctx, len, "BEST");
+                        SymbolicRecord evBest = new SymbolicRecord(this, name, router, proto,
+                                _optimizations, _ctx, h);
                         addExprs(evBest);
                         _allSymbolicRecords.add(evBest);
                         _symbolicDecisions.getBestNeighborPerProtocol().put(router, proto, evBest);
@@ -534,9 +552,10 @@ public class Encoder {
                                 SymbolicRecord singleVars = singleExportMap.get(router).get(proto);
                                 SymbolicRecord ev1;
                                 if (singleVars == null) {
-                                    String name = proto.protocolName();
-                                    ev1 = new SymbolicRecord(this, router, proto, name,
-                                            _optimizations, "", _ctx, len, "SINGLE-EXPORT");
+                                    String name = String.format("%s_%s_%s_%s", router, proto
+                                            .protocolName(), "", "SINGLE-EXPORT");
+                                    ev1 = new SymbolicRecord(this, name, router, proto,
+                                            _optimizations, _ctx, null);
                                     singleProtoMap.put(proto, ev1);
                                     addExprs(ev1);
                                     _allSymbolicRecords.add(ev1);
@@ -548,9 +567,12 @@ public class Encoder {
                                 exportEdgeList.add(eExport);
 
                             } else {
-                                String name = proto.protocolName();
-                                SymbolicRecord ev1 = new SymbolicRecord(this, router, proto,
-                                        name, _optimizations, ifaceName, _ctx, len, "EXPORT");
+                                // String name = proto.protocolName();
+                                String name = String.format("%s_%s_%s_%s", router, proto
+                                        .protocolName(), ifaceName, "EXPORT");
+
+                                SymbolicRecord ev1 = new SymbolicRecord(this, name, router,
+                                        proto, _optimizations, _ctx, null);
                                 LogicalGraphEdge eExport = new LogicalGraphEdge(e, EdgeType
                                         .EXPORT, len, ev1);
                                 exportEdgeList.add(eExport);
@@ -562,15 +584,18 @@ public class Encoder {
                                     ().get(router).get(proto).contains(e);
 
                             if (notNeeded) {
-                                SymbolicRecord ev2 = new SymbolicRecord(router, proto
-                                        .protocolName(), ifaceName, len, "IMPORT");
+                                String name = String.format("%s_%s_%s_%s", router, proto
+                                        .protocolName(), ifaceName, "IMPORT");
+                                SymbolicRecord ev2 = new SymbolicRecord(name);
                                 LogicalGraphEdge eImport = new LogicalGraphEdge(e, EdgeType
                                         .IMPORT, len, ev2);
                                 importEdgeList.add(eImport);
                             } else {
-                                String name = proto.protocolName();
-                                SymbolicRecord ev2 = new SymbolicRecord(this, router, proto,
-                                        name, _optimizations, ifaceName, _ctx, len, "IMPORT");
+
+                                String name = String.format("%s_%s_%s_%s", router, proto
+                                        .protocolName(), ifaceName, "IMPORT");
+                                SymbolicRecord ev2 = new SymbolicRecord(this, name, router,
+                                        proto, _optimizations, _ctx, null);
                                 LogicalGraphEdge eImport = new LogicalGraphEdge(e, EdgeType
                                         .IMPORT, len, ev2);
                                 importEdgeList.add(eImport);
@@ -627,6 +652,40 @@ public class Encoder {
         });
     }
 
+    public Set<RoutingProtocol> findRedistributedProtocols(Configuration conf, RoutingPolicy pol,
+            RoutingProtocol p) {
+        Set<RoutingProtocol> protos = new HashSet<>();
+        AstVisitor v = new AstVisitor();
+        v.visit(conf, pol.getStatements(), stmt -> {}, expr -> {
+            if (expr instanceof MatchProtocol) {
+                MatchProtocol mp = (MatchProtocol) expr;
+                RoutingProtocol other = mp.getProtocol();
+                if (other != p) {
+                    switch (other) {
+                        case BGP:
+                            protos.add(other);
+                            break;
+                        case OSPF:
+                            protos.add(other);
+                            break;
+                        case STATIC:
+                            protos.add(other);
+                            break;
+                        case CONNECTED:
+                            protos.add(other);
+                            break;
+                        case IBGP:
+                            break;
+                        default:
+                            throw new BatfishException("Unrecognized protocol: " + other
+                                    .protocolName());
+                    }
+                }
+            }
+        });
+        return protos;
+    }
+
     private void addRedistributionSymbolicRecords() {
         getGraph().getConfigurations().forEach((router, conf) -> {
             Map<RoutingProtocol, Map<RoutingProtocol, LogicalRedistributionEdge>> map1 = new
@@ -635,23 +694,39 @@ public class Encoder {
             for (RoutingProtocol proto : getGraph().getProtocols().get(router)) {
                 EnumMap<RoutingProtocol, LogicalRedistributionEdge> map2 = new EnumMap<>
                         (RoutingProtocol.class);
+
+                Set<RoutingProtocol> redistributed = new HashSet<>();
+                _logicalGraph.getRedistributedProtocols().put(router, proto, redistributed);
+
                 map1.put(proto, map2);
+
                 RoutingPolicy pol = getGraph().findCommonRoutingPolicy(router, proto);
                 if (pol != null) {
-                    _logicalGraph.getRedistributionEdges().get(router).get(proto).forEach((
-                            p, edge) -> {
-                        // List<RoutingProtocol> ps = getGraph().findRedistributedProtocols(pol,
-                        // proto);
-                        // for (RoutingProtocol p : ps) {
-                        String name = "REDIST_FROM_" + p.protocolName().toUpperCase();
-                        String ifaceName = "none";
-                        int len = 0;
-                        SymbolicRecord e = new SymbolicRecord(this, router, proto, proto
-                                .protocolName(), _optimizations, ifaceName, _ctx, len, name);
+                    Set<RoutingProtocol> ps = findRedistributedProtocols(conf, pol, proto);
+
+                    for (RoutingProtocol p : ps) {
+                        // Make sure there is actually a routing process for the other protocol
+                        // For example, it might get sliced away if not relevant
+                        boolean isProto = getGraph().getProtocols().get(router).contains(p);
+                        if (isProto) {
+                            redistributed.add(p);
+                        }
+                    }
+
+                    for (RoutingProtocol p : redistributed) {
+                        String name = String.format("%s_%s_%s_%s", router, proto.protocolName(),
+                                "none", "REDIST_FROM_" + p.protocolName().toUpperCase());
+                        String historyName = name + "_history";
+
+                        ProtocolHistory h = new ProtocolHistory(this, proto, redistributed,
+                                historyName);
+                        SymbolicRecord e = new SymbolicRecord(this, name, router, proto,
+                                _optimizations, _ctx, h);
                         _allSymbolicRecords.add(e);
                         addExprs(e);
                         map2.put(p, new LogicalRedistributionEdge(p, EdgeType.IMPORT, 0, e));
-                    });
+                    }
+
                 }
             }
         });
@@ -677,8 +752,12 @@ public class Encoder {
                                         address = n.getAddress().toString();
                                     }
 
-                                    SymbolicRecord vars = new SymbolicRecord(this, router, proto,
-                                            "ENV", _optimizations, address, _ctx, 0, "EXPORT");
+                                    String ifaceName = "ENV-" + address;
+                                    String name = String.format("%s_%s_%s_%s", router, proto
+                                            .protocolName(), ifaceName, "EXPORT");
+                                    SymbolicRecord vars = new SymbolicRecord(this, name, router,
+                                            proto, _optimizations, _ctx, null);
+
                                     addExprs(vars);
                                     _allSymbolicRecords.add(vars);
                                     _logicalGraph.getEnvironmentVars().put(e, vars);
@@ -717,9 +796,9 @@ public class Encoder {
     private void addVariables() {
         buildEdgeMap();
         addForwardingVariables();
+        addRedistributionSymbolicRecords();
         addBestVariables();
         addSymbolicRecords();
-        addRedistributionSymbolicRecords();
         addChoiceVariables();
         addEnvironmentVariables();
         addFailedLinkVariables();
@@ -791,7 +870,7 @@ public class Encoder {
                         acc = Or(acc, depExpr);
                     }
                     // System.out.println("Community constraint:\n" + acc.simplify());
-                    add( acc );
+                    add(acc);
                 }
             });
         }
@@ -890,10 +969,23 @@ public class Encoder {
                             .getRedistributionEdges().get(router).get(proto);
                     map.forEach((fromProto, vars) -> {
                         SymbolicRecord current = vars.getSymbolicRecord();
-                        SymbolicRecord other = _symbolicDecisions.getBestNeighborPerProtocol()
-                                                                 .get(router, fromProto);
+
+                        // System.out.println("Router: " + router);
+                        // System.out.println("proto: " + proto.protocolName());
+                        // System.out.println("fromProto: " + fromProto.protocolName());
+
+                        BoolExpr x = current.getProtocolHistory().checkIfProtocol(fromProto);
+
+                        // System.out.println("  assert(" + x.toString() + ")");
+
+                        add(x);
+
+                        SymbolicRecord other = _symbolicDecisions.getBestVars(_optimizations,
+                                router, fromProto);
+
                         TransferFunction f = new TransferFunction(this, conf, other, current,
                                 proto, fromProto, pol.getStatements(), null);
+
                         add(f.compute());
                     });
                 }
@@ -1073,6 +1165,20 @@ public class Encoder {
         }
     }
 
+    public BoolExpr equalHistories(RoutingProtocol proto, SymbolicRecord best, SymbolicRecord vars) {
+        BoolExpr history;
+        if (best.getProtocolHistory() == null) {
+            history = True();
+        } else {
+            if (vars.getProtocolHistory() == null) {
+                history = best.getProtocolHistory().checkIfProtocol(proto);
+            } else {
+                history = best.getProtocolHistory().mkEqual(vars.getProtocolHistory());
+            }
+        }
+        return history;
+    }
+
     public BoolExpr equal(
             Configuration conf, RoutingProtocol proto, SymbolicRecord best, SymbolicRecord vars,
             LogicalEdge e) {
@@ -1111,7 +1217,9 @@ public class Encoder {
             equalId = Eq(best.getRouterId(), vars.getRouterId());
         }
 
-        return And(equalLen, equalAd, equalLp, equalMet, equalMed, equalId);
+        BoolExpr history = equalHistories(proto, best, vars);
+
+        return And(equalLen, equalAd, equalLp, equalMet, equalMed, equalId, history);
     }
 
     private BoolExpr geBetterHelper(
@@ -1746,10 +1854,12 @@ public class Encoder {
                     BoolExpr importFunction;
                     RoutingPolicy pol = getGraph().findImportRoutingPolicy(router, proto, e);
                     if (pol != null) {
+
                         TransferFunction f = new TransferFunction(this, conf, varsOther, vars,
                                 proto, proto, pol.getStatements(), null);
                         importFunction = f.compute();
-                        // System.out.println("IMPORT FUNCTION: " + router + " " + varsOther.getName());
+                        // System.out.println("IMPORT FUNCTION: " + router + " " + varsOther
+                        // .getName());
                         // System.out.println(importFunction.simplify());
                     } else {
                         // just copy the export policy in ospf/bgp
@@ -1809,9 +1919,24 @@ public class Encoder {
                 BoolExpr acc;
                 RoutingPolicy pol = getGraph().findExportRoutingPolicy(router, proto, e);
                 if (pol != null) {
+
+                    // We have to wrap this with the right thing for some reason
+                    List<Statement> statements;
+                    if (proto == RoutingProtocol.OSPF) {
+                        If i = new If();
+                        Statements.StaticStatement s = new Statements.StaticStatement(Statements.ExitAccept);
+                        i.setTrueStatements(Collections.singletonList(s));
+                        i.setFalseStatements(pol.getStatements());
+                        BooleanExpr expr = new MatchProtocol(RoutingProtocol.OSPF);
+                        i.setGuard(expr);
+                        statements = Collections.singletonList(i);
+                    } else {
+                        statements = pol.getStatements();
+                    }
+
                     // System.out.println("Got export function for: " + router);
                     TransferFunction f = new TransferFunction(this, conf, varsOther, vars, proto,
-                            proto, pol.getStatements(), cost);
+                            proto, statements, cost);
                     acc = f.compute();
                     // System.out.println("EXPORT FUNCTION: " + router + " " + varsOther.getName());
                     // System.out.println(acc);
@@ -1990,7 +2115,7 @@ public class Encoder {
             String tcpSyn = valuation.get(_symbolicPacket.getTcpSyn());
             String tcpUrg = valuation.get(_symbolicPacket.getTcpUrg());
 
-            SortedMap<String,String> packetModel = new TreeMap<>();
+            SortedMap<String, String> packetModel = new TreeMap<>();
 
             Ip dip = new Ip(Long.parseLong(dstIp));
             Ip sip = new Ip(Long.parseLong(srcIp));
@@ -2103,16 +2228,16 @@ public class Encoder {
             });
 
             SortedSet<String> failures = new TreeSet<>();
-            _symbolicFailures.getFailedInternalLinks().forEach((x,y,e) -> {
+            _symbolicFailures.getFailedInternalLinks().forEach((x, y, e) -> {
                 String s = valuation.get(e);
                 if (s != null && s.equals("true")) {
                     failures.add("link(" + x + "," + y + ")");
                 }
             });
-            _symbolicFailures.getFailedEdgeLinks().forEach((ge,e) -> {
+            _symbolicFailures.getFailedEdgeLinks().forEach((ge, e) -> {
                 String s = valuation.get(e);
                 if (s != null && s.equals("true")) {
-                    failures.add("link(" + ge.getRouter() + "," + ge.getStart().getName() + ")" );
+                    failures.add("link(" + ge.getRouter() + "," + ge.getStart().getName() + ")");
                 }
             });
 

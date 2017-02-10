@@ -33,12 +33,13 @@ public class SymbolicRecord {
 
     private BoolExpr _permitted;
 
+    private ProtocolHistory _protocolHistory;
+
     private Map<CommunityVar, BoolExpr> _communities;
 
 
-    public SymbolicRecord(
-            String router, String protoName, String ifaceName, int prefixLen, String export) {
-        _name = String.format("%s_%s_%s_%d_%s", router, protoName, ifaceName, prefixLen, export);
+    public SymbolicRecord(String name) {
+        _name = name;
         _isUsed = false;
         _isBest = false;
         _isEnv = false;
@@ -49,15 +50,19 @@ public class SymbolicRecord {
         _med = null;
         _routerId = null;
         _permitted = null;
+        _protocolHistory = null;
     }
 
     public SymbolicRecord(
-            Encoder enc, String router, RoutingProtocol proto, String name, Optimizations opts,
-            String iface, Context ctx, int prefixLen, String export) {
-        _name = String.format("%s_%s_%s_%d_%s", router, name, iface, prefixLen, export);
+            Encoder enc, String name, String router, RoutingProtocol proto, Optimizations opts, Context ctx, ProtocolHistory h) {
+
+        _name = name;
+
         _isUsed = true;
         _isBest = _name.contains("_BEST_");
         _isEnv = _name.contains("_ENV_");
+
+        _protocolHistory = h;
 
         // Represent best variables as the aggregate protocol. Total hack.
         if (proto == RoutingProtocol.AGGREGATE) {
@@ -157,5 +162,9 @@ public class SymbolicRecord {
 
     public Map<CommunityVar, BoolExpr> getCommunities() {
         return _communities;
+    }
+
+    public ProtocolHistory getProtocolHistory() {
+        return _protocolHistory;
     }
 }

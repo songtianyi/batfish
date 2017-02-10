@@ -8,10 +8,7 @@ import org.batfish.datamodel.RoutingProtocol;
 import org.batfish.smt.utils.Table2;
 import org.batfish.smt.utils.Table3;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class LogicalGraph {
 
@@ -24,12 +21,15 @@ public class LogicalGraph {
 
     private Table2<String, RoutingProtocol, List<ArrayList<LogicalGraphEdge>>> _logicalGraphEdges;
 
+    private Table2<String, RoutingProtocol, Set<RoutingProtocol>> _redistributedProtocols;
+
     private Map<LogicalGraphEdge, SymbolicRecord> _environmentVars;
 
     public LogicalGraph(Graph g) {
         _graph = g;
         _redistributionEdges = new Table3<>();
         _logicalGraphEdges = new Table2<>();
+        _redistributedProtocols = new Table2<>();
         _otherEnd = new HashMap<>();
         _environmentVars = new HashMap<>();
     }
@@ -42,6 +42,10 @@ public class LogicalGraph {
     public Table2<String, RoutingProtocol, List<ArrayList<LogicalGraphEdge>>>
     getLogicalGraphEdges() {
         return _logicalGraphEdges;
+    }
+
+    public Table2<String, RoutingProtocol, Set<RoutingProtocol>> getRedistributedProtocols() {
+        return _redistributedProtocols;
     }
 
     public Map<LogicalGraphEdge, LogicalGraphEdge> getOtherEnd() {
