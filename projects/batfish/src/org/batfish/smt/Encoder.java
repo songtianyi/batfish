@@ -1203,7 +1203,7 @@ public class Encoder {
         equalMed = equalHelper(best.getMed(), vars.getMed(), defaultMed);
 
         if (vars.getRouterId() == null) {
-            if (best.getRouterId() == null) {
+            if (best.getRouterId() == null || e == null) {
                 equalId = True();
             } else {
                 Long peerId = _logicalGraph.findRouterId(e, proto);
@@ -1909,12 +1909,9 @@ public class Encoder {
                 Integer cost = addedCost(proto, iface);
                 BoolExpr val = Not(vars.getPermitted());
 
-                // default is to propagate the "best" route
-                SymbolicRecord best = _symbolicDecisions.getBestVars(_optimizations, router, proto);
-
                 // If the export is usable, then we propagate the best route after incrementing
                 // the metric
-                BoolExpr usable = And(Bool(iface.getActive()), best.getPermitted(), notFailed);
+                BoolExpr usable = And(Bool(iface.getActive()), varsOther.getPermitted(), notFailed);
 
                 BoolExpr acc;
                 RoutingPolicy pol = getGraph().findExportRoutingPolicy(router, proto, e);
@@ -1945,15 +1942,33 @@ public class Encoder {
 
                 } else {
                     BoolExpr per = vars.getPermitted();
-                    BoolExpr len = safeEq(vars.getPrefixLength(), best.getPrefixLength());
-                    BoolExpr ad = safeEq(vars.getAdminDist(), best.getAdminDist());
-                    BoolExpr med = safeEq(vars.getMed(), best.getMed());
-                    BoolExpr lp = safeEq(vars.getLocalPref(), best.getLocalPref());
-                    BoolExpr met = safeEqAdd(vars.getMetric(), best.getMetric(), cost);
+                    BoolExpr len = safeEq(vars.getPrefixLength(), varsOther.getPrefixLength());
+                    BoolExpr ad = safeEq(vars.getAdminDist(), varsOther.getAdminDist());
+                    BoolExpr med = safeEq(vars.getMed(), varsOther.getMed());
+                    BoolExpr lp = safeEq(vars.getLocalPref(), varsOther.getLocalPref());
+                    BoolExpr met = safeEqAdd(vars.getMetric(), varsOther.getMetric(), cost);
                     acc = And(per, len, ad, med, lp, met);
                 }
 
+                SymbolicRecord overallBest = _symbolicDecisions.getBestNeighbor().get(router);
+
+                // Only export the route if it is either (1) in the FIB, or (2) for a different length
+                // BoolExpr doExport;
+                //if (_optimizations.getSliceHasSingleProtocol().contains(router)) {
+                //    doExport = True();
+                //} else {
+                //    BoolExpr isOverallBest = equal(conf, proto, overallBest, varsOther, null);
+                //    BoolExpr equalLen = Eq(overallBest.getPrefixLength(), varsOther.getPrefixLength());
+                //    doExport = Or(isOverallBest, Not(equalLen));
+                //}
+
+                //acc = If(And(usable, doExport), acc, val);
                 acc = If(usable, acc, val);
+
+                // System.out.println("EXPORT FUNCTION: " + router + " " + varsOther.getName());
+                // System.out.println(acc);
+                // System.out.println("SIMPLIFIED: " + router + " " + varsOther.getName());
+                // System.out.println(acc.simplify());
 
                 for (Prefix p : originations) {
                     BoolExpr relevant = And(Bool(iface.getActive()), isRelevantFor(p,

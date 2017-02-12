@@ -242,7 +242,7 @@ public class TransferFunction {
         } else {
             IntExpr ie = mods.getSetMetric().getMetric();
             ArithExpr val = applyIntExprModification(otherMet, ie);
-            met = _enc.safeEqAdd(_current.getMetric(), val, _addedCost);
+            met = _enc.safeEq(_current.getMetric(), val);
         }
 
         BoolExpr lp;
@@ -255,8 +255,8 @@ public class TransferFunction {
         }
 
         BoolExpr per = _enc.safeEq(_current.getPermitted(), _other.getPermitted());
-        BoolExpr len = _enc.safeEq(_current.getPrefixLength(), getOrDefault(_other.getPrefixLength(),
-                defaultLen));
+        BoolExpr len =
+                _enc.safeEq(_current.getPrefixLength(), getOrDefault(_other.getPrefixLength(), defaultLen));
         BoolExpr id = _enc.safeEq(_current.getRouterId(), getOrDefault(_other.getRouterId(), defaultId));
 
         BoolExpr comms = _enc.True();
