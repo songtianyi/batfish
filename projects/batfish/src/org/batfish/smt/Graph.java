@@ -220,7 +220,7 @@ public class Graph {
     }
 
     public RoutingPolicy findImportRoutingPolicy(String router, RoutingProtocol proto,
-            LogicalGraphEdge e) {
+            LogicalEdge e) {
         Configuration conf = _configurations.get(router);
         if (proto == RoutingProtocol.CONNECTED) {
             return null;
@@ -245,8 +245,7 @@ public class Graph {
         return _bgpNeighbors;
     }
 
-    public RoutingPolicy findExportRoutingPolicy(String router, RoutingProtocol proto,
-            LogicalGraphEdge e) {
+    public RoutingPolicy findExportRoutingPolicy(String router, RoutingProtocol proto, LogicalEdge e) {
         Configuration conf = _configurations.get(router);
         if (proto == RoutingProtocol.CONNECTED) {
             return null;

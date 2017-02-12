@@ -2,6 +2,7 @@ package org.batfish.smt;
 
 import com.microsoft.z3.BitVecExpr;
 import com.microsoft.z3.BoolExpr;
+import org.batfish.common.BatfishException;
 import org.batfish.datamodel.RoutingProtocol;
 
 import java.util.*;
@@ -22,63 +23,57 @@ public class ProtocolHistory {
 
     private BitVecExpr _bitvec;
 
-    private RoutingProtocol _protocol;
+    private int _numBits;
+
+    private List<RoutingProtocol> _protocols;
 
     private Map<RoutingProtocol, BitVecExpr> _protocolMap;
 
-    // TODO: need unique name
-    public ProtocolHistory(Encoder enc, RoutingProtocol p, Set<RoutingProtocol> protocols, String name) {
+    public ProtocolHistory(Encoder enc, List<RoutingProtocol> protocols, String name) {
 
         _enc = enc;
-        _protocol = p;
 
-        // Keep the original protocol around as well
-        List<RoutingProtocol> protos = new ArrayList<>(protocols);
-        if (!protos.contains(p)) {
-            protos.add(p);
-        }
+        // System.out.println("Name: " + name);
 
-        if (protos.size() == 1) {
+        // Calculate the number of bits needed
+        int size = protocols.size();
+        // System.out.println("Number of protocols: " + size);
 
-            _bitvec = null;
-            _protocolMap = null;
+        double log = Math.log((double) size);
+        double base = Math.log((double) 2);
 
-        } else {
+        _numBits = ((int) Math.ceil(log / base));
+        // System.out.println("Number of bits: " + _numBits);
 
-            // Calculate the number of bits needed
-            int size = protocols.size() + 1;
-            // System.out.println("Number of protocols: " + size);
-
-            double log = Math.log((double) size);
-            double base = Math.log((double) 2);
-
-            int numBits = ((int) Math.ceil(log / base));
-            // System.out.println("Number of bits: " + numBits);
-
-            // Initialize the map from protocol to number
-            int i = 0;
-            _protocolMap = new HashMap<>();
-            for (RoutingProtocol proto : protos) {
-               //  System.out.println("" + proto.protocolName() + " --> " + _enc.getCtx().mkBV(i, numBits).toString());
-                _protocolMap.put(proto, _enc.getCtx().mkBV(i, numBits));
-                i++;
+        int i = 0;
+        _protocols = new ArrayList<>();
+        _protocolMap = new HashMap<>();
+        for (RoutingProtocol proto : protocols) {
+            _protocols.add(proto);
+            if (_numBits > 0) {
+                _protocolMap.put(proto, _enc.getCtx().mkBV(i, _numBits));
             }
-
-            _bitvec = _enc.getCtx().mkBVConst(name, numBits);
+            i++;
         }
 
+        if (_numBits == 0) {
+            _bitvec = null;
+        } else {
+            _bitvec = _enc.getCtx().mkBVConst(name, _numBits);
+        }
     }
 
     public BoolExpr mkEqual(ProtocolHistory other) {
         if (_bitvec == null || other._bitvec == null) {
-            return _enc.True();
+            throw new BatfishException("Error: protocol history null bitvector");
         }
         return _enc.Eq(_bitvec, other._bitvec);
     }
 
     public BoolExpr checkIfProtocol(RoutingProtocol p) {
-        if (_protocolMap == null || _bitvec == null) {
-            return _enc.Bool(p == _protocol);
+        if (_bitvec == null) {
+            RoutingProtocol q = _protocols.get(0);
+            return _enc.Bool(p == q);
         }
 
         BitVecExpr bv = _protocolMap.get(p);
@@ -91,5 +86,9 @@ public class ProtocolHistory {
 
     public BitVecExpr getBitvec() {
         return _bitvec;
+    }
+
+    public int getNumBits() {
+        return _numBits;
     }
 }

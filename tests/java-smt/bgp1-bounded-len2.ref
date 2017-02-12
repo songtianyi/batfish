@@ -9,6 +9,7 @@
             "R2,Serial0 --> R1,Serial0"
           ],
           "model" : {
+            "R1_OVERALL_none_BEST_history" : "1",
             "R1_OVERALL_none_BEST_metric" : "0",
             "R1_OVERALL_none_BEST_permitted" : "true",
             "R1_OVERALL_none_BEST_prefixLength" : "24",
@@ -23,6 +24,7 @@
             "R1_bgp__SINGLE-EXPORT_metric" : "1",
             "R1_bgp__SINGLE-EXPORT_permitted" : "true",
             "R1_bgp__SINGLE-EXPORT_prefixLength" : "24",
+            "R1_bgp_none_BEST_history" : "0",
             "R1_bgp_none_BEST_metric" : "0",
             "R1_bgp_none_BEST_permitted" : "false",
             "R1_bgp_none_BEST_prefixLength" : "0",
@@ -34,6 +36,7 @@
             "R1_connected_Serial0_IMPORT_prefixLength" : "0",
             "R1_connected__SINGLE-EXPORT_permitted" : "false",
             "R1_connected__SINGLE-EXPORT_prefixLength" : "0",
+            "R1_connected_none_BEST_history" : "1",
             "R1_connected_none_BEST_permitted" : "true",
             "R1_connected_none_BEST_prefixLength" : "24",
             "R2_OVERALL_none_BEST_metric" : "1",

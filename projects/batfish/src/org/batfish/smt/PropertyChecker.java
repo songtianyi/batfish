@@ -316,9 +316,9 @@ public class PropertyChecker {
             // TODO: check running same protocols?
 
             Map<String, EnumMap<RoutingProtocol, Map<String, EnumMap<EdgeType,
-                    LogicalGraphEdge>>>> lgeMap1 = logicalEdgeMap(e1);
+                    LogicalEdge>>>> lgeMap1 = logicalEdgeMap(e1);
             Map<String, EnumMap<RoutingProtocol, Map<String, EnumMap<EdgeType,
-                    LogicalGraphEdge>>>> lgeMap2 = logicalEdgeMap(e2);
+                    LogicalEdge>>>> lgeMap2 = logicalEdgeMap(e2);
 
             BoolExpr equalEnvs = ctx.mkBool(true);
             BoolExpr equalOutputs = ctx.mkBool(true);
@@ -330,12 +330,12 @@ public class PropertyChecker {
 
             // Set environments equal
             for (RoutingProtocol proto1 : e1.getGraph().getProtocols().get(r1)) {
-                for (ArrayList<LogicalGraphEdge> es : e1.getLogicalGraph().getLogicalGraphEdges()
+                for (ArrayList<LogicalEdge> es : e1.getLogicalGraph().getLogicalEdges()
                                                         .get(r1).get(proto1)) {
-                    for (LogicalGraphEdge lge1 : es) {
+                    for (LogicalEdge lge1 : es) {
 
                         String ifaceName = lge1.getEdge().getStart().getName();
-                        LogicalGraphEdge lge2 = lgeMap2.get(r2).get(proto1).get(ifaceName).get
+                        LogicalEdge lge2 = lgeMap2.get(r2).get(proto1).get(ifaceName).get
                                 (lge1.getEdgeType());
 
                         if (lge1.getEdgeType() == EdgeType.IMPORT) {
@@ -448,23 +448,23 @@ public class PropertyChecker {
     }
 
     private static Map<String, EnumMap<RoutingProtocol, Map<String, EnumMap<EdgeType,
-            LogicalGraphEdge>>>> logicalEdgeMap(Encoder enc) {
-        Map<String, EnumMap<RoutingProtocol, Map<String, EnumMap<EdgeType, LogicalGraphEdge>>>>
+            LogicalEdge>>>> logicalEdgeMap(Encoder enc) {
+        Map<String, EnumMap<RoutingProtocol, Map<String, EnumMap<EdgeType, LogicalEdge>>>>
                 acc = new HashMap<>();
-        enc.getLogicalGraph().getLogicalGraphEdges().forEach((router, map) -> {
-            EnumMap<RoutingProtocol, Map<String, EnumMap<EdgeType, LogicalGraphEdge>>> mapAcc =
+        enc.getLogicalGraph().getLogicalEdges().forEach((router, map) -> {
+            EnumMap<RoutingProtocol, Map<String, EnumMap<EdgeType, LogicalEdge>>> mapAcc =
                     new EnumMap<>(RoutingProtocol.class);
             acc.put(router, mapAcc);
             map.forEach((proto, edges) -> {
-                Map<String, EnumMap<EdgeType, LogicalGraphEdge>> edgesMap = new HashMap<>();
+                Map<String, EnumMap<EdgeType, LogicalEdge>> edgesMap = new HashMap<>();
                 mapAcc.put(proto, edgesMap);
-                for (ArrayList<LogicalGraphEdge> xs : edges) {
-                    for (LogicalGraphEdge lge : xs) {
+                for (ArrayList<LogicalEdge> xs : edges) {
+                    for (LogicalEdge lge : xs) {
                         // Should have import since only connected to environment
                         String ifaceName = lge.getEdge().getStart().getName();
-                        EnumMap<EdgeType, LogicalGraphEdge> typeMap = edgesMap.get(ifaceName);
+                        EnumMap<EdgeType, LogicalEdge> typeMap = edgesMap.get(ifaceName);
                         if (typeMap == null) {
-                            EnumMap<EdgeType, LogicalGraphEdge> m = new EnumMap<>(EdgeType.class);
+                            EnumMap<EdgeType, LogicalEdge> m = new EnumMap<>(EdgeType.class);
                             m.put(lge.getEdgeType(), lge);
                             edgesMap.put(ifaceName, m);
                         } else {

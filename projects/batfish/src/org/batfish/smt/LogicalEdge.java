@@ -3,12 +3,16 @@ package org.batfish.smt;
 
 public class LogicalEdge {
 
+    private GraphEdge _edge;
+
     private EdgeType _type;
+
     private int _prefixLen;
+
     private SymbolicRecord _symbolicRecord;
 
-
-    public LogicalEdge(EdgeType type, int prefixLen, SymbolicRecord symbolicRecord) {
+    public LogicalEdge(GraphEdge edge, EdgeType type, int prefixLen, SymbolicRecord symbolicRecord) {
+        _edge = edge;
         _type = type;
         _prefixLen = prefixLen;
         _symbolicRecord = symbolicRecord;
@@ -26,12 +30,8 @@ public class LogicalEdge {
         return _symbolicRecord;
     }
 
-    @Override
-    public int hashCode() {
-        int result = _type != null ? _type.hashCode() : 0;
-        result = 31 * result + _prefixLen;
-        result = 31 * result + (_symbolicRecord != null ? _symbolicRecord.hashCode() : 0);
-        return result;
+    public GraphEdge getEdge() {
+        return _edge;
     }
 
     @Override
@@ -45,6 +45,8 @@ public class LogicalEdge {
 
         if (_prefixLen != that._prefixLen)
             return false;
+        if (_edge != null ? !_edge.equals(that._edge) : that._edge != null)
+            return false;
         if (_type != that._type)
             return false;
         return _symbolicRecord != null ? _symbolicRecord.equals(that._symbolicRecord) : that
@@ -52,9 +54,13 @@ public class LogicalEdge {
     }
 
     @Override
-    public String toString() {
-        return "LogicalEdge{" + "_type=" + _type + ", _prefixLen=" + _prefixLen + ", " +
-                "_symbolicRecord=" + _symbolicRecord + '}';
+    public int hashCode() {
+        int result = _edge != null ? _edge.hashCode() : 0;
+        result = 31 * result + (_type != null ? _type.hashCode() : 0);
+        result = 31 * result + _prefixLen;
+        result = 31 * result + (_symbolicRecord != null ? _symbolicRecord.hashCode() : 0);
+        return result;
     }
+
 }
 
