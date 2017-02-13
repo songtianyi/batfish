@@ -1,10 +1,8 @@
 package org.batfish.smt;
 
 
-import org.batfish.datamodel.BgpNeighbor;
-import org.batfish.datamodel.Configuration;
-import org.batfish.datamodel.Prefix;
-import org.batfish.datamodel.RoutingProtocol;
+import org.batfish.common.BatfishException;
+import org.batfish.datamodel.*;
 import org.batfish.datamodel.routing_policy.RoutingPolicy;
 import org.batfish.datamodel.routing_policy.expr.BooleanExpr;
 import org.batfish.datamodel.routing_policy.expr.CallExpr;
@@ -177,6 +175,8 @@ class Optimizations {
 
     // Merge export variables into a single copy when no peer-specific export
     private void computeCanMergeExportVars() {
+        Graph g = _encoder.getGraph();
+
         _encoder.getGraph().getConfigurations().forEach((router, conf) -> {
             EnumMap<RoutingProtocol, Boolean> map = new EnumMap<>(RoutingProtocol.class);
             _sliceCanKeepSingleExportVar.put(router, map);
@@ -185,10 +185,19 @@ class Optimizations {
             // the neighbor already being the root of the tree.
             // TODO: actually compute this
             for (RoutingProtocol proto : _encoder.getGraph().getProtocols().get(router)) {
-                if (proto == RoutingProtocol.CONNECTED || proto == RoutingProtocol.STATIC ||
-                        proto == RoutingProtocol.OSPF) {
+                if (proto == RoutingProtocol.CONNECTED || proto == RoutingProtocol.STATIC) {
                     map.put(proto, Optimizations.ENABLE_EXPORT_MERGE_OPTIMIZATION);
-                } else {
+
+                } else if (proto == RoutingProtocol.OSPF) {
+                    // Ensure all interfaces are active
+                    boolean acc = true;
+                    for (GraphEdge edge : g.getEdgeMap().get(router)) {
+                        Interface iface = edge.getStart();
+                        acc = acc && g.isInterfaceActive(proto, iface);
+                    }
+                    map.put(proto, acc && Optimizations.ENABLE_EXPORT_MERGE_OPTIMIZATION);
+
+                } else if (proto == RoutingProtocol.BGP) {
                     boolean allDefault = true;
                     for (Map.Entry<Prefix, BgpNeighbor> e : conf.getDefaultVrf().getBgpProcess()
                                                                 .getNeighbors().entrySet()) {
@@ -199,6 +208,9 @@ class Optimizations {
                         }
                     }
                     map.put(proto, allDefault && Optimizations.ENABLE_EXPORT_MERGE_OPTIMIZATION);
+
+                } else {
+                    throw new BatfishException("Error: unkown protocol: " + proto.protocolName());
                 }
             }
         });

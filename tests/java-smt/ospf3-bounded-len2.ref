@@ -36,6 +36,7 @@
             "R2_ospf__SINGLE-EXPORT_metric" : "2",
             "R2_ospf__SINGLE-EXPORT_permitted" : "true",
             "R2_ospf__SINGLE-EXPORT_prefixLength" : "32",
+            "R3_OVERALL_none_BEST_adminDist" : "0",
             "R3_OVERALL_none_BEST_history" : "1",
             "R3_OVERALL_none_BEST_metric" : "0",
             "R3_OVERALL_none_BEST_permitted" : "true",

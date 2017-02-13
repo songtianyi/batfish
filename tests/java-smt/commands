@@ -43,6 +43,13 @@ test tests/java-smt/redistribute1-forwarding2.ref get smt-forwarding destination
 test tests/java-smt/redistribute1-forwarding3.ref get smt-forwarding destination="180.0.0.0/32"
 test tests/java-smt/redistribute1-forwarding4.ref get smt-forwarding destination="140.0.0.0/32"
 
-# Only propagate routes when it is in the FIB
+# Ensure correct handling of inactive links in OSPF
+test tests/java-smt/ospf1-init.ref init-testrig test_rigs/smt-examples/OSPF1
+test tests/java-smt/ospf1-forwarding.ref get smt-forwarding destination="70.70.70.70/32"
+
+# Only propagate routes when they are in the FIB
 test tests/java-smt/ospf2-init.ref init-testrig test_rigs/smt-examples/OSPF2
 test tests/java-smt/ospf2-forwarding.ref get smt-forwarding destination="70.70.70.70/32"
+test tests/java-smt/ospf4-init.ref init-testrig test_rigs/smt-examples/OSPF4
+test tests/java-smt/ospf4-forwarding.ref get smt-forwarding destination="70.70.70.70/32"
+

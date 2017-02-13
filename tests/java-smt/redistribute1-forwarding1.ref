@@ -2,7 +2,7 @@
   "answerElements" : [
     {
       "class" : "org.batfish.smt.answers.SmtOneAnswerElement",
-        "result" : {
+      "result" : {
         "forwardingModel" : [
           "R1,Loopback0 --> _,_",
           "R2,Serial0 --> R1,Serial0"
@@ -47,21 +47,29 @@
           "R2_OVERALL_none_BEST_metric" : "1",
           "R2_OVERALL_none_BEST_permitted" : "true",
           "R2_OVERALL_none_BEST_prefixLength" : "24",
+          "R2_ospf_Loopback0_EXPORT_adminDist" : "0",
+          "R2_ospf_Loopback0_EXPORT_metric" : "0",
+          "R2_ospf_Loopback0_EXPORT_permitted" : "false",
+          "R2_ospf_Loopback0_EXPORT_prefixLength" : "0",
           "R2_ospf_Loopback0_IMPORT_adminDist" : "0",
           "R2_ospf_Loopback0_IMPORT_choice" : "false",
           "R2_ospf_Loopback0_IMPORT_metric" : "0",
           "R2_ospf_Loopback0_IMPORT_permitted" : "false",
           "R2_ospf_Loopback0_IMPORT_prefixLength" : "0",
+          "R2_ospf_Serial0_EXPORT_adminDist" : "110",
+          "R2_ospf_Serial0_EXPORT_metric" : "2",
+          "R2_ospf_Serial0_EXPORT_permitted" : "true",
+          "R2_ospf_Serial0_EXPORT_prefixLength" : "24",
           "R2_ospf_Serial0_IMPORT_choice" : "true",
+          "R2_ospf_Serial1_EXPORT_adminDist" : "0",
+          "R2_ospf_Serial1_EXPORT_metric" : "0",
+          "R2_ospf_Serial1_EXPORT_permitted" : "false",
+          "R2_ospf_Serial1_EXPORT_prefixLength" : "0",
           "R2_ospf_Serial1_IMPORT_adminDist" : "0",
           "R2_ospf_Serial1_IMPORT_choice" : "false",
           "R2_ospf_Serial1_IMPORT_metric" : "0",
           "R2_ospf_Serial1_IMPORT_permitted" : "false",
           "R2_ospf_Serial1_IMPORT_prefixLength" : "0",
-          "R2_ospf__SINGLE-EXPORT_adminDist" : "110",
-          "R2_ospf__SINGLE-EXPORT_metric" : "2",
-          "R2_ospf__SINGLE-EXPORT_permitted" : "true",
-          "R2_ospf__SINGLE-EXPORT_prefixLength" : "24",
           "control-forwarding_R1_Loopback0" : "true",
           "control-forwarding_R1_Serial0" : "false",
           "control-forwarding_R2_Loopback0" : "false",

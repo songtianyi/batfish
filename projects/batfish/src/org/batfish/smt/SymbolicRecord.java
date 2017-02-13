@@ -17,9 +17,11 @@ public class SymbolicRecord {
 
     private boolean _isUsed;
 
+    private boolean _isEnv;
+
     private boolean _isBest;
 
-    private boolean _isEnv;
+    private boolean _isBestOverall;
 
     private ArithExpr _prefixLength;
 
@@ -44,6 +46,7 @@ public class SymbolicRecord {
         _name = name;
         _isUsed = false;
         _isBest = false;
+        _isBestOverall = false;
         _isEnv = false;
         _prefixLength = null;
         _metric = null;
@@ -56,13 +59,18 @@ public class SymbolicRecord {
     }
 
     public SymbolicRecord(
-            Encoder enc, String name, String router, RoutingProtocol proto, Optimizations opts, Context ctx, SymbolicEnum<RoutingProtocol> h) {
+            Encoder enc, String name, String router, RoutingProtocol proto, Optimizations opts,
+            Context ctx, SymbolicEnum<RoutingProtocol> h) {
 
         _name = name;
 
         _isUsed = true;
-        _isBest = _name.contains("_BEST_");
         _isEnv = _name.contains("_ENV_");
+        _isBest = _name.contains("_BEST");
+        _isBestOverall = (_isBest && _name.contains("_OVERALL"));
+
+        boolean multipleProtos = enc.getGraph().getProtocols().get(router).size() > 1;
+        boolean modelAd = (_isBestOverall && multipleProtos) || opts.getKeepAdminDist();
 
         _protocolHistory = h;
 
@@ -70,18 +78,21 @@ public class SymbolicRecord {
         if (proto == RoutingProtocol.AGGREGATE) {
             _metric = ctx.mkIntConst(_name + "_metric");
             _localPref = (opts.getKeepLocalPref() ? ctx.mkIntConst(_name + "_localPref") : null);
-            _adminDist = (opts.getKeepAdminDist() ? ctx.mkIntConst(_name + "_adminDist") : null);
+            _adminDist = (modelAd ? ctx.mkIntConst(_name + "_adminDist") : null);
             _med = (opts.getKeepMed() ? ctx.mkIntConst(_name + "_med") : null);
+
         } else if (proto == RoutingProtocol.CONNECTED) {
             _metric = null;
             _localPref = null;
             _adminDist = null;
             _med = null;
+
         } else if (proto == RoutingProtocol.STATIC) {
             _metric = null;
             _localPref = null;
-            _adminDist = (opts.getKeepAdminDist() ? ctx.mkIntConst(_name + "_adminDist") : null);
+            _adminDist = null;
             _med = null;
+
         } else {
             _metric = ctx.mkIntConst(_name + "_metric");
             _localPref = (opts.getKeepLocalPref() ? ctx.mkIntConst(_name + "_localPref") : null);

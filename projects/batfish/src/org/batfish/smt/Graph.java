@@ -183,6 +183,13 @@ public class Graph {
         });
     }
 
+    public boolean isInterfaceActive(RoutingProtocol proto, Interface iface) {
+        if (proto == RoutingProtocol.OSPF) {
+            return iface.getActive() && iface.getOspfEnabled();
+        }
+        return iface.getActive();
+    }
+
     public boolean isInterfaceUsed(Configuration conf, RoutingProtocol proto, Interface iface) {
         if (proto == RoutingProtocol.STATIC) {
             List<StaticRoute> srs = getStaticRoutes().get(conf.getName()).get(iface.getName());

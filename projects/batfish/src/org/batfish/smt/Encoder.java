@@ -25,6 +25,7 @@ import java.util.regex.Matcher;
 //
 // Small items:
 // ------------
+//   - How to handle one side of a link being inactive?
 //   - What to do with overflow?
 //   - Ensure distance is transfered over with redistribution
 //   - Compute multipath correctly (how do we handle some multipath)
@@ -454,7 +455,8 @@ public class Encoder {
                             "none", "BEST");
                     String historyName = name + "_history";
 
-                    SymbolicEnum<RoutingProtocol> h = new SymbolicEnum<>(this, allProtos, historyName);
+                    SymbolicEnum<RoutingProtocol> h = new SymbolicEnum<>(this, allProtos,
+                            historyName);
 
                     for (int len = 0; len <= BITS; len++) {
                         SymbolicRecord evBest = new SymbolicRecord(this, name, router, proto,
@@ -1072,7 +1074,8 @@ public class Encoder {
         }
     }
 
-    public BoolExpr equalHistories(RoutingProtocol proto, SymbolicRecord best, SymbolicRecord vars) {
+    public BoolExpr equalHistories(RoutingProtocol proto, SymbolicRecord best, SymbolicRecord
+            vars) {
         BoolExpr history;
         if (best.getProtocolHistory() == null || vars.getProtocolHistory() == null) {
             history = True();
@@ -1667,6 +1670,14 @@ public class Encoder {
         return proto.getDefaultAdministrativeCost(conf.getConfigurationFormat());
     }
 
+    private BoolExpr interfaceActive(Interface iface, RoutingProtocol proto) {
+        BoolExpr active = Bool(iface.getActive());
+        if (proto == RoutingProtocol.OSPF) {
+            active = And(active, Bool(iface.getOspfEnabled()));
+        }
+        return active;
+    }
+
     private void addImportConstraint(
             LogicalEdge e, SymbolicRecord varsOther, Configuration conf, RoutingProtocol proto,
             Interface iface, String router, List<Prefix> originations) {
@@ -1680,7 +1691,7 @@ public class Encoder {
 
             if (proto == RoutingProtocol.CONNECTED) {
                 Prefix p = iface.getPrefix();
-                BoolExpr relevant = And(Bool(iface.getActive()), isRelevantFor(p, _symbolicPacket
+                BoolExpr relevant = And(interfaceActive(iface, proto), isRelevantFor(p, _symbolicPacket
                         .getDstIp()), notFailed);
                 BoolExpr per = vars.getPermitted();
                 BoolExpr len = safeEq(vars.getPrefixLength(), Int(p.getPrefixLength()));
@@ -1698,7 +1709,7 @@ public class Encoder {
                 BoolExpr acc = Not(vars.getPermitted());
                 for (StaticRoute sr : srs) {
                     Prefix p = sr.getNetwork();
-                    BoolExpr relevant = And(Bool(iface.getActive()), isRelevantFor(p,
+                    BoolExpr relevant = And(interfaceActive(iface, proto), isRelevantFor(p,
                             _symbolicPacket.getDstIp()), notFailed);
                     BoolExpr per = vars.getPermitted();
                     BoolExpr len = safeEq(vars.getPrefixLength(), Int(p.getPrefixLength()));
@@ -1718,7 +1729,10 @@ public class Encoder {
                     // in which case we just will copy over the old variables.
 
                     BoolExpr isRoot = relevantOrigination(originations);
-                    BoolExpr usable = And(Not(isRoot), Bool(iface.getActive()), varsOther
+
+                    BoolExpr active = interfaceActive(iface, proto);
+
+                    BoolExpr usable = And(Not(isRoot), active, varsOther
                             .getPermitted(), notFailed);
                     BoolExpr importFunction;
                     RoutingPolicy pol = getGraph().findImportRoutingPolicy(router, proto, e);
@@ -1774,11 +1788,11 @@ public class Encoder {
             }
 
             if (proto == RoutingProtocol.OSPF || proto == RoutingProtocol.BGP) {
-                // originated routes
                 Integer cost = addedCost(proto, iface);
                 BoolExpr val = Not(vars.getPermitted());
 
-                BoolExpr usable = And(Bool(iface.getActive()), varsOther.getPermitted(), notFailed);
+                BoolExpr active = interfaceActive(iface, proto);
+                BoolExpr usable = And(active, varsOther.getPermitted(), notFailed);
 
                 BoolExpr acc;
                 RoutingPolicy pol = getGraph().findExportRoutingPolicy(router, proto, e);
@@ -1788,8 +1802,8 @@ public class Encoder {
                     List<Statement> statements;
                     if (proto == RoutingProtocol.OSPF) {
                         If i = new If();
-                        Statements.StaticStatement s =
-                                new Statements.StaticStatement(Statements.ExitAccept);
+                        Statements.StaticStatement s = new Statements.StaticStatement(Statements
+                                .ExitAccept);
                         i.setTrueStatements(Collections.singletonList(s));
                         i.setFalseStatements(pol.getStatements());
                         BooleanExpr expr = new MatchProtocol(RoutingProtocol.OSPF);
@@ -1800,8 +1814,8 @@ public class Encoder {
                     }
 
                     // System.out.println("Got export function for: " + router);
-                    TransferFunction f = new TransferFunction(
-                            this, conf, varsOther, vars, proto, proto, statements, cost);
+                    TransferFunction f = new TransferFunction(this, conf, varsOther, vars, proto,
+                            proto, statements, cost);
                     acc = f.compute();
 
                     // System.out.println("EXPORT FUNCTION: " + router + " " + varsOther.getName());
@@ -1829,7 +1843,7 @@ public class Encoder {
                 acc = If(usable, acc, val);
 
                 for (Prefix p : originations) {
-                    BoolExpr relevant = And(Bool(iface.getActive()), isRelevantFor(p,
+                    BoolExpr relevant = And(interfaceActive(iface, proto), isRelevantFor(p,
                             _symbolicPacket.getDstIp()));
                     int adminDistance = defaultAdminDistance(conf, proto);
                     int prefixLength = p.getPrefixLength();
@@ -1870,7 +1884,8 @@ public class Encoder {
                                     break;
 
                                 case EXPORT:
-                                    // varsOther = _symbolicDecisions.getBestVars(_optimizations, router, proto);
+                                    // varsOther = _symbolicDecisions.getBestVars(_optimizations,
+                                    // router, proto);
                                     varsOther = _symbolicDecisions.getBestNeighbor().get(router);
                                     usedExport = addExportConstraint(e, varsOther, conf, proto,
                                             iface, router, usedExport, originations);
@@ -1885,7 +1900,7 @@ public class Encoder {
 
     private void addHistoryConstraints() {
         _symbolicDecisions.getBestNeighborPerProtocol().forEach((router, proto, vars) -> {
-            assert(vars.getProtocolHistory() != null);
+            assert (vars.getProtocolHistory() != null);
             add(vars.getProtocolHistory().checkIfValue(proto));
         });
 
@@ -1919,12 +1934,28 @@ public class Encoder {
                 add(Implies(notPermitted, Eq(vars.getMetric(), zero)));
             }
             if (vars.getProtocolHistory() != null) {
-                add(Implies(notPermitted, vars.getProtocolHistory().isDefaultValue() ));
+                add(Implies(notPermitted, vars.getProtocolHistory().isDefaultValue()));
             }
             vars.getCommunities().forEach((cvar, e) -> {
                 add(Implies(notPermitted, Not(e)));
             });
         }
+    }
+
+    private void addInactiveLinkConstraints() {
+        _logicalGraph.getLogicalEdges().forEach((router, proto, edges) -> {
+            for (ArrayList<LogicalEdge> es : edges) {
+                for (LogicalEdge e : es) {
+                    Interface iface = e.getEdge().getStart();
+                    if (!getGraph().isInterfaceActive(proto, iface)) {
+                        BoolExpr per = e.getSymbolicRecord().getPermitted();
+                        if (per != null) {
+                            add( Not(per) );
+                        }
+                    }
+                }
+            }
+        });
     }
 
     private void addDestinationConstraint() {
@@ -2154,6 +2185,7 @@ public class Encoder {
         addAclFunctions();
         addDataForwardingConstraints();
         addUnusedDefaultValueConstraints();
+        addInactiveLinkConstraints();
         addDestinationConstraint();
     }
 }
