@@ -331,7 +331,7 @@ public class Encoder {
         return _unsatCore;
     }
 
-    private void add(BoolExpr e) {
+    public void add(BoolExpr e) {
         _unsatCore.track(_solver, _ctx, e);
     }
 
@@ -378,34 +378,6 @@ public class Encoder {
         long u2 = p2.getNetworkPrefix().getEndAddress().asLong();
         return (l1 >= l2 && l1 <= u2) || (u1 <= u2 && u1 >= l2) || (u2 >= l1 && u2 <= u1) || (l2
                 >= l1 && l2 <= u1);
-    }
-
-    private void addExprs(SymbolicRecord e) {
-        _allVariables.add(e.getPermitted());
-        if (e.getAdminDist() != null) {
-            _allVariables.add(e.getAdminDist());
-        }
-        if (e.getMed() != null) {
-            _allVariables.add(e.getMed());
-        }
-        if (e.getLocalPref() != null) {
-            _allVariables.add(e.getLocalPref());
-        }
-        if (e.getMetric() != null) {
-            _allVariables.add(e.getMetric());
-        }
-        if (e.getPrefixLength() != null) {
-            _allVariables.add(e.getPrefixLength());
-        }
-        if (e.getRouterId() != null) {
-            _allVariables.add(e.getRouterId());
-        }
-        if (e.getProtocolHistory() != null && e.getProtocolHistory().getBitvec() != null) {
-            _allVariables.add(e.getProtocolHistory().getBitvec());
-        }
-        e.getCommunities().forEach((name, var) -> {
-            _allVariables.add(var);
-        });
     }
 
     private void addChoiceVariables() {
@@ -467,11 +439,10 @@ public class Encoder {
                 String name = String.format("%s_%s_%s_%s", router, "OVERALL", "none", "BEST");
                 String historyName = name + "_history";
 
-                ProtocolHistory h = new ProtocolHistory(this, allProtos, historyName);
+                SymbolicEnum<RoutingProtocol> h = new SymbolicEnum<>(this, allProtos, historyName);
 
                 SymbolicRecord evBest = new SymbolicRecord(this, name, router, RoutingProtocol
                         .AGGREGATE, _optimizations, _ctx, h);
-                addExprs(evBest);
                 _allSymbolicRecords.add(evBest);
                 _symbolicDecisions.getBestNeighbor().put(router, evBest);
             }
@@ -483,12 +454,11 @@ public class Encoder {
                             "none", "BEST");
                     String historyName = name + "_history";
 
-                    ProtocolHistory h = new ProtocolHistory(this, allProtos, historyName);
+                    SymbolicEnum<RoutingProtocol> h = new SymbolicEnum<>(this, allProtos, historyName);
 
                     for (int len = 0; len <= BITS; len++) {
                         SymbolicRecord evBest = new SymbolicRecord(this, name, router, proto,
                                 _optimizations, _ctx, h);
-                        addExprs(evBest);
                         _allSymbolicRecords.add(evBest);
                         _symbolicDecisions.getBestNeighborPerProtocol().put(router, proto, evBest);
                     }
@@ -556,7 +526,6 @@ public class Encoder {
                                     ev1 = new SymbolicRecord(this, name, router, proto,
                                             _optimizations, _ctx, null);
                                     singleProtoMap.put(proto, ev1);
-                                    addExprs(ev1);
                                     _allSymbolicRecords.add(ev1);
                                 } else {
                                     ev1 = singleVars;
@@ -573,7 +542,6 @@ public class Encoder {
                                         proto, _optimizations, _ctx, null);
                                 LogicalEdge eExport = new LogicalEdge(e, EdgeType.EXPORT, len, ev1);
                                 exportEdgeList.add(eExport);
-                                addExprs(ev1);
                                 _allSymbolicRecords.add(ev1);
                             }
 
@@ -594,7 +562,6 @@ public class Encoder {
                                         proto, _optimizations, _ctx, null);
                                 LogicalEdge eImport = new LogicalEdge(e, EdgeType.IMPORT, len, ev2);
                                 importEdgeList.add(eImport);
-                                addExprs(ev2);
                                 _allSymbolicRecords.add(ev2);
                             }
                         }
@@ -673,7 +640,6 @@ public class Encoder {
                                     SymbolicRecord vars = new SymbolicRecord(this, name, router,
                                             proto, _optimizations, _ctx, null);
 
-                                    addExprs(vars);
                                     _allSymbolicRecords.add(vars);
                                     _logicalGraph.getEnvironmentVars().put(e, vars);
                                 }
@@ -1822,8 +1788,8 @@ public class Encoder {
                     List<Statement> statements;
                     if (proto == RoutingProtocol.OSPF) {
                         If i = new If();
-                        Statements.StaticStatement s = new Statements.StaticStatement(Statements
-                                .ExitAccept);
+                        Statements.StaticStatement s =
+                                new Statements.StaticStatement(Statements.ExitAccept);
                         i.setTrueStatements(Collections.singletonList(s));
                         i.setFalseStatements(pol.getStatements());
                         BooleanExpr expr = new MatchProtocol(RoutingProtocol.OSPF);
@@ -1834,9 +1800,14 @@ public class Encoder {
                     }
 
                     // System.out.println("Got export function for: " + router);
-                    TransferFunction f = new TransferFunction(this, conf, varsOther, vars, proto,
-                            proto, statements, cost);
+                    TransferFunction f = new TransferFunction(
+                            this, conf, varsOther, vars, proto, proto, statements, cost);
                     acc = f.compute();
+
+                    // System.out.println("EXPORT FUNCTION: " + router + " " + varsOther.getName());
+                    // System.out.println(acc);
+                    // System.out.println("SIMPLIFIED: " + router + " " + varsOther.getName());
+                    // System.out.println(acc.simplify());
 
                 } else {
                     BoolExpr per = vars.getPermitted();
@@ -1846,14 +1817,16 @@ public class Encoder {
                     BoolExpr lp = safeEq(vars.getLocalPref(), varsOther.getLocalPref());
                     BoolExpr met = safeEqAdd(vars.getMetric(), varsOther.getMetric(), cost);
                     acc = And(per, len, ad, med, lp, met);
+
+                    // TODO: need a cleaner way to deal with this
+                    if (proto == RoutingProtocol.OSPF) {
+                        BoolExpr isOspf = varsOther.getProtocolHistory().checkIfValue(proto);
+                        acc = If(isOspf, acc, val);
+                    }
+
                 }
 
                 acc = If(usable, acc, val);
-
-                // System.out.println("EXPORT FUNCTION: " + router + " " + varsOther.getName());
-                // System.out.println(acc);
-                // System.out.println("SIMPLIFIED: " + router + " " + varsOther.getName());
-                // System.out.println(acc.simplify());
 
                 for (Prefix p : originations) {
                     BoolExpr relevant = And(Bool(iface.getActive()), isRelevantFor(p,
@@ -1913,13 +1886,13 @@ public class Encoder {
     private void addHistoryConstraints() {
         _symbolicDecisions.getBestNeighborPerProtocol().forEach((router, proto, vars) -> {
             assert(vars.getProtocolHistory() != null);
-            add(vars.getProtocolHistory().checkIfProtocol(proto));
+            add(vars.getProtocolHistory().checkIfValue(proto));
         });
 
         _symbolicDecisions.getBestNeighbor().forEach((router, vars) -> {
             if (_optimizations.getSliceHasSingleProtocol().contains(router)) {
                 RoutingProtocol proto = getGraph().getProtocols().get(router).get(0);
-                add(vars.getProtocolHistory().checkIfProtocol(proto));
+                add(vars.getProtocolHistory().checkIfValue(proto));
             }
         });
     }
@@ -1945,10 +1918,8 @@ public class Encoder {
             if (vars.getMetric() != null) {
                 add(Implies(notPermitted, Eq(vars.getMetric(), zero)));
             }
-            if (vars.getProtocolHistory() != null && vars.getProtocolHistory().getBitvec() != null) {
-                BitVecExpr bv = vars.getProtocolHistory().getBitvec();
-                int numBits = vars.getProtocolHistory().getNumBits();
-                add(Implies(notPermitted, Eq(bv, _ctx.mkBV(0, numBits) ) ));
+            if (vars.getProtocolHistory() != null) {
+                add(Implies(notPermitted, vars.getProtocolHistory().isDefaultValue() ));
             }
             vars.getCommunities().forEach((cvar, e) -> {
                 add(Implies(notPermitted, Not(e)));

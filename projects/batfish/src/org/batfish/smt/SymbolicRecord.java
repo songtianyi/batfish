@@ -3,9 +3,11 @@ package org.batfish.smt;
 import com.microsoft.z3.ArithExpr;
 import com.microsoft.z3.BoolExpr;
 import com.microsoft.z3.Context;
+import com.microsoft.z3.Expr;
 import org.batfish.datamodel.RoutingProtocol;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 
@@ -33,7 +35,7 @@ public class SymbolicRecord {
 
     private BoolExpr _permitted;
 
-    private ProtocolHistory _protocolHistory;
+    private SymbolicEnum<RoutingProtocol> _protocolHistory;
 
     private Map<CommunityVar, BoolExpr> _communities;
 
@@ -54,7 +56,7 @@ public class SymbolicRecord {
     }
 
     public SymbolicRecord(
-            Encoder enc, String name, String router, RoutingProtocol proto, Optimizations opts, Context ctx, ProtocolHistory h) {
+            Encoder enc, String name, String router, RoutingProtocol proto, Optimizations opts, Context ctx, SymbolicEnum<RoutingProtocol> h) {
 
         _name = name;
 
@@ -113,6 +115,35 @@ public class SymbolicRecord {
                 _communities.put(cvar, ctx.mkBoolConst(_name + "_community_" + s));
             }
         }
+
+        addExprs(enc);
+    }
+
+    private void addExprs(Encoder enc) {
+        List<Expr> all = enc.getAllVariables();
+
+        all.add(_permitted);
+        if (_adminDist != null) {
+            all.add(_adminDist);
+        }
+        if (_med != null) {
+            all.add(_med);
+        }
+        if (_localPref != null) {
+            all.add(_localPref);
+        }
+        if (_metric != null) {
+            all.add(_metric);
+        }
+        if (_prefixLength != null) {
+            all.add(_prefixLength);
+        }
+        if (_routerId != null) {
+            all.add(_routerId);
+        }
+        _communities.forEach((name, var) -> {
+            all.add(var);
+        });
     }
 
 
@@ -164,7 +195,7 @@ public class SymbolicRecord {
         return _communities;
     }
 
-    public ProtocolHistory getProtocolHistory() {
+    public SymbolicEnum<RoutingProtocol> getProtocolHistory() {
         return _protocolHistory;
     }
 }

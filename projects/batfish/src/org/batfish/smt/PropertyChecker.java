@@ -29,6 +29,9 @@ public class PropertyChecker {
         VerificationResult result = encoder.verify();
         SmtOneAnswerElement answer = new SmtOneAnswerElement();
         answer.setResult(result);
+
+        // result.debug(encoder);
+
         return answer;
     }
 
@@ -315,10 +318,10 @@ public class PropertyChecker {
 
             // TODO: check running same protocols?
 
-            Map<String, EnumMap<RoutingProtocol, Map<String, EnumMap<EdgeType,
-                    LogicalEdge>>>> lgeMap1 = logicalEdgeMap(e1);
-            Map<String, EnumMap<RoutingProtocol, Map<String, EnumMap<EdgeType,
-                    LogicalEdge>>>> lgeMap2 = logicalEdgeMap(e2);
+            Map<String, EnumMap<RoutingProtocol, Map<String, EnumMap<EdgeType, LogicalEdge>>>>
+                    lgeMap1 = logicalEdgeMap(e1);
+            Map<String, EnumMap<RoutingProtocol, Map<String, EnumMap<EdgeType, LogicalEdge>>>>
+                    lgeMap2 = logicalEdgeMap(e2);
 
             BoolExpr equalEnvs = ctx.mkBool(true);
             BoolExpr equalOutputs = ctx.mkBool(true);
@@ -330,8 +333,8 @@ public class PropertyChecker {
 
             // Set environments equal
             for (RoutingProtocol proto1 : e1.getGraph().getProtocols().get(r1)) {
-                for (ArrayList<LogicalEdge> es : e1.getLogicalGraph().getLogicalEdges()
-                                                        .get(r1).get(proto1)) {
+                for (ArrayList<LogicalEdge> es : e1.getLogicalGraph().getLogicalEdges().get(r1)
+                                                   .get(proto1)) {
                     for (LogicalEdge lge1 : es) {
 
                         String ifaceName = lge1.getEdge().getStart().getName();
@@ -355,7 +358,8 @@ public class PropertyChecker {
                                 aclIn2 = ctx.mkBool(true);
                             }
 
-                            equalIncomingAcls = ctx.mkAnd(equalIncomingAcls, ctx.mkEq(aclIn1, aclIn2));
+                            equalIncomingAcls = ctx.mkAnd(equalIncomingAcls, ctx.mkEq(aclIn1,
+                                    aclIn2));
 
                             boolean hasEnv1 = (vars1 != null);
                             boolean hasEnv2 = (vars2 != null);
@@ -379,7 +383,8 @@ public class PropertyChecker {
                                 }
 
                                 BoolExpr equalVars = e1.equal(conf1, proto1, vars1, vars2, lge1);
-                                equalEnvs = ctx.mkAnd(equalEnvs, samePermitted, equalVars, equalComms);
+                                equalEnvs = ctx.mkAnd(equalEnvs, samePermitted, equalVars,
+                                        equalComms);
 
                             } else if (hasEnv1 || hasEnv2) {
                                 System.out.println("Edge1: " + lge1);
@@ -421,7 +426,8 @@ public class PropertyChecker {
             BoolExpr equalPackets = p1.mkEqual(p2);
 
             BoolExpr assumptions = ctx.mkAnd(equalEnvs, validDest, equalPackets);
-            BoolExpr required = ctx.mkAnd(sameForwarding, equalOutputs, equalIncomingAcls, equalOutgoingAcls);
+            BoolExpr required = ctx.mkAnd(sameForwarding, equalOutputs, equalIncomingAcls,
+                    equalOutgoingAcls);
 
             solver.add(assumptions);
             solver.add(ctx.mkNot(required));
@@ -449,11 +455,11 @@ public class PropertyChecker {
 
     private static Map<String, EnumMap<RoutingProtocol, Map<String, EnumMap<EdgeType,
             LogicalEdge>>>> logicalEdgeMap(Encoder enc) {
-        Map<String, EnumMap<RoutingProtocol, Map<String, EnumMap<EdgeType, LogicalEdge>>>>
-                acc = new HashMap<>();
+        Map<String, EnumMap<RoutingProtocol, Map<String, EnumMap<EdgeType, LogicalEdge>>>> acc =
+                new HashMap<>();
         enc.getLogicalGraph().getLogicalEdges().forEach((router, map) -> {
-            EnumMap<RoutingProtocol, Map<String, EnumMap<EdgeType, LogicalEdge>>> mapAcc =
-                    new EnumMap<>(RoutingProtocol.class);
+            EnumMap<RoutingProtocol, Map<String, EnumMap<EdgeType, LogicalEdge>>> mapAcc = new
+                    EnumMap<>(RoutingProtocol.class);
             acc.put(router, mapAcc);
             map.forEach((proto, edges) -> {
                 Map<String, EnumMap<EdgeType, LogicalEdge>> edgesMap = new HashMap<>();

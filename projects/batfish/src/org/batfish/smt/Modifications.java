@@ -55,7 +55,7 @@ public class Modifications {
         Set<CommunityVar> g = other.getNegativeCommunities();
         _encoder = other._encoder;
         _conf = other._conf;
-        _defaultAccept = true;
+        _defaultAccept = false;
         _defaultAcceptLocal = false;
         _prependPath = (a == null ? null : new PrependAsPath(a.getExpr()));
         _setLp = (b == null ? null : new SetLocalPreference(b.getLocalPreference()));

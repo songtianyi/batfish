@@ -162,9 +162,9 @@ public class TransferFunction {
         }
         if (expr instanceof Not) {
             Not n = (Not) expr;
-            return compute(wrapExpr(n.getExpr()), freshMods);
-            // BoolExpr v = compute(n.getExpr(), mods);
-            // return _enc.Not(v);
+            //return compute(wrapExpr(n.getExpr()), freshMods);
+            BoolExpr v = compute(n.getExpr(), mods);
+            return _enc.Not(v);
         }
         if (expr instanceof MatchProtocol) {
             MatchProtocol mp = (MatchProtocol) expr;
@@ -172,7 +172,7 @@ public class TransferFunction {
             if (_other.getProtocolHistory() == null) {
                 return _enc.Bool(mp.getProtocol() == _from);
             }
-            return _other.getProtocolHistory().checkIfProtocol(p);
+            return _other.getProtocolHistory().checkIfValue(p);
         }
         if (expr instanceof MatchPrefixSet) {
             MatchPrefixSet m = (MatchPrefixSet) expr;

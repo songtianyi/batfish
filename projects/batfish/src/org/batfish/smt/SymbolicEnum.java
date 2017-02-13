@@ -3,9 +3,11 @@ package org.batfish.smt;
 import com.microsoft.z3.BitVecExpr;
 import com.microsoft.z3.BoolExpr;
 import org.batfish.common.BatfishException;
-import org.batfish.datamodel.RoutingProtocol;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Represents which protocol was choosen by the selection process for a given routing
@@ -17,7 +19,7 @@ import java.util.*;
  * in a single new bit added to the record.
  *
  */
-public class ProtocolHistory {
+public class SymbolicEnum<T> {
 
     private Encoder _enc;
 
@@ -25,18 +27,17 @@ public class ProtocolHistory {
 
     private int _numBits;
 
-    private List<RoutingProtocol> _protocols;
+    private List<T> _values;
 
-    private Map<RoutingProtocol, BitVecExpr> _protocolMap;
+    private Map<T, BitVecExpr> _valueMap;
 
-    public ProtocolHistory(Encoder enc, List<RoutingProtocol> protocols, String name) {
+    // TODO: encode bounds if not power of two
+    public SymbolicEnum(Encoder enc, List<T> values, String name) {
 
         _enc = enc;
 
-        // System.out.println("Name: " + name);
-
         // Calculate the number of bits needed
-        int size = protocols.size();
+        int size = values.size();
         // System.out.println("Number of protocols: " + size);
 
         double log = Math.log((double) size);
@@ -46,12 +47,12 @@ public class ProtocolHistory {
         // System.out.println("Number of bits: " + _numBits);
 
         int i = 0;
-        _protocols = new ArrayList<>();
-        _protocolMap = new HashMap<>();
-        for (RoutingProtocol proto : protocols) {
-            _protocols.add(proto);
+        _values = new ArrayList<>();
+        _valueMap = new HashMap<>();
+        for (T value : values) {
+            _values.add(value);
             if (_numBits > 0) {
-                _protocolMap.put(proto, _enc.getCtx().mkBV(i, _numBits));
+                _valueMap.put(value, _enc.getCtx().mkBV(i, _numBits));
             }
             i++;
         }
@@ -60,23 +61,35 @@ public class ProtocolHistory {
             _bitvec = null;
         } else {
             _bitvec = _enc.getCtx().mkBVConst(name, _numBits);
+            enc.getAllVariables().add(_bitvec);
+
+            if (!isPowerOfTwo(size)) {
+                BitVecExpr maxValue = enc.getCtx().mkBV(size-1, _numBits);
+                BoolExpr constraint = enc.getCtx().mkBVULE(_bitvec, maxValue);
+                enc.add( constraint );
+            }
+
         }
     }
 
-    public BoolExpr mkEqual(ProtocolHistory other) {
+    private boolean isPowerOfTwo(int x) {
+        return (x & -x) == x;
+    }
+
+    public BoolExpr mkEqual(SymbolicEnum other) {
         if (_bitvec == null || other._bitvec == null) {
-            throw new BatfishException("Error: protocol history null bitvector");
+            throw new BatfishException("Error: null bitvector");
         }
         return _enc.Eq(_bitvec, other._bitvec);
     }
 
-    public BoolExpr checkIfProtocol(RoutingProtocol p) {
+    public BoolExpr checkIfValue(T p) {
         if (_bitvec == null) {
-            RoutingProtocol q = _protocols.get(0);
+            T q = _values.get(0);
             return _enc.Bool(p == q);
         }
 
-        BitVecExpr bv = _protocolMap.get(p);
+        BitVecExpr bv = _valueMap.get(p);
         if (bv == null) {
             return _enc.False();
         }
@@ -84,11 +97,11 @@ public class ProtocolHistory {
         return _enc.Eq(_bitvec, bv);
     }
 
-    public BitVecExpr getBitvec() {
-        return _bitvec;
+    public BoolExpr isDefaultValue() {
+        if (_bitvec == null) {
+            return _enc.True();
+        }
+        return _enc.Eq(_bitvec, _enc.getCtx().mkBV(0, _numBits));
     }
 
-    public int getNumBits() {
-        return _numBits;
-    }
 }
