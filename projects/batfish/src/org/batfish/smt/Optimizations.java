@@ -307,6 +307,7 @@ class Optimizations {
         }
 
         CallExpr ce = (CallExpr) be;
+
         return ce.getCalledPolicyName().contains(Encoder.BGP_COMMON_FILTER_LIST_NAME);
     }
 

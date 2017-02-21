@@ -36,15 +36,11 @@ public class SymbolicEnum<T> {
 
         _enc = enc;
 
-        // Calculate the number of bits needed
         int size = values.size();
-        // System.out.println("Number of protocols: " + size);
-
         double log = Math.log((double) size);
         double base = Math.log((double) 2);
 
         _numBits = ((int) Math.ceil(log / base));
-        // System.out.println("Number of bits: " + _numBits);
 
         int i = 0;
         _values = new ArrayList<>();

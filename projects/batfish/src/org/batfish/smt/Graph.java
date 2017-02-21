@@ -155,24 +155,31 @@ public class Graph {
     }
 
     private void initBgpNeighbors() {
-        List<Ip> ips = new ArrayList<>();
-        List<BgpNeighbor> neighbors = new ArrayList<>();
+        Map<String, List<Ip>> ips = new HashMap<>();
+        Map<String, List<BgpNeighbor>> neighbors = new HashMap<>();
 
         _configurations.forEach((router, conf) -> {
+            List<Ip> ipList = new ArrayList<>();
+            List<BgpNeighbor> ns = new ArrayList<>();
+            ips.put(router, ipList);
+            neighbors.put(router, ns);
+
             if (conf.getDefaultVrf().getBgpProcess() != null) {
                 conf.getDefaultVrf().getBgpProcess().getNeighbors().forEach((pfx, neighbor) -> {
-                    ips.add(neighbor.getAddress());
-                    neighbors.add(neighbor);
+                    ipList.add(neighbor.getAddress());
+                    ns.add(neighbor);
                 });
             }
         });
 
         _configurations.forEach((router, conf) -> {
+            List<Ip> ipList = ips.get(router);
+            List<BgpNeighbor> ns = neighbors.get(router);
             if (conf.getDefaultVrf().getBgpProcess() != null) {
                 _edgeMap.get(router).forEach(ge -> {
-                    for (int i = 0; i < ips.size(); i++) {
-                        Ip ip = ips.get(i);
-                        BgpNeighbor n = neighbors.get(i);
+                    for (int i = 0; i < ipList.size(); i++) {
+                        Ip ip = ipList.get(i);
+                        BgpNeighbor n = ns.get(i);
                         Interface iface = ge.getStart();
                         if (ip != null && iface.getPrefix().contains(ip)) {
                             _bgpNeighbors.put(ge, n);
@@ -271,6 +278,7 @@ public class Graph {
             if (n == null || n.getExportPolicy() == null) {
                 return null;
             }
+
             return conf.getRoutingPolicies().get(n.getExportPolicy());
         }
         throw new BatfishException("TODO: findExportRoutingPolicy for " + proto.protocolName());

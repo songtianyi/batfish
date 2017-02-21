@@ -16,7 +16,6 @@ import java.util.regex.Matcher;
 //   - Avoid loops in BGP when non-standard (or non-common) local-pref internally
 //   - iBGP by comparing local-pref internally
 //     * Requires reachability, and no ACLs for loopbacks
-//   - maximum path length by protocol
 //   - RIP, EIGRP routing protocols
 //
 // Environment stuff:
@@ -47,8 +46,8 @@ public class Encoder {
 
     static final String BGP_COMMON_FILTER_LIST_NAME = "BGP_COMMON_EXPORT_POLICY";
 
-    // static final String BGP_AGGREGATE_FILTER_LIST_NAME = "BGP_AGGREGATE_NETWORKS_FILTER";
-    // Globally unique identifier for distinguishing multiple instances of variables
+    static final String BGP_AGGREGATE_FILTER_LIST_NAME = "BGP_AGGREGATE_NETWORKS_FILTER";
+
     private static int encodingId = 0;
 
     private List<Prefix> _destinations;
@@ -1833,6 +1832,7 @@ public class Encoder {
                     acc = And(per, len, ad, med, lp, met);
 
                     // TODO: need a cleaner way to deal with this
+                    // Wrap OSPF with a new If statement checking if OSPF protocol first
                     if (proto == RoutingProtocol.OSPF) {
                         BoolExpr isOspf = varsOther.getProtocolHistory().checkIfValue(proto);
                         acc = If(isOspf, acc, val);

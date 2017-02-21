@@ -227,6 +227,36 @@ public class TransferFunction {
         throw new BatfishException("TODO: int expr transfer function: " + e);
     }
 
+    private BoolExpr noOverflow(ArithExpr metric, RoutingProtocol proto) {
+        if (proto == RoutingProtocol.CONNECTED) {
+            return _enc.True();
+        }
+        if (proto == RoutingProtocol.STATIC) {
+            return _enc.True();
+        }
+        if (proto == RoutingProtocol.OSPF) {
+            return _enc.Le(metric, _enc.Int(65535));
+        }
+        if (proto == RoutingProtocol.BGP) {
+            return _enc.Le(metric, _enc.Int(255));
+        }
+        throw new BatfishException("Encoding[noOverflow]: unrecognized protocol: " + proto.protocolName());
+    }
+
+    private int prependLength(AsPathListExpr expr) {
+        if (expr instanceof MultipliedAs) {
+            MultipliedAs x = (MultipliedAs) expr;
+            IntExpr e = x.getNumber();
+            LiteralInt i = (LiteralInt) e;
+            return i.getValue();
+        }
+        if (expr instanceof LiteralAsList) {
+            LiteralAsList x = (LiteralAsList) expr;
+            return x.getList().size();
+        }
+        throw new BatfishException("Error[prependLength]: unreachable");
+    }
+
     private BoolExpr applyModifications(Modifications mods) {
         ArithExpr defaultLen = _enc.Int(_enc.defaultLength());
         ArithExpr defaultAd = _enc.Int(_enc.defaultAdminDistance(_conf, _from));
@@ -236,13 +266,29 @@ public class TransferFunction {
         ArithExpr defaultMet = _enc.Int(_enc.defaultMetric(_from));
 
         BoolExpr met;
+        ArithExpr metValue;
         ArithExpr otherMet = getOrDefault(_other.getMetric(), defaultMet);
+
         if (mods.getSetMetric() == null) {
-            met = _enc.safeEqAdd(_current.getMetric(), otherMet, _addedCost);
+            Integer addedCost;
+            if (mods.getPrependPath() != null) {
+                addedCost = _addedCost + prependLength(mods.getPrependPath().getExpr());
+            } else {
+                addedCost = _addedCost;
+            }
+
+            metValue = _enc.Sum(otherMet, _enc.Int(addedCost));
+            met = _enc.safeEqAdd(_current.getMetric(), otherMet, addedCost);
         } else {
             IntExpr ie = mods.getSetMetric().getMetric();
-            ArithExpr val = applyIntExprModification(otherMet, ie);
-            met = _enc.safeEq(_current.getMetric(), val);
+            metValue = applyIntExprModification(otherMet, ie);
+
+            if (mods.getPrependPath() != null) {
+                Integer prependCost = prependLength(mods.getPrependPath().getExpr());
+                metValue = _enc.Sum(metValue, _enc.Int(prependCost));
+            }
+
+            met = _enc.safeEq(_current.getMetric(), metValue);
         }
 
         BoolExpr lp;
@@ -287,13 +333,14 @@ public class TransferFunction {
         ArithExpr otherAd = (_other.getAdminDist() == null ? defaultAd : _other.getAdminDist());
         ArithExpr otherMed = (_other.getMed() == null ? defaultMed : _other.getMed());
 
-        // Set the protocol histories equal if needed
-
         BoolExpr history = _enc.equalHistories(_from, _current, _other);
         BoolExpr ad = _enc.safeEq(_current.getAdminDist(), otherAd);
         BoolExpr med = _enc.safeEq(_current.getMed(), otherMed);
 
-        return _enc.And(per, len, ad, med, lp, met, id, comms, history);
+        BoolExpr updates = _enc.And(per, len, ad, med, lp, met, id, comms, history);
+        BoolExpr noOverflow = noOverflow(metValue, _to);
+
+        return _enc.If(noOverflow, updates, _enc.Not(_current.getPermitted()) ) ;
     }
 
     private boolean hasStatement(BooleanExpr be) {
@@ -421,15 +468,18 @@ public class TransferFunction {
             } else if (s instanceof  RetainCommunity) {
                 freshMods.addModification(s);
 
+            } else if (s instanceof PrependAsPath) {
+                freshMods.addModification(s);
+
             } else {
                 throw new BatfishException("TODO: statement transfer function: " + s);
             }
         }
 
         if (freshMods.getDefaultAccept()) {
-            return returnTrue(mods);
+            return returnTrue(freshMods);
         } else {
-            return returnFalse(mods);
+            return returnFalse(freshMods);
         }
     }
 

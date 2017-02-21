@@ -41,6 +41,7 @@ public class PropertyAdder {
             _encoder.getAllVariables().add(var);
         });
 
+
         BoolExpr baseRouterReachable = reachableVars.get(ge.getRouter());
         solver.add(ctx.mkEq(fwdIface, baseRouterReachable));
 
