@@ -4,13 +4,11 @@ package org.batfish.smt;
 import com.microsoft.z3.*;
 import org.batfish.common.BatfishException;
 import org.batfish.common.plugin.IBatfish;
-import org.batfish.datamodel.Configuration;
-import org.batfish.datamodel.Prefix;
-import org.batfish.datamodel.RoutingProtocol;
-import org.batfish.datamodel.StaticRoute;
+import org.batfish.datamodel.*;
 import org.batfish.datamodel.answers.AnswerElement;
 import org.batfish.smt.answers.SmtManyAnswerElement;
 import org.batfish.smt.answers.SmtOneAnswerElement;
+import org.batfish.smt.utils.PathRegexes;
 import org.batfish.smt.utils.PatternUtils;
 
 import java.util.*;
@@ -18,9 +16,17 @@ import java.util.regex.Pattern;
 
 public class PropertyChecker {
 
-    public static AnswerElement computeForwarding(IBatfish batfish, String destination) {
-        Prefix prefix = new Prefix(destination);
-        Encoder encoder = new Encoder(batfish, Collections.singletonList(prefix));
+    private static HeaderSpace defaultHeaderSpace() {
+        HeaderSpace h = new HeaderSpace();
+        SortedSet<IpWildcard> ips = new TreeSet<>();
+        Prefix p = new Prefix("0.0.0.0/0");
+        ips.add(new IpWildcard(p));
+        h.setDstIps(ips);
+        return h;
+    }
+
+    public static AnswerElement computeForwarding(IBatfish batfish, HeaderSpace h) {
+        Encoder encoder = new Encoder(batfish, h);
         encoder.computeEncoding();
         if (encoder.getLogicalGraph().getEnvironmentVars().size() > 0) {
             System.out.println("Warning: forwarding computed for only a single concrete " +
@@ -29,23 +35,38 @@ public class PropertyChecker {
         VerificationResult result = encoder.verify();
         SmtOneAnswerElement answer = new SmtOneAnswerElement();
         answer.setResult(result);
-
         // result.debug(encoder);
-
         return answer;
     }
 
 
-    public static AnswerElement computeReachability(IBatfish batfish, Pattern n1, Pattern iface,
-            Pattern n2) {
+    public static AnswerElement computeReachability(IBatfish batfish,
+            HeaderSpace h,
+            String ingressNodeRegexStr, String notIngressNodeRegexStr,
+            String finalNodeRegexStr, String notFinalNodeRegexStr,
+            String finalIfaceRegexStr, String notFinalIfaceRegexStr) {
+
+        PathRegexes p = new PathRegexes(
+                finalNodeRegexStr, notFinalNodeRegexStr,
+                finalIfaceRegexStr, notFinalIfaceRegexStr,
+                ingressNodeRegexStr, notIngressNodeRegexStr);
+
         Graph graph = new Graph(batfish);
-        List<GraphEdge> destinationPorts = PatternUtils.findMatchingEdge(graph, n1, iface);
-        List<String> sourceRouters = PatternUtils.findMatchingNodes(graph, n2);
+        List<GraphEdge> destinationPorts = PatternUtils.findMatchingEdges(graph, p);
+        List<String> sourceRouters = PatternUtils.findMatchingNodes(graph, p);
         Map<String, VerificationResult> result = new HashMap<>();
 
         for (GraphEdge ge : destinationPorts) {
-            Prefix destination = ge.getStart().getPrefix();
-            Encoder enc = new Encoder(Collections.singletonList(destination), graph);
+            // Add the interface destination
+            boolean addedDestination = false;
+            if (h.getDstIps().isEmpty()) {
+                addedDestination = true;
+                Prefix destination = ge.getStart().getPrefix();
+                IpWildcard dst = new IpWildcard(destination);
+                h.getDstIps().add(dst);
+            }
+
+            Encoder enc = new Encoder(h, graph);
             enc.computeEncoding();
 
             PropertyAdder pa = new PropertyAdder(enc);
@@ -63,6 +84,11 @@ public class PropertyChecker {
 
             VerificationResult res = enc.verify();
             result.put(ge.getRouter() + "," + ge.getStart().getName(), res);
+
+            // Remove the interface
+            if (addedDestination) {
+                h.getDstIps().clear();
+            }
         }
 
         SmtManyAnswerElement answer = new SmtManyAnswerElement();
@@ -73,8 +99,10 @@ public class PropertyChecker {
 
     public static AnswerElement computeBlackHole(IBatfish batfish) {
         Graph graph = new Graph(batfish);
-        Prefix p = new Prefix("0.0.0.0/0");
-        Encoder enc = new Encoder(Collections.singletonList(p), graph);
+
+        HeaderSpace h = defaultHeaderSpace();
+
+        Encoder enc = new Encoder(h, graph);
         enc.computeEncoding();
 
         Context ctx = enc.getCtx();
@@ -134,16 +162,32 @@ public class PropertyChecker {
     }
 
 
-    public static AnswerElement computeBoundedLength(IBatfish batfish, Pattern n1, Pattern iface,
-            Pattern n2, int k) {
+    public static AnswerElement computeBoundedLength(IBatfish batfish, HeaderSpace h,
+            String ingressNodeRegexStr, String notIngressNodeRegexStr,
+            String finalNodeRegexStr, String notFinalNodeRegexStr,
+            String finalIfaceRegexStr, String notFinalIfaceRegexStr, int k) {
+
+        PathRegexes p = new PathRegexes(
+                finalNodeRegexStr, notFinalNodeRegexStr,
+                finalIfaceRegexStr, notFinalIfaceRegexStr,
+                ingressNodeRegexStr, notIngressNodeRegexStr);
+
         Graph graph = new Graph(batfish);
-        List<GraphEdge> destinationPorts = PatternUtils.findMatchingEdge(graph, n1, iface);
-        List<String> sourceRouters = PatternUtils.findMatchingNodes(graph, n2);
+        List<GraphEdge> destinationPorts = PatternUtils.findMatchingEdges(graph, p);
+        List<String> sourceRouters = PatternUtils.findMatchingNodes(graph, p);
         Map<String, VerificationResult> result = new HashMap<>();
 
         for (GraphEdge ge : destinationPorts) {
-            Prefix destination = ge.getStart().getPrefix();
-            Encoder enc = new Encoder(Collections.singletonList(destination), graph);
+            // Add the interface destination
+            boolean addedDestination = false;
+            if (h.getDstIps().isEmpty()) {
+                addedDestination = true;
+                Prefix destination = ge.getStart().getPrefix();
+                IpWildcard dst = new IpWildcard(destination);
+                h.getDstIps().add(dst);
+            }
+
+            Encoder enc = new Encoder(h, graph);
             enc.computeEncoding();
 
             PropertyAdder pa = new PropertyAdder(enc);
@@ -163,6 +207,11 @@ public class PropertyChecker {
 
             VerificationResult res = enc.verify();
             result.put(ge.getRouter() + "," + ge.getStart().getName(), res);
+
+            // Remove the interface destination
+            if (addedDestination) {
+                h.getDstIps().clear();
+            }
         }
 
         SmtManyAnswerElement answer = new SmtManyAnswerElement();
@@ -171,16 +220,32 @@ public class PropertyChecker {
     }
 
 
-    public static AnswerElement computeEqualLength(IBatfish batfish, Pattern n1, Pattern iface,
-            Pattern n2) {
+    public static AnswerElement computeEqualLength(IBatfish batfish, HeaderSpace h,
+            String ingressNodeRegexStr, String notIngressNodeRegexStr,
+            String finalNodeRegexStr, String notFinalNodeRegexStr,
+            String finalIfaceRegexStr, String notFinalIfaceRegexStr) {
+
+        PathRegexes p = new PathRegexes(
+                finalNodeRegexStr, notFinalNodeRegexStr,
+                finalIfaceRegexStr, notFinalIfaceRegexStr,
+                ingressNodeRegexStr, notIngressNodeRegexStr);
+
         Graph graph = new Graph(batfish);
-        List<GraphEdge> destinationPorts = PatternUtils.findMatchingEdge(graph, n1, iface);
-        List<String> sourceRouters = PatternUtils.findMatchingNodes(graph, n2);
+        List<GraphEdge> destinationPorts = PatternUtils.findMatchingEdges(graph, p);
+        List<String> sourceRouters = PatternUtils.findMatchingNodes(graph, p);
         Map<String, VerificationResult> result = new HashMap<>();
 
         for (GraphEdge ge : destinationPorts) {
-            Prefix destination = ge.getStart().getPrefix();
-            Encoder enc = new Encoder(Collections.singletonList(destination), graph);
+            // Add the interface destination
+            boolean addedDestination = false;
+            if (h.getDstIps().isEmpty()) {
+                addedDestination = true;
+                Prefix destination = ge.getStart().getPrefix();
+                IpWildcard dst = new IpWildcard(destination);
+                h.getDstIps().add(dst);
+            }
+
+            Encoder enc = new Encoder(h, graph);
             enc.computeEncoding();
 
             PropertyAdder pa = new PropertyAdder(enc);
@@ -200,6 +265,10 @@ public class PropertyChecker {
 
             VerificationResult res = enc.verify();
             result.put(ge.getRouter() + "," + ge.getStart().getName(), res);
+
+            if (addedDestination) {
+                h.getDstIps().clear();
+            }
         }
 
         SmtManyAnswerElement answer = new SmtManyAnswerElement();
@@ -208,15 +277,25 @@ public class PropertyChecker {
     }
 
 
-    public static AnswerElement computeLoadBalance(IBatfish batfish, Pattern n1, Pattern iface,
-            Pattern n2, Pattern peers, int k) {
+    // TODO: this is broken due to peer regex
+
+    public static AnswerElement computeLoadBalance(IBatfish batfish, HeaderSpace h,
+            String ingressNodeRegexStr, String notIngressNodeRegexStr,
+            String finalNodeRegexStr, String notFinalNodeRegexStr,
+            String finalIfaceRegexStr, String notFinalIfaceRegexStr, int k) {
+
+        PathRegexes p = new PathRegexes(
+                finalNodeRegexStr, notFinalNodeRegexStr,
+                finalIfaceRegexStr, notFinalIfaceRegexStr,
+                ingressNodeRegexStr, notIngressNodeRegexStr);
+
         Graph graph = new Graph(batfish);
-        List<GraphEdge> destinationPorts = PatternUtils.findMatchingEdge(graph, n1, iface);
-        List<String> sourceRouters = PatternUtils.findMatchingNodes(graph, n2);
+        List<GraphEdge> destinationPorts = PatternUtils.findMatchingEdges(graph, p);
+        List<String> sourceRouters = PatternUtils.findMatchingNodes(graph, p);
         Map<String, List<String>> peerRouters = new HashMap<>();
         Map<String, VerificationResult> result = new HashMap<>();
 
-        List<String> pRouters = PatternUtils.findMatchingNodes(graph, peers);
+        List<String> pRouters = PatternUtils.findMatchingNodes(graph, p);
 
         // TODO: refactor this out separately
         for (String router : sourceRouters) {
@@ -231,8 +310,16 @@ public class PropertyChecker {
         }
 
         for (GraphEdge ge : destinationPorts) {
-            Prefix destination = ge.getStart().getPrefix();
-            Encoder enc = new Encoder(Collections.singletonList(destination), graph);
+            // Add the interface destination
+            boolean addedDestination = false;
+            if (h.getDstIps().isEmpty()) {
+                addedDestination = true;
+                Prefix destination = ge.getStart().getPrefix();
+                IpWildcard dst = new IpWildcard(destination);
+                h.getDstIps().add(dst);
+            }
+
+            Encoder enc = new Encoder(h, graph);
             enc.computeEncoding();
 
             PropertyAdder pa = new PropertyAdder(enc);
@@ -255,6 +342,10 @@ public class PropertyChecker {
 
             VerificationResult res = enc.verify();
             result.put(ge.getRouter() + "," + ge.getStart().getName(), res);
+
+            if (addedDestination) {
+                h.getDstIps().clear();
+            }
         }
 
         SmtManyAnswerElement answer = new SmtManyAnswerElement();
@@ -264,11 +355,11 @@ public class PropertyChecker {
 
     public static AnswerElement computeLocalConsistency(IBatfish batfish, Pattern n) {
         Graph graph = new Graph(batfish);
-        List<String> routers = PatternUtils.findMatchingNodes(graph, n);
+        List<String> routers = PatternUtils.findMatchingNodes(graph, n, Pattern.compile(""));
 
         Map<String, VerificationResult> result = new HashMap<>();
 
-        Prefix destination = new Prefix("0.0.0.0/0");
+        HeaderSpace h = defaultHeaderSpace();
 
         int len = routers.size();
         if (len <= 1) {
@@ -287,7 +378,7 @@ public class PropertyChecker {
             Set<String> toModel1 = new TreeSet<>();
             toModel1.add(r1);
             Graph g1 = new Graph(batfish, toModel1);
-            Encoder e1 = new Encoder(Collections.singletonList(destination), g1);
+            Encoder e1 = new Encoder(h, g1);
             e1.computeEncoding();
 
             Context ctx = e1.getCtx();
@@ -303,8 +394,9 @@ public class PropertyChecker {
 
             // Ensure that the two routers have the same interfaces for comparison
             Pattern p = Pattern.compile(".*");
-            List<GraphEdge> edges1 = PatternUtils.findMatchingEdge(g1, p, p);
-            List<GraphEdge> edges2 = PatternUtils.findMatchingEdge(g2, p, p);
+            Pattern neg = Pattern.compile("");
+            List<GraphEdge> edges1 = PatternUtils.findMatchingEdges(g1, p, neg, p, neg);
+            List<GraphEdge> edges2 = PatternUtils.findMatchingEdges(g2, p, neg, p, neg);
             Set<String> ifaces1 = interfaces(edges1);
             Set<String> ifaces2 = interfaces(edges2);
 
@@ -507,15 +599,30 @@ public class PropertyChecker {
         return ifaceMap;
     }
 
-    public static AnswerElement computeMultipathConsistency(IBatfish batfish, Pattern n1, Pattern
-            iface) {
+    public static AnswerElement computeMultipathConsistency(IBatfish batfish, HeaderSpace h,
+            String finalNodeRegexStr, String notFinalNodeRegexStr,
+            String finalIfaceRegexStr, String notFinalIfaceRegexStr) {
+
+        PathRegexes p = new PathRegexes(
+                finalNodeRegexStr, notFinalNodeRegexStr,
+                finalIfaceRegexStr, notFinalIfaceRegexStr,
+                null, null);
+
         Graph graph = new Graph(batfish);
-        List<GraphEdge> destinationPorts = PatternUtils.findMatchingEdge(graph, n1, iface);
+        List<GraphEdge> destinationPorts = PatternUtils.findMatchingEdges(graph, p);
         Map<String, VerificationResult> result = new HashMap<>();
 
         for (GraphEdge ge : destinationPorts) {
-            Prefix destination = ge.getStart().getPrefix();
-            Encoder enc = new Encoder(Collections.singletonList(destination), graph);
+            // Add the interface destination
+            boolean addedDestination = false;
+            if (h.getDstIps().isEmpty()) {
+                addedDestination = true;
+                Prefix destination = ge.getStart().getPrefix();
+                IpWildcard dst = new IpWildcard(destination);
+                h.getDstIps().add(dst);
+            }
+
+            Encoder enc = new Encoder(h, graph);
             enc.computeEncoding();
 
             PropertyAdder pa = new PropertyAdder(enc);
@@ -543,6 +650,10 @@ public class PropertyChecker {
             VerificationResult res = enc.verify();
             // result.debug();
             result.put(ge.getRouter() + "," + ge.getStart().getName(), res);
+
+            if (addedDestination) {
+                h.getDstIps().clear();
+            }
         }
 
         SmtManyAnswerElement answer = new SmtManyAnswerElement();
@@ -563,6 +674,14 @@ public class PropertyChecker {
             });
         });
 
+        HeaderSpace h = new HeaderSpace();
+
+        SortedSet<IpWildcard> pfxs = new TreeSet<>();
+        for (Prefix prefix : prefixes) {
+            pfxs.add(new IpWildcard(prefix));
+        }
+        h.setDstIps(pfxs);
+
         // Collect all routers that use static routes as a
         // potential node along a loop
         List<String> routers = new ArrayList<>();
@@ -572,7 +691,7 @@ public class PropertyChecker {
             }
         });
 
-        Encoder enc = new Encoder(prefixes, graph);
+        Encoder enc = new Encoder(h, graph);
         enc.computeEncoding();
         Context ctx = enc.getCtx();
         Solver solver = enc.getSolver();

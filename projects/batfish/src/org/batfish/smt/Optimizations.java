@@ -314,7 +314,8 @@ class Optimizations {
     private boolean hasRelevantOriginatedRoute(Configuration conf, RoutingProtocol proto) {
         List<Prefix> prefixes = _encoder.getOriginatedNetworks(conf, proto);
         for (Prefix p1 : prefixes) {
-            for (Prefix p2 : _encoder.getDestinations()) {
+            for (IpWildcard ipWildcard : _encoder.getHeaderSpace().getDstIps()) {
+                Prefix p2 = ipWildcard.toPrefix();
                 if (_encoder.overlaps(p1, p2)) {
                     return true;
                 }

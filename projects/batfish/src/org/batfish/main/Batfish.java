@@ -1059,13 +1059,20 @@ public class Batfish extends PluginConsumer implements AutoCloseable, IBatfish {
    }
 
    @Override
-   public AnswerElement smtForwarding(String destination) {
-      return PropertyChecker.computeForwarding(this, destination);
+   public AnswerElement smtForwarding(HeaderSpace h) {
+      return PropertyChecker.computeForwarding(this, h);
    }
 
    @Override
-   public AnswerElement smtReachability(Pattern node1Regex, Pattern ifaceRegex, Pattern node2Regex) {
-      return PropertyChecker.computeReachability(this, node1Regex, ifaceRegex, node2Regex);
+   public AnswerElement smtReachability(HeaderSpace h,
+           String ingressNodeRegexStr, String notIngressNodeRegexStr,
+           String finalNodeRegexStr, String notFinalNodeRegexStr,
+           String finalIfaceRegexStr, String notFinalIfaceRegexStr) {
+
+      return PropertyChecker.computeReachability(this, h,
+              ingressNodeRegexStr, notIngressNodeRegexStr,
+              finalNodeRegexStr, notFinalNodeRegexStr,
+              finalIfaceRegexStr, notFinalIfaceRegexStr);
    }
 
    @Override
@@ -1079,26 +1086,52 @@ public class Batfish extends PluginConsumer implements AutoCloseable, IBatfish {
    }
 
    @Override
-   public AnswerElement smtBoundedLength(Pattern node1Regex, Pattern ifaceRegex, Pattern node2Regex, Integer bound) {
+   public AnswerElement smtBoundedLength(HeaderSpace h,
+           String ingressNodeRegexStr, String notIngressNodeRegexStr,
+           String finalNodeRegexStr, String notFinalNodeRegexStr,
+           String finalIfaceRegexStr, String notFinalIfaceRegexStr, Integer bound) {
       if (bound == null) {
          throw new BatfishException("Missing parameter length bound: (e.g., bound=3)");
       }
-      return PropertyChecker.computeBoundedLength(this, node1Regex, ifaceRegex, node2Regex, bound);
+
+      return PropertyChecker.computeBoundedLength(this, h,
+              ingressNodeRegexStr, notIngressNodeRegexStr,
+              finalNodeRegexStr, notFinalNodeRegexStr,
+              finalIfaceRegexStr, notFinalIfaceRegexStr, bound);
    }
 
    @Override
-   public AnswerElement smtEqualLength(Pattern node1Regex, Pattern ifaceRegex, Pattern node2Regex) {
-      return PropertyChecker.computeEqualLength(this, node1Regex, ifaceRegex, node2Regex);
+   public AnswerElement smtEqualLength(HeaderSpace h,
+           String ingressNodeRegexStr, String notIngressNodeRegexStr,
+           String finalNodeRegexStr, String notFinalNodeRegexStr,
+           String finalIfaceRegexStr, String notFinalIfaceRegexStr) {
+
+      return PropertyChecker.computeEqualLength(this, h,
+              ingressNodeRegexStr, notIngressNodeRegexStr,
+              finalNodeRegexStr, notFinalNodeRegexStr,
+              finalIfaceRegexStr, notFinalIfaceRegexStr);
    }
 
    @Override
-   public AnswerElement smtMultipathConsistency(Pattern node1Regex, Pattern ifaceRegex) {
-      return PropertyChecker.computeMultipathConsistency(this, node1Regex, ifaceRegex);
+   public AnswerElement smtMultipathConsistency(HeaderSpace h,
+           String finalNodeRegexStr, String notFinalNodeRegexStr,
+           String finalIfaceRegexStr, String notFinalIfaceRegexStr) {
+
+      return PropertyChecker.computeMultipathConsistency(this, h,
+              finalNodeRegexStr, notFinalNodeRegexStr,
+              finalIfaceRegexStr, notFinalIfaceRegexStr);
    }
 
    @Override
-   public AnswerElement smtLoadBalance(Pattern node1Regex, Pattern ifaceRegex, Pattern node2Regex, Pattern peerRegex, int threshold) {
-      return PropertyChecker.computeLoadBalance(this, node1Regex, ifaceRegex, node2Regex, peerRegex, threshold);
+   public AnswerElement smtLoadBalance(HeaderSpace h,
+           String ingressNodeRegexStr, String notIngressNodeRegexStr,
+           String finalNodeRegexStr, String notFinalNodeRegexStr,
+           String finalIfaceRegexStr, String notFinalIfaceRegexStr, int threshold) {
+
+      return PropertyChecker.computeLoadBalance(this, h,
+              ingressNodeRegexStr, notIngressNodeRegexStr,
+              finalNodeRegexStr, notFinalNodeRegexStr,
+              finalIfaceRegexStr, notFinalIfaceRegexStr, threshold);
    }
 
    @Override

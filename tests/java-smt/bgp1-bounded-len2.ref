@@ -59,7 +59,7 @@
             "data-forwarding_R1_Serial0" : "false",
             "data-forwarding_R2_Loopback0" : "false",
             "data-forwarding_R2_Serial0" : "true",
-            "dst-ip0" : "707406337",
+            "dst-ip0" : "707406336",
             "dst-port0" : "0",
             "icmp-code0" : "0",
             "icmp-type0" : "0",
@@ -70,7 +70,7 @@
             "src-port0" : "0"
           },
           "packetModel" : {
-            "dstIp" : "42.42.42.1"
+            "dstIp" : "42.42.42.0"
           },
           "verified" : false
         }
@@ -81,9 +81,9 @@
     "class" : "org.batfish.question.smt.BoundedLengthQuestionPlugin$BoundedLengthQuestion",
     "bound" : 0,
     "differential" : false,
-    "ifaceRegex" : "Loopback.*",
-    "node1Regex" : "R1",
-    "node2Regex" : ".*"
+    "finalIfaceRegex" : "Loopback.*",
+    "finalNodeRegex" : "R1",
+    "ingressNodeRegex" : ".*"
   },
   "status" : "SUCCESS"
 }

@@ -641,7 +641,7 @@ public class ReachabilityQuestionPlugin extends QuestionPlugin {
                   break;
                default:
                   throw new BatfishException(
-                        "Unknown key in ReachabilityQuestion: " + paramKey);
+                        "Unknown key in HeaderQuestion: " + paramKey);
                }
             }
             catch (JSONException | IOException e) {

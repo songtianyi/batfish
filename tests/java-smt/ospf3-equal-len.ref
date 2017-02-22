@@ -12,9 +12,9 @@
   "question" : {
     "class" : "org.batfish.question.smt.EqualLengthQuestionPlugin$EqualLengthQuestion",
     "differential" : false,
-    "ifaceRegex" : "Loopback.*",
-    "node1Regex" : "R3",
-    "node2Regex" : "R(1|2)"
+    "finalIfaceRegex" : "Loopback.*",
+    "finalNodeRegex" : "R3",
+    "ingressNodeRegex" : "R(1|2)"
   },
   "status" : "SUCCESS"
 }

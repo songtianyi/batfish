@@ -13,9 +13,9 @@
     "class" : "org.batfish.question.smt.BoundedLengthQuestionPlugin$BoundedLengthQuestion",
     "bound" : 2,
     "differential" : false,
-    "ifaceRegex" : "Loopback.*",
-    "node1Regex" : "R3",
-    "node2Regex" : ".*"
+    "finalIfaceRegex" : "Loopback.*",
+    "finalNodeRegex" : "R3",
+    "ingressNodeRegex" : ".*"
   },
   "status" : "SUCCESS"
 }

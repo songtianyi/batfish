@@ -50,7 +50,7 @@ public class Encoder {
 
     private static int encodingId = 0;
 
-    private List<Prefix> _destinations;
+    private HeaderSpace _headerSpace;
 
     private Optimizations _optimizations;
 
@@ -81,16 +81,16 @@ public class Encoder {
     private UnsatCore _unsatCore;
 
 
-    public Encoder(IBatfish batfish, List<Prefix> destinations) {
-        this(destinations, new Graph(batfish));
+    public Encoder(IBatfish batfish, HeaderSpace h) {
+        this(h, new Graph(batfish));
     }
 
-    public Encoder(List<Prefix> destinations, Graph graph) {
-        this(destinations, graph, null, null, null);
+    public Encoder(HeaderSpace h, Graph graph) {
+        this(h, graph, null, null, null);
     }
 
     private Encoder(
-            List<Prefix> destinations, Graph graph, Context ctx, Solver solver, List<Expr> vars) {
+            HeaderSpace h, Graph graph, Context ctx, Solver solver, List<Expr> vars) {
         HashMap<String, String> cfg = new HashMap<>();
 
         // allows for unsat core when debugging
@@ -116,7 +116,7 @@ public class Encoder {
             encodingId = encodingId + 1;
         }
 
-        _destinations = destinations;
+        _headerSpace = h;
         _optimizations = new Optimizations(this);
         _logicalGraph = new LogicalGraph(graph);
         _symbolicDecisions = new SymbolicDecisions();
@@ -280,11 +280,7 @@ public class Encoder {
     }
 
     public Encoder(Encoder e, Graph graph) {
-        this(e.getDestinations(), graph, e.getCtx(), e.getSolver(), e.getAllVariables());
-    }
-
-    public List<Prefix> getDestinations() {
-        return _destinations;
+        this(e.getHeaderSpace(), graph, e.getCtx(), e.getSolver(), e.getAllVariables());
     }
 
     public Context getCtx() {
@@ -329,6 +325,10 @@ public class Encoder {
 
     public UnsatCore getUnsatCore() {
         return _unsatCore;
+    }
+
+    public HeaderSpace getHeaderSpace() {
+        return _headerSpace;
     }
 
     public void add(BoolExpr e) {
@@ -1958,23 +1958,191 @@ public class Encoder {
         });
     }
 
-    private void addDestinationConstraint() {
-        BoolExpr validDestRange = False();
-        for (Prefix p : _destinations) {
-            long lower = p.getAddress().asLong();
-            long upper = p.getEndAddress().asLong();
-            BoolExpr constraint;
-            if (lower == upper) {
-                constraint = Eq(_symbolicPacket.getDstIp(), Int(lower));
-            } else {
-                BoolExpr x = Ge(_symbolicPacket.getDstIp(), Int(lower));
-                BoolExpr y = Le(_symbolicPacket.getDstIp(), Int(upper));
-                constraint = And(x, y);
+    private BoolExpr boundConstraint(ArithExpr e, long lower, long upper) {
+        if (lower > upper) {
+            throw new BatfishException("Invalid range: " + lower + "-" + upper);
+        } else if (lower == upper) {
+            return Eq(e, Int(lower));
+        } else {
+            BoolExpr x = Ge(e, Int(lower));
+            BoolExpr y = Le(e, Int(upper));
+            return And(x,y);
+        }
+    }
+
+    private BoolExpr boundConstraint(ArithExpr e, Prefix p) {
+        Prefix n = p.getNetworkPrefix();
+        long lower = n.getAddress().asLong();
+        long upper = n.getEndAddress().asLong();
+        return boundConstraint(e, lower, upper);
+    }
+
+    private BoolExpr ipWildCardBound(ArithExpr e, IpWildcard ipWildcard) {
+        if (!ipWildcard.isPrefix()) {
+            throw new BatfishException("Unsupported IP wildcard: " + ipWildcard);
+        }
+        Prefix p = ipWildcard.toPrefix().getNetworkPrefix();
+        return boundConstraint(e, p);
+    }
+
+    private BoolExpr subRangeBound(ArithExpr e, SubRange r) {
+        long lower = r.getStart();
+        long upper = r.getEnd();
+        return boundConstraint(e, lower, upper);
+    }
+
+
+    private void addHeaderSpaceConstraint() {
+
+        BoolExpr acc;
+
+        if (_headerSpace.getDstIps().size() > 0) {
+            acc = False();
+            for (IpWildcard ipWildcard : _headerSpace.getDstIps()) {
+                BoolExpr bound = ipWildCardBound(_symbolicPacket.getDstIp(), ipWildcard);
+                acc = Or(acc, bound);
             }
-            validDestRange = Or(validDestRange, constraint);
+            add(acc);
         }
 
-        add(validDestRange);
+        if (_headerSpace.getNotDstIps().size() > 0) {
+            acc = True();
+            for (IpWildcard ipWildcard : _headerSpace.getNotDstIps()) {
+                BoolExpr bound = ipWildCardBound(_symbolicPacket.getDstIp(), ipWildcard);
+                acc = And(acc, Not(bound));
+            }
+            add(acc);
+        }
+
+        if (_headerSpace.getSrcIps().size() > 0) {
+            acc = False();
+            for (IpWildcard ipWildcard : _headerSpace.getSrcIps()) {
+                BoolExpr bound = ipWildCardBound(_symbolicPacket.getSrcIp(), ipWildcard);
+                acc = Or(acc, bound);
+            }
+            add(acc);
+        }
+
+        if (_headerSpace.getNotSrcIps().size() > 0) {
+            acc = True();
+            for (IpWildcard ipWildcard : _headerSpace.getNotSrcIps()) {
+                BoolExpr bound = ipWildCardBound(_symbolicPacket.getSrcIp(), ipWildcard);
+                acc = And(acc, Not(bound));
+            }
+            add(acc);
+        }
+
+        if (_headerSpace.getSrcOrDstIps().size() > 0) {
+            acc = False();
+            for (IpWildcard ipWildcard : _headerSpace.getSrcOrDstIps()) {
+                BoolExpr bound1 = ipWildCardBound(_symbolicPacket.getDstIp(), ipWildcard);
+                BoolExpr bound2 = ipWildCardBound(_symbolicPacket.getSrcIp(), ipWildcard);
+                acc = Or(acc, bound1, bound2);
+            }
+            add(acc);
+        }
+
+        if (_headerSpace.getDstPorts().size() > 0) {
+            acc = False();
+            for (SubRange subRange : _headerSpace.getDstPorts()) {
+                BoolExpr bound = subRangeBound(_symbolicPacket.getDstPort(), subRange);
+                acc = Or(acc, bound);
+            }
+            add(acc);
+        }
+
+        if (_headerSpace.getNotDstPorts().size() > 0) {
+            acc = True();
+            for (SubRange subRange : _headerSpace.getNotDstPorts()) {
+                BoolExpr bound = subRangeBound(_symbolicPacket.getDstPort(), subRange);
+                acc = And(acc, Not(bound));
+            }
+            add(acc);
+        }
+
+        if (_headerSpace.getDstPorts().size() > 0) {
+            acc = False();
+            for (SubRange subRange : _headerSpace.getSrcPorts()) {
+                BoolExpr bound = subRangeBound(_symbolicPacket.getDstPort(), subRange);
+                acc = Or(acc, bound);
+            }
+            add(acc);
+        }
+
+        if (_headerSpace.getNotSrcPorts().size() > 0) {
+            acc = True();
+            for (SubRange subRange : _headerSpace.getNotSrcPorts()) {
+                BoolExpr bound = subRangeBound(_symbolicPacket.getDstPort(), subRange);
+                acc = And(acc, Not(bound));
+            }
+            add(acc);
+        }
+
+        if (_headerSpace.getSrcOrDstPorts().size() > 0) {
+            acc = False();
+            for (SubRange subRange : _headerSpace.getSrcOrDstPorts()) {
+                BoolExpr bound1 = subRangeBound(_symbolicPacket.getDstPort(), subRange);
+                BoolExpr bound2 = subRangeBound(_symbolicPacket.getSrcPort(), subRange);
+                acc = Or(acc, bound1, bound2);
+            }
+            add(acc);
+        }
+
+        if (_headerSpace.getIcmpTypes().size() > 0) {
+            acc = False();
+            for (SubRange subRange : _headerSpace.getIcmpTypes()) {
+                BoolExpr bound = subRangeBound(_symbolicPacket.getIcmpType(), subRange);
+                acc = Or(acc, bound);
+            }
+            add(acc);
+        }
+
+        if (_headerSpace.getNotIcmpTypes().size() > 0) {
+            acc = True();
+            for (SubRange subRange : _headerSpace.getNotIcmpTypes()) {
+                BoolExpr bound = subRangeBound(_symbolicPacket.getIcmpType(), subRange);
+                acc = And(acc, Not(bound));
+            }
+            add(acc);
+        }
+
+        if (_headerSpace.getIcmpCodes().size() > 0) {
+            acc = False();
+            for (SubRange subRange : _headerSpace.getIcmpCodes()) {
+                BoolExpr bound = subRangeBound(_symbolicPacket.getIcmpCode(), subRange);
+                acc = Or(acc, bound);
+            }
+            add(acc);
+        }
+
+        if (_headerSpace.getNotIcmpCodes().size() > 0) {
+            acc = True();
+            for (SubRange subRange : _headerSpace.getNotIcmpCodes()) {
+                BoolExpr bound = subRangeBound(_symbolicPacket.getIcmpCode(), subRange);
+                acc = And(acc, Not(bound));
+            }
+            add(acc);
+        }
+
+        if (_headerSpace.getIpProtocols().size() > 0) {
+            acc = False();
+            for (IpProtocol ipProtocol : _headerSpace.getIpProtocols()) {
+                BoolExpr bound = Eq(_symbolicPacket.getIpProtocol(), Int(ipProtocol.number()));
+                acc = Or(acc, bound);
+            }
+            add(acc);
+        }
+
+        if (_headerSpace.getNotIpProtocols().size() > 0) {
+            acc = True();
+            for (IpProtocol ipProtocol : _headerSpace.getNotIpProtocols()) {
+                BoolExpr bound = Eq(_symbolicPacket.getIpProtocol(), Int(ipProtocol.number()));
+                acc = And(acc, Not(bound));
+            }
+            add(acc);
+        }
+
+        // TODO: need to implement fragment offsets, Ecns, states, etc
     }
 
     private void initConfigurations() {
@@ -2186,6 +2354,6 @@ public class Encoder {
         addDataForwardingConstraints();
         addUnusedDefaultValueConstraints();
         addInactiveLinkConstraints();
-        addDestinationConstraint();
+        addHeaderSpaceConstraint();
     }
 }

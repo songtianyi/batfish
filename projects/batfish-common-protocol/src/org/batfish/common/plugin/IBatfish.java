@@ -1,31 +1,20 @@
 package org.batfish.common.plugin;
 
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.BiFunction;
-import java.util.regex.Pattern;
-
 import org.batfish.common.Answerer;
-import org.batfish.datamodel.Configuration;
-import org.batfish.datamodel.DataPlane;
-import org.batfish.datamodel.Flow;
-import org.batfish.datamodel.FlowHistory;
-import org.batfish.datamodel.ForwardingAction;
-import org.batfish.datamodel.HeaderSpace;
-import org.batfish.datamodel.Ip;
-import org.batfish.datamodel.Topology;
+import org.batfish.datamodel.*;
 import org.batfish.datamodel.answers.AnswerElement;
 import org.batfish.datamodel.answers.ConvertConfigurationAnswerElement;
 import org.batfish.datamodel.answers.InitInfoAnswerElement;
 import org.batfish.datamodel.answers.ParseVendorConfigurationAnswerElement;
 import org.batfish.datamodel.assertion.AssertionAst;
-import org.batfish.datamodel.collections.AdvertisementSet;
-import org.batfish.datamodel.collections.InterfaceSet;
-import org.batfish.datamodel.collections.NamedStructureEquivalenceSets;
-import org.batfish.datamodel.collections.NodeInterfacePair;
-import org.batfish.datamodel.collections.NodeSet;
+import org.batfish.datamodel.collections.*;
 import org.batfish.datamodel.questions.Question;
+
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BiFunction;
+import java.util.regex.Pattern;
 
 public interface IBatfish extends IPluginConsumer {
 
@@ -53,21 +42,35 @@ public interface IBatfish extends IPluginConsumer {
          boolean dp);
 
 
-   AnswerElement smtForwarding(String destination);
+   AnswerElement smtForwarding(HeaderSpace h);
 
-   AnswerElement smtReachability(Pattern node1Regex, Pattern ifaceRegex, Pattern node2Regex);
+   AnswerElement smtReachability(HeaderSpace h,
+           String ingressNodeRegexStr, String notIngressNodeRegexStr,
+           String finalNodeRegexStr, String notFinalNodeRegexStr,
+           String finalIfaceRegexStr, String notFinalIfaceRegexStr);
 
    AnswerElement smtBlackhole();
 
    AnswerElement smtRoutingLoop();
 
-   AnswerElement smtBoundedLength(Pattern node1Regex, Pattern ifaceRegex, Pattern node2Regex, Integer bound);
+   AnswerElement smtBoundedLength(HeaderSpace h,
+           String ingressNodeRegexStr, String notIngressNodeRegexStr,
+           String finalNodeRegexStr, String notFinalNodeRegexStr,
+           String finalIfaceRegexStr, String notFinalIfaceRegexStr, Integer bound);
 
-   AnswerElement smtEqualLength(Pattern node1Regex, Pattern ifaceRegex, Pattern node2Regex);
+   AnswerElement smtEqualLength(HeaderSpace h,
+           String ingressNodeRegexStr, String notIngressNodeRegexStr,
+           String finalNodeRegexStr, String notFinalNodeRegexStr,
+           String finalIfaceRegexStr, String notFinalIfaceRegexStr);
 
-   AnswerElement smtMultipathConsistency(Pattern node1Regex, Pattern ifaceRegex);
+   AnswerElement smtMultipathConsistency(HeaderSpace h,
+           String finalNodeRegexStr, String notFinalNodeRegexStr,
+           String finalIfaceRegexStr, String notFinalIfaceRegexStr);
 
-   AnswerElement smtLoadBalance(Pattern node1Regex, Pattern ifaceRegex, Pattern node2Regex, Pattern peerRegex, int threshold);
+   AnswerElement smtLoadBalance(HeaderSpace h,
+           String ingressNodeRegexStr, String notIngressNodeRegexStr,
+           String finalNodeRegexStr, String notFinalNodeRegexStr,
+           String finalIfaceRegexStr, String notFinalIfaceRegexStr, int threshold);
 
    AnswerElement smtLocalConsistency(Pattern routerRegex);
 

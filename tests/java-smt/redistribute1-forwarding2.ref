@@ -96,8 +96,10 @@
   ],
   "question" : {
     "class" : "org.batfish.question.smt.ForwardingQuestionPlugin$ForwardingQuestion",
-    "destination" : "69.69.69.0/32",
-    "differential" : false
+    "differential" : false,
+    "dstIps" : [
+      "69.69.69.0"
+    ]
   },
   "status" : "SUCCESS"
 }
