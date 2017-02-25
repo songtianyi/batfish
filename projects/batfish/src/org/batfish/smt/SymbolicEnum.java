@@ -2,7 +2,6 @@ package org.batfish.smt;
 
 import com.microsoft.z3.BitVecExpr;
 import com.microsoft.z3.BoolExpr;
-import org.batfish.common.BatfishException;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -21,26 +20,28 @@ import java.util.Map;
  */
 public class SymbolicEnum<T> {
 
-    private Encoder _enc;
+    protected Encoder _enc;
 
-    private BitVecExpr _bitvec;
+    protected BitVecExpr _bitvec;
 
-    private int _numBits;
+    protected int _numBits;
 
-    private List<T> _values;
+    protected List<T> _values;
 
-    private Map<T, BitVecExpr> _valueMap;
+    protected Map<T, BitVecExpr> _valueMap;
 
-    // TODO: encode bounds if not power of two
     public SymbolicEnum(Encoder enc, List<T> values, String name) {
-
         _enc = enc;
 
         int size = values.size();
         double log = Math.log((double) size);
         double base = Math.log((double) 2);
 
-        _numBits = ((int) Math.ceil(log / base));
+        if (size == 0) {
+            _numBits = 0;
+        } else {
+            _numBits = ((int) Math.ceil(log / base));
+        }
 
         int i = 0;
         _values = new ArrayList<>();
@@ -56,6 +57,7 @@ public class SymbolicEnum<T> {
         if (_numBits == 0) {
             _bitvec = null;
         } else {
+
             _bitvec = _enc.getCtx().mkBVConst(name, _numBits);
             enc.getAllVariables().add(_bitvec);
 
@@ -72,9 +74,9 @@ public class SymbolicEnum<T> {
         return (x & -x) == x;
     }
 
-    public BoolExpr mkEqual(SymbolicEnum other) {
+    public BoolExpr Eq(SymbolicEnum<T> other) {
         if (_bitvec == null || other._bitvec == null) {
-            throw new BatfishException("Error: null bitvector");
+            return _enc.True();
         }
         return _enc.Eq(_bitvec, other._bitvec);
     }
@@ -98,6 +100,18 @@ public class SymbolicEnum<T> {
             return _enc.True();
         }
         return _enc.Eq(_bitvec, _enc.getCtx().mkBV(0, _numBits));
+    }
+
+    public BitVecExpr defaultValue() {
+        return _enc.getCtx().mkBV(0, _numBits);
+    }
+
+    public T value(int i) {
+        return _values.get(i);
+    }
+
+    public BitVecExpr getBitVec() {
+        return _bitvec;
     }
 
 }

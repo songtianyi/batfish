@@ -284,6 +284,18 @@ public class Graph {
         throw new BatfishException("TODO: findExportRoutingPolicy for " + proto.protocolName());
     }
 
+    public Set<Long> findAllOspfAreas(String router) {
+        Set<Long> areaIds = new HashSet<>();
+        Configuration conf = _configurations.get(router);
+        OspfProcess p = conf.getDefaultVrf().getOspfProcess();
+        if (p != null) {
+            p.getAreas().forEach((id, area) -> {
+                areaIds.add(id);
+            });
+        }
+        return areaIds;
+    }
+
     public String toString() {
         StringBuilder sb = new StringBuilder();
         sb.append("=======================================================\n");

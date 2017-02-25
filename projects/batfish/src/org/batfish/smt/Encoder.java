@@ -283,6 +283,10 @@ public class Encoder {
         this(e.getHeaderSpace(), graph, e.getCtx(), e.getSolver(), e.getAllVariables());
     }
 
+    public HeaderSpace getHeaderSpace() {
+        return _headerSpace;
+    }
+
     public Context getCtx() {
         return _ctx;
     }
@@ -327,10 +331,6 @@ public class Encoder {
         return _unsatCore;
     }
 
-    public HeaderSpace getHeaderSpace() {
-        return _headerSpace;
-    }
-
     public void add(BoolExpr e) {
         _unsatCore.track(_solver, _ctx, e);
     }
@@ -355,8 +355,14 @@ public class Encoder {
         return _ctx.mkImplies(e1, e2);
     }
 
-    public BoolExpr Gt(ArithExpr e1, ArithExpr e2) {
-        return _ctx.mkGt(e1, e2);
+    public BoolExpr Gt(Expr e1, Expr e2) {
+        if (e1 instanceof ArithExpr && e2 instanceof ArithExpr) {
+            return _ctx.mkGt((ArithExpr) e1, (ArithExpr) e2);
+        }
+        if (e1 instanceof BitVecExpr && e2 instanceof BitVecExpr) {
+            return _ctx.mkBVUGT((BitVecExpr) e1, (BitVecExpr) e2);
+        }
+        throw new BatfishException("Invalid call the Le while encoding control plane");
     }
 
     public ArithExpr Sum(ArithExpr e1, ArithExpr e2) {
@@ -825,20 +831,38 @@ public class Encoder {
         return _ctx.mkAnd(vals);
     }
 
-    public BoolExpr Ge(ArithExpr e1, ArithExpr e2) {
-        return _ctx.mkGe(e1, e2);
+    public BoolExpr Ge(Expr e1, Expr e2) {
+        if (e1 instanceof ArithExpr && e2 instanceof ArithExpr) {
+            return _ctx.mkGe((ArithExpr) e1, (ArithExpr) e2);
+        }
+        if (e1 instanceof BitVecExpr && e2 instanceof BitVecExpr) {
+            return _ctx.mkBVUGE((BitVecExpr) e1, (BitVecExpr) e2);
+        }
+        throw new BatfishException("Invalid call the Le while encoding control plane");
     }
 
-    public BoolExpr Le(ArithExpr e1, ArithExpr e2) {
-        return _ctx.mkLe(e1, e2);
+    public BoolExpr Le(Expr e1, Expr e2) {
+        if (e1 instanceof ArithExpr && e2 instanceof ArithExpr) {
+            return _ctx.mkLe((ArithExpr) e1, (ArithExpr) e2);
+        }
+        if (e1 instanceof BitVecExpr && e2 instanceof BitVecExpr) {
+            return _ctx.mkBVULE((BitVecExpr) e1, (BitVecExpr) e2);
+        }
+        throw new BatfishException("Invalid call the Le while encoding control plane");
     }
 
     public BoolExpr True() {
         return _ctx.mkBool(true);
     }
 
-    public BoolExpr Lt(ArithExpr e1, ArithExpr e2) {
-        return _ctx.mkLt(e1, e2);
+    public BoolExpr Lt(Expr e1, Expr e2) {
+        if (e1 instanceof ArithExpr && e2 instanceof ArithExpr) {
+            return _ctx.mkLt((ArithExpr) e1, (ArithExpr) e2);
+        }
+        if (e1 instanceof BitVecExpr && e2 instanceof BitVecExpr) {
+            return _ctx.mkBVULT((BitVecExpr) e1, (BitVecExpr) e2);
+        }
+        throw new BatfishException("Invalid call the Le while encoding control plane");
     }
 
 
@@ -1010,6 +1034,20 @@ public class Encoder {
         return Eq(x, Sum(value, Int(cost)));
     }
 
+    public <T> BoolExpr safeEqEnum(SymbolicEnum<T> x, T value) {
+        if (x == null) {
+            return True();
+        }
+        return x.checkIfValue(value);
+    }
+
+    public <T> BoolExpr safeEqEnum(SymbolicEnum<T> x, SymbolicEnum<T> y) {
+        if (x == null) {
+            return True();
+        }
+        return x.Eq(y);
+    }
+
     public int defaultId() {
         return 0;
     }
@@ -1039,6 +1077,11 @@ public class Encoder {
         return 0;
     }
 
+    public BitVecExpr defaultOspfType() {
+        // Return intra-area ospf type
+        return _ctx.mkBV(0, 2);
+    }
+
     // TODO: depends on configuration
     public boolean isMultipath(Configuration conf, RoutingProtocol proto) {
         if (proto == RoutingProtocol.CONNECTED) {
@@ -1060,7 +1103,7 @@ public class Encoder {
         return vars;
     }
 
-    private BoolExpr equalHelper(ArithExpr best, ArithExpr vars, ArithExpr defaultVal) {
+    private BoolExpr equalHelper(Expr best, Expr vars, Expr defaultVal) {
         BoolExpr tru = True();
         if (vars == null) {
             if (best != null) {
@@ -1079,9 +1122,66 @@ public class Encoder {
         if (best.getProtocolHistory() == null || vars.getProtocolHistory() == null) {
             history = True();
         } else {
-            history = best.getProtocolHistory().mkEqual(vars.getProtocolHistory());
+            history = best.getProtocolHistory().Eq(vars.getProtocolHistory());
         }
         return history;
+    }
+
+    private BoolExpr equalAreas(SymbolicRecord best, SymbolicRecord vars, LogicalEdge e) {
+        BoolExpr equalOspfArea;
+        boolean hasBestArea = (best.getOspfArea() != null && best.getOspfArea().getBitVec() !=
+                null);
+        boolean hasVarsArea = (vars.getOspfArea() != null && vars.getOspfArea().getBitVec() !=
+                null);
+        if (hasBestArea) {
+            Interface iface = e.getEdge().getStart();
+            if (hasVarsArea) {
+                equalOspfArea = best.getOspfArea().Eq(vars.getOspfArea());
+            } else if (iface.getOspfAreaName() != null) {
+                equalOspfArea = best.getOspfArea().checkIfValue(iface.getOspfAreaName());
+            } else {
+                equalOspfArea = best.getOspfArea().isDefaultValue();
+            }
+        } else {
+            equalOspfArea = True();
+        }
+        return equalOspfArea;
+    }
+
+    private BoolExpr equalTypes(SymbolicRecord best, SymbolicRecord vars) {
+        BoolExpr equalOspfType;
+        boolean hasBestType = (best.getOspfType() != null && best.getOspfType().getBitVec() !=
+                null);
+        boolean hasVarsType = (vars.getOspfType() != null && vars.getOspfType().getBitVec() !=
+                null);
+        if (hasVarsType) {
+            equalOspfType = best.getOspfType().Eq(vars.getOspfType());
+        } else if (hasBestType) {
+            equalOspfType = best.getOspfType().isDefaultValue();
+        } else {
+            equalOspfType = True();
+        }
+        return equalOspfType;
+    }
+
+    private BoolExpr equalIds(SymbolicRecord best, SymbolicRecord vars, Configuration conf,
+            RoutingProtocol proto, LogicalEdge e) {
+        BoolExpr equalId;
+        if (vars.getRouterId() == null) {
+            if (best.getRouterId() == null || e == null) {
+                equalId = True();
+            } else {
+                Long peerId = _logicalGraph.findRouterId(e, proto);
+                if (isMultipath(conf, proto) || peerId == null) {
+                    equalId = True();
+                } else {
+                    equalId = Eq(best.getRouterId(), Int(peerId));
+                }
+            }
+        } else {
+            equalId = Eq(best.getRouterId(), vars.getRouterId());
+        }
+        return equalId;
     }
 
     public BoolExpr equal(
@@ -1099,7 +1199,10 @@ public class Encoder {
         BoolExpr equalLp;
         BoolExpr equalMet;
         BoolExpr equalMed;
+        BoolExpr equalOspfArea;
+        BoolExpr equalOspfType;
         BoolExpr equalId;
+        BoolExpr equalHistory;
 
         equalLen = equalHelper(best.getPrefixLength(), vars.getPrefixLength(), defaultLen);
         equalAd = equalHelper(best.getAdminDist(), vars.getAdminDist(), defaultAdmin);
@@ -1107,28 +1210,17 @@ public class Encoder {
         equalMet = equalHelper(best.getMetric(), vars.getMetric(), defaultMet);
         equalMed = equalHelper(best.getMed(), vars.getMed(), defaultMed);
 
-        if (vars.getRouterId() == null) {
-            if (best.getRouterId() == null || e == null) {
-                equalId = True();
-            } else {
-                Long peerId = _logicalGraph.findRouterId(e, proto);
-                if (isMultipath(conf, proto) || peerId == null) {
-                    equalId = True();
-                } else {
-                    equalId = Eq(best.getRouterId(), Int(peerId));
-                }
-            }
-        } else {
-            equalId = Eq(best.getRouterId(), vars.getRouterId());
-        }
+        equalOspfType = equalTypes(best, vars);
+        equalOspfArea = equalAreas(best, vars, e);
+        equalId = equalIds(best, vars, conf, proto, e);
+        equalHistory = equalHistories(proto, best, vars);
 
-        BoolExpr history = equalHistories(proto, best, vars);
-
-        return And(equalLen, equalAd, equalLp, equalMet, equalMed, equalId, history);
+        return And(equalLen, equalAd, equalLp, equalMet, equalMed, equalOspfArea, equalOspfType,
+                equalId, equalHistory);
     }
 
     private BoolExpr geBetterHelper(
-            ArithExpr best, ArithExpr vars, ArithExpr defaultVal, boolean less, boolean bestCond) {
+            Expr best, Expr vars, Expr defaultVal, boolean less, boolean bestCond) {
         BoolExpr fal = False();
         if (vars == null) {
             if (best != null && bestCond) {
@@ -1150,13 +1242,12 @@ public class Encoder {
     }
 
     private BoolExpr geEqualHelper(
-            ArithExpr best, ArithExpr vars, ArithExpr defaultVal, boolean bestCond) {
-        BoolExpr tru = True();
+            Expr best, Expr vars, Expr defaultVal, boolean bestCond) {
         if (vars == null) {
             if (best != null && bestCond) {
                 return Eq(best, defaultVal);
             } else {
-                return tru;
+                return True();
             }
         } else {
             return Eq(best, vars);
@@ -1172,6 +1263,8 @@ public class Encoder {
         ArithExpr defaultMet = Int(defaultMetric(proto));
         ArithExpr defaultMed = Int(defaultMed(proto));
         ArithExpr defaultLen = Int(defaultLength());
+        BitVecExpr defaultOspfType = defaultOspfType();
+
 
         BoolExpr betterLen = geBetterHelper(best.getPrefixLength(), vars.getPrefixLength(),
                 defaultLen, false, true);
@@ -1197,6 +1290,13 @@ public class Encoder {
         BoolExpr betterMed = geBetterHelper(best.getMed(), vars.getMed(), defaultMed, true, true);
         BoolExpr equalMed = geEqualHelper(best.getMed(), vars.getMed(), defaultMed, true);
 
+        boolean keepType = _optimizations.getKeepOspfType();
+        BitVecExpr bestType = (best.getOspfType() == null ? null : best.getOspfType().getBitVec());
+        BitVecExpr varsType = (vars.getOspfType() == null ? null : vars.getOspfType().getBitVec());
+
+        BoolExpr betterOspfType = geBetterHelper(bestType, varsType, defaultOspfType, true, keepType);
+        BoolExpr equalOspfType = geEqualHelper(bestType, varsType, defaultOspfType, keepType);
+
         BoolExpr tiebreak;
         if (vars.getRouterId() == null) {
             if (best.getRouterId() == null) {
@@ -1213,16 +1313,18 @@ public class Encoder {
             tiebreak = Le(best.getRouterId(), vars.getRouterId());
         }
 
-        BoolExpr b = And(equalMed, tiebreak);
-        BoolExpr b0 = Or(betterMed, b);
-        BoolExpr b1 = And(equalMet, b0);
-        BoolExpr b2 = Or(betterMet, b1);
-        BoolExpr b3 = And(equalLp, b2);
-        BoolExpr b4 = Or(betterLp, b3);
-        BoolExpr b5 = And(equalAd, b4);
-        BoolExpr b6 = Or(betterAd, b5);
-        BoolExpr b7 = And(equalLen, b6);
-        return Or(betterLen, b7);
+        BoolExpr b = And(equalOspfType, tiebreak);
+        BoolExpr b1 = Or(betterOspfType, b);
+        BoolExpr b2 = And(equalMed, b1);
+        BoolExpr b3 = Or(betterMed, b2);
+        BoolExpr b4 = And(equalMet, b3);
+        BoolExpr b5 = Or(betterMet, b4);
+        BoolExpr b6 = And(equalLp, b5);
+        BoolExpr b7 = Or(betterLp, b6);
+        BoolExpr b8 = And(equalAd, b7);
+        BoolExpr b9 = Or(betterAd, b8);
+        BoolExpr b10 = And(equalLen, b9);
+        return Or(betterLen, b10);
     }
 
     private void addBestOverallConstraints() {
@@ -1690,8 +1792,8 @@ public class Encoder {
 
             if (proto == RoutingProtocol.CONNECTED) {
                 Prefix p = iface.getPrefix();
-                BoolExpr relevant = And(interfaceActive(iface, proto), isRelevantFor(p, _symbolicPacket
-                        .getDstIp()), notFailed);
+                BoolExpr relevant = And(interfaceActive(iface, proto), isRelevantFor(p,
+                        _symbolicPacket.getDstIp()), notFailed);
                 BoolExpr per = vars.getPermitted();
                 BoolExpr len = safeEq(vars.getPrefixLength(), Int(p.getPrefixLength()));
                 BoolExpr ad = safeEq(vars.getAdminDist(), Int(1));
@@ -1731,18 +1833,15 @@ public class Encoder {
 
                     BoolExpr active = interfaceActive(iface, proto);
 
-                    BoolExpr usable = And(Not(isRoot), active, varsOther
-                            .getPermitted(), notFailed);
+                    BoolExpr usable = And(Not(isRoot), active, varsOther.getPermitted(), notFailed);
                     BoolExpr importFunction;
                     RoutingPolicy pol = getGraph().findImportRoutingPolicy(router, proto, e);
                     if (pol != null) {
 
                         TransferFunction f = new TransferFunction(this, conf, varsOther, vars,
-                                proto, proto, pol.getStatements(), null);
+                                proto, proto, pol.getStatements(), null, iface);
                         importFunction = f.compute();
-                        // System.out.println("IMPORT FUNCTION: " + router + " " + varsOther
-                        // .getName());
-                        // System.out.println(importFunction.simplify());
+
                     } else {
                         // just copy the export policy in ospf/bgp
                         BoolExpr per = Eq(vars.getPermitted(), varsOther.getPermitted());
@@ -1751,8 +1850,13 @@ public class Encoder {
                         BoolExpr met = safeEq(vars.getMetric(), varsOther.getMetric());
                         BoolExpr med = safeEq(vars.getMed(), varsOther.getMed());
                         BoolExpr len = safeEq(vars.getPrefixLength(), varsOther.getPrefixLength());
-                        importFunction = And(per, lp, ad, met, med, len);
+                        BoolExpr type = safeEqEnum(vars.getOspfType(), varsOther.getOspfType());
+                        BoolExpr area = safeEqEnum(vars.getOspfArea(), varsOther.getOspfArea());
+                        importFunction = And(per, lp, ad, met, med, len, type, area);
                     }
+
+                    // System.out.println("IMPORT FUNCTION: " + router + " " + varsOther.getName());
+                    // System.out.println(importFunction.simplify());
 
                     add(If(usable, importFunction, val));
                 } else {
@@ -1814,7 +1918,7 @@ public class Encoder {
 
                     // System.out.println("Got export function for: " + router);
                     TransferFunction f = new TransferFunction(this, conf, varsOther, vars, proto,
-                            proto, statements, cost);
+                            proto, statements, cost, iface);
                     acc = f.compute();
 
                     // System.out.println("EXPORT FUNCTION: " + router + " " + varsOther.getName());
@@ -1823,13 +1927,18 @@ public class Encoder {
                     // System.out.println(acc.simplify());
 
                 } else {
+
+                    // TODO: make this just call the transfer function to keep logic in one place
+
                     BoolExpr per = vars.getPermitted();
                     BoolExpr len = safeEq(vars.getPrefixLength(), varsOther.getPrefixLength());
                     BoolExpr ad = safeEq(vars.getAdminDist(), varsOther.getAdminDist());
                     BoolExpr med = safeEq(vars.getMed(), varsOther.getMed());
                     BoolExpr lp = safeEq(vars.getLocalPref(), varsOther.getLocalPref());
+                    BoolExpr area = safeEqEnum(vars.getOspfArea(), varsOther.getOspfArea());
+                    BoolExpr type = safeEqEnum(vars.getOspfType(), varsOther.getOspfType());
                     BoolExpr met = safeEqAdd(vars.getMetric(), varsOther.getMetric(), cost);
-                    acc = And(per, len, ad, med, lp, met);
+                    acc = And(per, len, ad, med, lp, met, area, type);
 
                     // TODO: need a cleaner way to deal with this
                     // Wrap OSPF with a new If statement checking if OSPF protocol first
@@ -1853,7 +1962,9 @@ public class Encoder {
                     BoolExpr met = safeEq(vars.getMetric(), Int(cost));
                     BoolExpr med = safeEq(vars.getMed(), Int(100));
                     BoolExpr len = safeEq(vars.getPrefixLength(), Int(prefixLength));
-                    BoolExpr values = And(per, lp, ad, met, med, len);
+                    BoolExpr type = safeEqEnum(vars.getOspfType(), OspfType.O);
+                    BoolExpr area = safeEqEnum(vars.getOspfArea(), iface.getOspfAreaName());
+                    BoolExpr values = And(per, lp, ad, met, med, len, type, area);
                     acc = If(relevant, values, acc);
                 }
 
@@ -1933,6 +2044,12 @@ public class Encoder {
             if (vars.getMetric() != null) {
                 add(Implies(notPermitted, Eq(vars.getMetric(), zero)));
             }
+            if (vars.getOspfArea() != null) {
+                add(Implies(notPermitted, vars.getOspfArea().isDefaultValue()));
+            }
+            if (vars.getOspfType() != null) {
+                add(Implies(notPermitted, vars.getOspfType().isDefaultValue()));
+            }
             if (vars.getProtocolHistory() != null) {
                 add(Implies(notPermitted, vars.getProtocolHistory().isDefaultValue()));
             }
@@ -1950,7 +2067,7 @@ public class Encoder {
                     if (!getGraph().isInterfaceActive(proto, iface)) {
                         BoolExpr per = e.getSymbolicRecord().getPermitted();
                         if (per != null) {
-                            add( Not(per) );
+                            add(Not(per));
                         }
                     }
                 }
@@ -1966,7 +2083,7 @@ public class Encoder {
         } else {
             BoolExpr x = Ge(e, Int(lower));
             BoolExpr y = Le(e, Int(upper));
-            return And(x,y);
+            return And(x, y);
         }
     }
 
@@ -2293,6 +2410,22 @@ public class Encoder {
                         String x = valuation.get(r.getMed());
                         if (x != null) {
                             recordMap.put("multi-exit disc.", valuation.get(r.getMed()));
+                        }
+                    }
+                    if (r.getOspfArea() != null && r.getOspfArea().getBitVec() != null) {
+                        String x = valuation.get(r.getOspfArea().getBitVec());
+                        if (x != null) {
+                            Integer i = Integer.parseInt(x);
+                            Long area = r.getOspfArea().value(i);
+                            recordMap.put("OSPF Area", area.toString());
+                        }
+                    }
+                    if (r.getOspfType() != null && r.getOspfType().getBitVec() != null) {
+                        String x = valuation.get(r.getOspfType().getBitVec());
+                        if (x != null) {
+                            Integer i = Integer.parseInt(x);
+                            OspfType type = r.getOspfType().value(i);
+                            recordMap.put("OSPF Type", type.toString());
                         }
                     }
 

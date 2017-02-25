@@ -23,6 +23,8 @@ public class Modifications {
 
     private SetMetric _setMetric;
 
+    private SetOspfMetricType _setOspfMetricType;
+
     private SetWeight _setWeight;
 
     private SetNextHop _setNextHop;
@@ -39,6 +41,7 @@ public class Modifications {
         _prependPath = null;
         _setLp = null;
         _setMetric = null;
+        _setOspfMetricType = null;
         _setWeight = null;
         _setNextHop = null;
         _positiveCommunities = new HashSet<>();
@@ -53,6 +56,8 @@ public class Modifications {
         SetNextHop e = other.getSetNextHop();
         Set<CommunityVar> f = other.getPositiveCommunities();
         Set<CommunityVar> g = other.getNegativeCommunities();
+        SetOspfMetricType h = other.getSetOspfMetricType();
+
         _encoder = other._encoder;
         _conf = other._conf;
         _defaultAccept = false;
@@ -64,6 +69,7 @@ public class Modifications {
         _setNextHop = (e == null ? null : new SetNextHop(e.getExpr(), e.getDestinationVrf()));
         _positiveCommunities = (f == null ? null : new HashSet<>(f));
         _negativeCommunities = (g == null ? null : new HashSet<>(g));
+        _setOspfMetricType = (h == null ? null : new SetOspfMetricType(h.getMetricType()));
     }
 
     private void addPositiveCommunities(Set<CommunityVar> cs) {
@@ -101,6 +107,10 @@ public class Modifications {
 
         if (stmt instanceof SetMetric) {
             _setMetric = (SetMetric) stmt;
+        }
+
+        if (stmt instanceof SetOspfMetricType) {
+            _setOspfMetricType = (SetOspfMetricType) stmt;
         }
 
         if (stmt instanceof SetWeight) {
@@ -144,6 +154,10 @@ public class Modifications {
 
     public SetMetric getSetMetric() {
         return _setMetric;
+    }
+
+    public SetOspfMetricType getSetOspfMetricType() {
+        return _setOspfMetricType;
     }
 
     public SetWeight getSetWeight() {

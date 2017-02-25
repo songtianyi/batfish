@@ -39,6 +39,8 @@ class Optimizations {
 
     private boolean _keepMed;
 
+    private boolean _keepOspfType;
+
     Optimizations(Encoder encoder) {
         _encoder = encoder;
         _hasEnvironment = false;
@@ -50,6 +52,7 @@ class Optimizations {
         _keepLocalPref = true;
         _keepAdminDist = true;
         _keepMed = true;
+        _keepOspfType = true;
     }
 
     void computeOptimizations() {
@@ -57,6 +60,7 @@ class Optimizations {
         _keepLocalPref = computeKeepLocalPref();
         _keepAdminDist = computeKeepAdminDistance();
         _keepMed = computeKeepMed();
+        _keepOspfType = computeKeepOspfType();
         initProtocols();
         computeRouterIdNeeded();
         computeCanUseSingleBest();
@@ -100,11 +104,11 @@ class Optimizations {
         if (!Optimizations.ENABLE_SLICING_OPTIMIZATION) {
             return true;
         }
+        AstVisitor v = new AstVisitor();
         Boolean[] val = new Boolean[1];
         val[0] = false;
         _encoder.getGraph().getConfigurations().forEach((router, conf) -> {
             conf.getRoutingPolicies().forEach((name, pol) -> {
-                AstVisitor v = new AstVisitor();
                 v.visit(conf, pol.getStatements(), stmt -> {
                     // TODO: how is admin distance set?
                     if (stmt instanceof SetMetric) {
@@ -123,6 +127,38 @@ class Optimizations {
                 return true;
             }
             return _hasEnvironment; */
+    }
+
+
+    private boolean computeKeepOspfType() {
+        if (!Optimizations.ENABLE_SLICING_OPTIMIZATION) {
+            return true;
+        }
+        // First check if the ospf metric type is ever set
+        AstVisitor v = new AstVisitor();
+        Boolean[] val = new Boolean[1];
+        val[0] = false;
+        _encoder.getGraph().getConfigurations().forEach((router, conf) -> {
+            conf.getRoutingPolicies().forEach((name, pol) -> {
+                v.visit(conf, pol.getStatements(), stmt -> {
+                    if (stmt instanceof SetOspfMetricType) {
+                        val[0] = true;
+                    }
+                }, expr -> {});
+            });
+        });
+        if (val[0]) {
+            return true;
+        }
+
+        // Next check if the there are multiple ospf areas
+        Set<Long> areaIds = new HashSet<>();
+        _encoder.getGraph().getConfigurations().forEach((router, conf) -> {
+            Set<Long> ids = _encoder.getGraph().findAllOspfAreas(router);
+            areaIds.addAll(ids);
+        });
+
+        return areaIds.size() > 1;
     }
 
     private void initProtocols() {
@@ -373,4 +409,7 @@ class Optimizations {
         return _keepMed;
     }
 
+    public boolean getKeepOspfType() {
+        return _keepOspfType;
+    }
 }

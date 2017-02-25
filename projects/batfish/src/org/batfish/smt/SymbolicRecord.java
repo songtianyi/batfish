@@ -6,6 +6,7 @@ import com.microsoft.z3.Context;
 import com.microsoft.z3.Expr;
 import org.batfish.datamodel.RoutingProtocol;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -23,6 +24,8 @@ public class SymbolicRecord {
 
     private boolean _isBestOverall;
 
+    private BoolExpr _permitted;
+
     private ArithExpr _prefixLength;
 
     private ArithExpr _adminDist;
@@ -31,11 +34,13 @@ public class SymbolicRecord {
 
     private ArithExpr _metric;
 
+    private SymbolicEnum<Long> _ospfArea;
+
     private ArithExpr _med;
 
-    private ArithExpr _routerId;
+    private SymbolicOspfType _ospfType;
 
-    private BoolExpr _permitted;
+    private ArithExpr _routerId;
 
     private SymbolicEnum<RoutingProtocol> _protocolHistory;
 
@@ -55,6 +60,7 @@ public class SymbolicRecord {
         _med = null;
         _routerId = null;
         _permitted = null;
+        _ospfType = null;
         _protocolHistory = null;
     }
 
@@ -63,16 +69,18 @@ public class SymbolicRecord {
             Context ctx, SymbolicEnum<RoutingProtocol> h) {
 
         _name = name;
-
         _isUsed = true;
         _isEnv = _name.contains("_ENV_");
         _isBest = _name.contains("_BEST");
         _isBestOverall = (_isBest && _name.contains("_OVERALL"));
 
+        boolean hasOspf = enc.getGraph().getProtocols().get(router).contains(RoutingProtocol.OSPF);
         boolean multipleProtos = enc.getGraph().getProtocols().get(router).size() > 1;
         boolean modelAd = (_isBestOverall && multipleProtos) || opts.getKeepAdminDist();
 
         _protocolHistory = h;
+        _ospfArea = null;
+        _ospfType = null;
 
         // Represent best variables as the aggregate protocol. Total hack.
         if (proto == RoutingProtocol.AGGREGATE) {
@@ -81,23 +89,51 @@ public class SymbolicRecord {
             _adminDist = (modelAd ? ctx.mkIntConst(_name + "_adminDist") : null);
             _med = (opts.getKeepMed() ? ctx.mkIntConst(_name + "_med") : null);
 
+            if (hasOspf && opts.getKeepOspfType()) {
+                _ospfType = new SymbolicOspfType(enc, OspfType.values, _name + "_ospfType");
+            }
+
+            // Set OSPF area only for best OSPF or OVERALL choice
+            if (hasOspf && (_isBestOverall || _name.contains("_OSPF_") )) {
+                List<Long> areaIds = new ArrayList<>(enc.getGraph().findAllOspfAreas(router));
+                if (areaIds.size() > 1) {
+                    _ospfArea = new SymbolicEnum<>(enc, areaIds, _name + "_ospfArea");
+                }
+            }
+
         } else if (proto == RoutingProtocol.CONNECTED) {
             _metric = null;
             _localPref = null;
             _adminDist = null;
             _med = null;
+            _ospfArea = null;
+            _ospfType = null;
 
         } else if (proto == RoutingProtocol.STATIC) {
             _metric = null;
             _localPref = null;
             _adminDist = null;
             _med = null;
+            _ospfArea = null;
+            _ospfType = null;
 
-        } else {
+        } else if (proto == RoutingProtocol.BGP) {
             _metric = ctx.mkIntConst(_name + "_metric");
             _localPref = (opts.getKeepLocalPref() ? ctx.mkIntConst(_name + "_localPref") : null);
             _adminDist = (opts.getKeepAdminDist() ? ctx.mkIntConst(_name + "_adminDist") : null);
             _med = (opts.getKeepMed() ? ctx.mkIntConst(_name + "_med") : null);
+            _ospfArea = null;
+            _ospfType = null;
+
+        } else if (proto == RoutingProtocol.OSPF) {
+            _metric = ctx.mkIntConst(_name + "_metric");
+            _localPref = (opts.getKeepLocalPref() ? ctx.mkIntConst(_name + "_localPref") : null);
+            _adminDist = (opts.getKeepAdminDist() ? ctx.mkIntConst(_name + "_adminDist") : null);
+            _med = (opts.getKeepMed() ? ctx.mkIntConst(_name + "_med") : null);
+
+            if (opts.getKeepOspfType()) {
+                _ospfType = new SymbolicOspfType(enc, OspfType.values, _name + "_ospfType");
+            }
         }
 
         boolean needId;
@@ -174,6 +210,10 @@ public class SymbolicRecord {
         return _isEnv;
     }
 
+    public BoolExpr getPermitted() {
+        return _permitted;
+    }
+
     public ArithExpr getMetric() {
         return _metric;
     }
@@ -198,8 +238,12 @@ public class SymbolicRecord {
         return _prefixLength;
     }
 
-    public BoolExpr getPermitted() {
-        return _permitted;
+    public SymbolicEnum<Long> getOspfArea() {
+        return _ospfArea;
+    }
+
+    public SymbolicOspfType getOspfType() {
+        return _ospfType;
     }
 
     public Map<CommunityVar, BoolExpr> getCommunities() {
