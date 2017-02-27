@@ -16,6 +16,8 @@ public class Graph {
 
     private Map<String, Configuration> _configurations;
 
+    private Map<String, Set<Long>> _areaIds;
+
     private Map<String, Map<String, List<StaticRoute>>> _staticRoutes;
 
     private Map<String, Set<String>> _neighbors;
@@ -37,6 +39,7 @@ public class Graph {
         _configurations = new HashMap<>(_batfish.loadConfigurations());
         _edgeMap = new HashMap<>();
         _otherEnd = new HashMap<>();
+        _areaIds = new HashMap<>();
         _staticRoutes = new HashMap<>();
         _neighbors = new HashMap<>();
         _bgpNeighbors = new HashMap<>();
@@ -58,6 +61,7 @@ public class Graph {
         initGraph();
         initStaticRoutes();
         initBgpNeighbors();
+        initAreaIds();
     }
 
     private void initGraph() {
@@ -190,6 +194,20 @@ public class Graph {
         });
     }
 
+    private void initAreaIds() {
+        _configurations.forEach((router, conf) -> {
+            Set<Long> areaIds = new HashSet<>();
+            OspfProcess p = conf.getDefaultVrf().getOspfProcess();
+            if (p != null) {
+                p.getAreas().forEach((id, area) -> {
+                    areaIds.add(id);
+                });
+            }
+            _areaIds.put(router, areaIds);
+        });
+
+    }
+
     public boolean isInterfaceActive(RoutingProtocol proto, Interface iface) {
         if (proto == RoutingProtocol.OSPF) {
             return iface.getActive() && iface.getOspfEnabled();
@@ -284,18 +302,6 @@ public class Graph {
         throw new BatfishException("TODO: findExportRoutingPolicy for " + proto.protocolName());
     }
 
-    public Set<Long> findAllOspfAreas(String router) {
-        Set<Long> areaIds = new HashSet<>();
-        Configuration conf = _configurations.get(router);
-        OspfProcess p = conf.getDefaultVrf().getOspfProcess();
-        if (p != null) {
-            p.getAreas().forEach((id, area) -> {
-                areaIds.add(id);
-            });
-        }
-        return areaIds;
-    }
-
     public String toString() {
         StringBuilder sb = new StringBuilder();
         sb.append("=======================================================\n");
@@ -338,6 +344,10 @@ public class Graph {
 
         sb.append("=======================================================\n");
         return sb.toString();
+    }
+
+    public Map<String, Set<Long>> getAreaIds() {
+        return _areaIds;
     }
 
     public Map<String, Configuration> getConfigurations() {

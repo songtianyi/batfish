@@ -1212,6 +1212,7 @@ public class Encoder {
 
         equalOspfType = equalTypes(best, vars);
         equalOspfArea = equalAreas(best, vars, e);
+
         equalId = equalIds(best, vars, conf, proto, e);
         equalHistory = equalHistories(proto, best, vars);
 
@@ -1298,7 +1299,18 @@ public class Encoder {
         BoolExpr equalOspfType = geEqualHelper(bestType, varsType, defaultOspfType, keepType);
 
         BoolExpr tiebreak;
-        if (vars.getRouterId() == null) {
+        if (isMultipath(conf, proto)) {
+            tiebreak = True();
+        } else if (vars.getRouterId() != null) {
+            tiebreak = Le(best.getRouterId(), vars.getRouterId());
+        } else if (best.getRouterId() != null) {
+            Long peerId = _logicalGraph.findRouterId(e, proto);
+            tiebreak = Le(best.getRouterId(), Int(peerId));
+        } else {
+            tiebreak = True();
+        }
+
+        /* if (vars.getRouterId() == null) {
             if (best.getRouterId() == null) {
                 tiebreak = True();
             } else {
@@ -1311,7 +1323,7 @@ public class Encoder {
             }
         } else {
             tiebreak = Le(best.getRouterId(), vars.getRouterId());
-        }
+        } */
 
         BoolExpr b = And(equalOspfType, tiebreak);
         BoolExpr b1 = Or(betterOspfType, b);
@@ -1929,7 +1941,6 @@ public class Encoder {
                 } else {
 
                     // TODO: make this just call the transfer function to keep logic in one place
-
                     BoolExpr per = vars.getPermitted();
                     BoolExpr len = safeEq(vars.getPrefixLength(), varsOther.getPrefixLength());
                     BoolExpr ad = safeEq(vars.getAdminDist(), varsOther.getAdminDist());

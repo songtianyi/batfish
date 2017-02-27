@@ -24,6 +24,8 @@ class Optimizations {
 
     private Set<String> _sliceHasSingleProtocol;
 
+    private Set<Long> _areaIds;
+
     // TODO: convert to Table2
     private Map<String, EnumMap<RoutingProtocol, Boolean>> _sliceCanKeepSingleExportVar;
 
@@ -44,6 +46,7 @@ class Optimizations {
     Optimizations(Encoder encoder) {
         _encoder = encoder;
         _hasEnvironment = false;
+        _areaIds = new HashSet<>();
         _sliceHasSingleProtocol = new HashSet<>();
         _sliceCanCombineImportExportVars = new HashMap<>();
         _sliceCanKeepSingleExportVar = new HashMap<>();
@@ -56,6 +59,7 @@ class Optimizations {
     }
 
     void computeOptimizations() {
+        computeAreaIds();
         _hasEnvironment = computeHasEnvironment();
         _keepLocalPref = computeKeepLocalPref();
         _keepAdminDist = computeKeepAdminDistance();
@@ -129,6 +133,13 @@ class Optimizations {
             return _hasEnvironment; */
     }
 
+    private void computeAreaIds() {
+        // Next check if the there are multiple ospf areas
+        _encoder.getGraph().getConfigurations().forEach((router, conf) -> {
+            Set<Long> ids = _encoder.getGraph().getAreaIds().get(router);
+            _areaIds.addAll(ids);
+        });
+    }
 
     private boolean computeKeepOspfType() {
         if (!Optimizations.ENABLE_SLICING_OPTIMIZATION) {
@@ -151,14 +162,8 @@ class Optimizations {
             return true;
         }
 
-        // Next check if the there are multiple ospf areas
-        Set<Long> areaIds = new HashSet<>();
-        _encoder.getGraph().getConfigurations().forEach((router, conf) -> {
-            Set<Long> ids = _encoder.getGraph().findAllOspfAreas(router);
-            areaIds.addAll(ids);
-        });
-
-        return areaIds.size() > 1;
+        // Next see if the there are multiple ospf areas
+        return _areaIds.size() > 1;
     }
 
     private void initProtocols() {
@@ -219,19 +224,22 @@ class Optimizations {
 
             // Can be no peer-specific export, which includes dropping due to
             // the neighbor already being the root of the tree.
-            // TODO: actually compute this
             for (RoutingProtocol proto : _encoder.getGraph().getProtocols().get(router)) {
                 if (proto == RoutingProtocol.CONNECTED || proto == RoutingProtocol.STATIC) {
                     map.put(proto, Optimizations.ENABLE_EXPORT_MERGE_OPTIMIZATION);
 
                 } else if (proto == RoutingProtocol.OSPF) {
                     // Ensure all interfaces are active
-                    boolean acc = true;
+                    boolean allIfacesActive = true;
                     for (GraphEdge edge : g.getEdgeMap().get(router)) {
                         Interface iface = edge.getStart();
-                        acc = acc && g.isInterfaceActive(proto, iface);
+                        allIfacesActive = allIfacesActive && g.isInterfaceActive(proto, iface);
                     }
-                    map.put(proto, acc && Optimizations.ENABLE_EXPORT_MERGE_OPTIMIZATION);
+
+                    // Ensure single area for this router
+                    boolean singleArea = _encoder.getGraph().getAreaIds().get(router).size() <= 1;
+
+                    map.put(proto, allIfacesActive && singleArea && Optimizations.ENABLE_EXPORT_MERGE_OPTIMIZATION);
 
                 } else if (proto == RoutingProtocol.BGP) {
                     boolean allDefault = true;

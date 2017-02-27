@@ -338,13 +338,13 @@ public class TransferFunction {
             }
         } else {
             boolean hasAreaIface = _iface.getOspfAreaName() != null;
-            boolean hasArea = _other.getOspfArea() != null && _current.getOspfArea() != null;
+            boolean hasArea = _other.getOspfArea() != null;
             boolean hasType = _other.getOspfType() != null;
             boolean areaPossiblyChanged = hasType && hasArea && hasAreaIface;
             // Check if area changed
             if (areaPossiblyChanged) {
-                BoolExpr internal = _current.getOspfType().isInternal();
-                BoolExpr same = _current.getOspfArea().Eq(_other.getOspfArea());
+                BoolExpr internal = _other.getOspfType().isInternal();
+                BoolExpr same = _other.getOspfArea().checkIfValue( _iface.getOspfAreaName() );
                 BoolExpr update = _enc.And(internal, _enc.Not(same));
                 BoolExpr copyOld = _enc.safeEqEnum(_current.getOspfType(), _other.getOspfType());
                 type = _enc.If(update, _current.getOspfType().checkIfValue(OspfType.OIA), copyOld);
@@ -352,7 +352,6 @@ public class TransferFunction {
                 type = _enc.safeEqEnum(_current.getOspfType(), _other.getOspfType());
             }
         }
-
 
         BoolExpr comms = _enc.True();
 

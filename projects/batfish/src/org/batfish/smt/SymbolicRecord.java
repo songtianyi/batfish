@@ -95,7 +95,7 @@ public class SymbolicRecord {
 
             // Set OSPF area only for best OSPF or OVERALL choice
             if (hasOspf && (_isBestOverall || _name.contains("_OSPF_") )) {
-                List<Long> areaIds = new ArrayList<>(enc.getGraph().findAllOspfAreas(router));
+                List<Long> areaIds = new ArrayList<>(enc.getGraph().getAreaIds().get(router));
                 if (areaIds.size() > 1) {
                     _ospfArea = new SymbolicEnum<>(enc, areaIds, _name + "_ospfArea");
                 }
