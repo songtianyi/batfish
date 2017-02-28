@@ -17,6 +17,8 @@ public class Modifications {
 
     private boolean _defaultAcceptLocal;
 
+    private SetDefaultPolicy _defaultPolicy;
+
     private PrependAsPath _prependPath;
 
     private SetLocalPreference _setLp;
@@ -36,6 +38,7 @@ public class Modifications {
     public Modifications(Encoder encoder, Configuration conf) {
         _encoder = encoder;
         _conf = conf;
+        _defaultPolicy = null;
         _defaultAccept = false;
         _defaultAcceptLocal = false;
         _prependPath = null;
@@ -57,11 +60,13 @@ public class Modifications {
         Set<CommunityVar> f = other.getPositiveCommunities();
         Set<CommunityVar> g = other.getNegativeCommunities();
         SetOspfMetricType h = other.getSetOspfMetricType();
+        SetDefaultPolicy i = other.getSetDefaultPolicy();
 
         _encoder = other._encoder;
         _conf = other._conf;
-        _defaultAccept = false;
-        _defaultAcceptLocal = false;
+        _defaultPolicy = (i == null ? null : new SetDefaultPolicy(i.getDefaultPolicy()));
+        _defaultAccept = other._defaultAccept;
+        _defaultAcceptLocal = other._defaultAcceptLocal;
         _prependPath = (a == null ? null : new PrependAsPath(a.getExpr()));
         _setLp = (b == null ? null : new SetLocalPreference(b.getLocalPreference()));
         _setMetric = (c == null ? null : new SetMetric(c.getMetric()));
@@ -87,6 +92,7 @@ public class Modifications {
     }
 
     public void addModification(Statement stmt) {
+
         if (stmt instanceof Statements.StaticStatement) {
             Statements.StaticStatement ss = (Statements.StaticStatement) stmt;
             if (ss.getType() == Statements.SetDefaultActionAccept) {
@@ -95,6 +101,10 @@ public class Modifications {
             if (ss.getType() == Statements.SetDefaultActionReject) {
                 _defaultAccept = false;
             }
+        }
+
+        if (stmt instanceof SetDefaultPolicy) {
+            _defaultPolicy = (SetDefaultPolicy) stmt;
         }
 
         if (stmt instanceof PrependAsPath) {
@@ -182,5 +192,9 @@ public class Modifications {
 
     public boolean getDefaultAcceptLocal() {
         return _defaultAcceptLocal;
+    }
+
+    public SetDefaultPolicy getSetDefaultPolicy() {
+        return _defaultPolicy;
     }
 }

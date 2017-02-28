@@ -64,8 +64,10 @@ public class TransferFunction {
 
     private Map<Prefix, Boolean> aggregateRoutes() {
         Map<Prefix, Boolean> acc = new HashMap<>();
-        List<GeneratedRoute> aggregates = _enc.getOptimizations().getRelevantAggregates().get(_conf.getName());
-        Set<Prefix> suppressed = _enc.getOptimizations().getSuppressedAggregates().get(_conf.getName());
+        List<GeneratedRoute> aggregates = _enc.getOptimizations().getRelevantAggregates().get
+                (_conf.getName());
+        Set<Prefix> suppressed = _enc.getOptimizations().getSuppressedAggregates().get(_conf
+                .getName());
         for (GeneratedRoute gr : aggregates) {
             Prefix p = gr.getNetwork();
             acc.put(p, suppressed.contains(p));
@@ -165,42 +167,62 @@ public class TransferFunction {
         return Collections.singletonList(i);
     }
 
-    private BoolExpr compute(BooleanExpr expr, Modifications mods, boolean pure) {
+    private BoolExpr compute(BooleanExpr expr, Modifications mods, boolean pure, boolean
+            inExprCall, boolean inStmtCall) {
 
         Modifications freshMods = new Modifications(mods);
 
         if (expr instanceof Conjunction) {
             Conjunction c = (Conjunction) expr;
-
             if (pure) {
                 BoolExpr v = _enc.True();
                 for (BooleanExpr x : c.getConjuncts()) {
-                    v = _enc.And(v, compute(x, freshMods, pure));
+                    v = _enc.And(v, compute(x, freshMods, pure, inExprCall, inStmtCall));
                 }
                 return v;
             } else {
                 Queue<BooleanExpr> queue = new ArrayDeque<>(c.getConjuncts());
                 BooleanExpr x = queue.remove();
                 _operands.push(queue);
-                BoolExpr ret = compute(wrapExpr(x), freshMods);
+                BoolExpr ret = compute(wrapExpr(x), freshMods, inExprCall, inStmtCall);
                 _operands.pop();
                 return ret;
             }
         }
+
         if (expr instanceof Disjunction) {
             Disjunction d = (Disjunction) expr;
             BoolExpr v = _enc.False();
             for (BooleanExpr x : d.getDisjuncts()) {
-                v = _enc.Or(v, compute(x, freshMods, pure));
+                v = _enc.Or(v, compute(x, freshMods, pure, inExprCall, inStmtCall));
             }
             return v;
         }
+
+        if (expr instanceof DisjunctionChain) {
+            DisjunctionChain d = (DisjunctionChain) expr;
+            // Add the default policy
+            List<BooleanExpr> disjuncts = new ArrayList<>(d.getSubroutines());
+            if (mods.getSetDefaultPolicy() != null) {
+                BooleanExpr be = new CallExpr(mods.getSetDefaultPolicy().getDefaultPolicy());
+                disjuncts.add(be);
+            }
+            // TODO: I'm not entirely sure how to handle this due to the side effects
+            if (disjuncts.size() == 0) {
+                return _enc.True();
+            } else if (disjuncts.size() == 1) {
+                return compute(disjuncts.get(0), freshMods, pure, true, inStmtCall);
+            } else {
+                throw new BatfishException("TODO: disjunct chain");
+            }
+        }
+
         if (expr instanceof Not) {
             Not n = (Not) expr;
-            //return compute(wrapExpr(n.getExpr()), freshMods);
-            BoolExpr v = compute(n.getExpr(), mods, pure);
+            BoolExpr v = compute(n.getExpr(), mods, pure, inExprCall, inStmtCall);
             return _enc.Not(v);
         }
+
         if (expr instanceof MatchProtocol) {
             MatchProtocol mp = (MatchProtocol) expr;
             RoutingProtocol p = mp.getProtocol();
@@ -209,22 +231,41 @@ public class TransferFunction {
             }
             return _other.getProtocolHistory().checkIfValue(p);
         }
+
         if (expr instanceof MatchPrefixSet) {
             MatchPrefixSet m = (MatchPrefixSet) expr;
             return matchPrefixSet(_conf, m.getPrefixSet());
+
         } else if (expr instanceof CallExpr) {
             CallExpr c = (CallExpr) expr;
             String name = c.getCalledPolicyName();
             RoutingPolicy pol = _conf.getRoutingPolicies().get(name);
-            return compute(pol.getStatements(), freshMods);
+            return compute(pol.getStatements(), freshMods, inExprCall, true);
+
         } else if (expr instanceof WithEnvironmentExpr) {
             // TODO: this is not correct
             WithEnvironmentExpr we = (WithEnvironmentExpr) expr;
-            return compute(we.getExpr(), freshMods, pure);
+            return compute(we.getExpr(), freshMods, pure, inExprCall, inStmtCall);
+
         } else if (expr instanceof MatchCommunitySet) {
             MatchCommunitySet mcs = (MatchCommunitySet) expr;
             return matchCommunitySet(_conf, mcs.getExpr(), _other);
+
+        } else if (expr instanceof BooleanExprs.StaticBooleanExpr) {
+            BooleanExprs.StaticBooleanExpr b = (BooleanExprs.StaticBooleanExpr) expr;
+            switch (b.getType()) {
+                case CallExprContext:
+                    return _enc.Bool(inExprCall);
+                case CallStatementContext:
+                    return _enc.Bool(inStmtCall);
+                case True:
+                    return _enc.True();
+                case False:
+                    return _enc.False();
+            }
+
         }
+
         throw new BatfishException("TODO: compute expr transfer function: " + expr);
     }
 
@@ -304,6 +345,7 @@ public class TransferFunction {
 
         if (mods.getSetMetric() == null) {
             Integer addedCost;
+
             if (mods.getPrependPath() != null) {
                 addedCost = _addedCost + prependLength(mods.getPrependPath().getExpr());
             } else {
@@ -335,7 +377,8 @@ public class TransferFunction {
         }
 
         // Update prefix length when aggregation
-        BoolExpr len = _enc.safeEq(_current.getPrefixLength(), getOrDefault(_prefixLen, defaultLen));
+        BoolExpr len = _enc.safeEq(_current.getPrefixLength(), getOrDefault(_prefixLen,
+                defaultLen));
 
         BoolExpr per = _enc.safeEq(_current.getPermitted(), _other.getPermitted());
 
@@ -367,7 +410,7 @@ public class TransferFunction {
             // Check if area changed
             if (areaPossiblyChanged) {
                 BoolExpr internal = _other.getOspfType().isInternal();
-                BoolExpr same = _other.getOspfArea().checkIfValue( _iface.getOspfAreaName() );
+                BoolExpr same = _other.getOspfArea().checkIfValue(_iface.getOspfAreaName());
                 BoolExpr update = _enc.And(internal, _enc.Not(same));
                 BoolExpr copyOld = _enc.safeEqEnum(_current.getOspfType(), _other.getOspfType());
                 type = _enc.If(update, _current.getOspfType().checkIfValue(OspfType.OIA), copyOld);
@@ -418,19 +461,23 @@ public class TransferFunction {
         val[0] = false;
         v.visit(_conf, be, stmt -> {
             val[0] = true;
-        }, expr -> {});
+        }, expr -> {
+            if (expr instanceof DisjunctionChain || expr instanceof ConjunctionChain) {
+                val[0] = true;
+            }
+        });
         return val[0];
     }
 
-    private BoolExpr returnTrue(Modifications mods) {
+    private BoolExpr returnTrue(Modifications mods, boolean inExprCall, boolean inStmtCall) {
         if (!_operands.isEmpty() && !_operands.peek().isEmpty()) {
             Queue<BooleanExpr> queue = _operands.peek();
             BooleanExpr x = queue.poll();
-            return compute(wrapExpr(x), mods);
+            return compute(wrapExpr(x), mods, inExprCall, inStmtCall);
         } else if (!_contTrue.isEmpty()) {
             List<Statement> t = _contTrue.pop();
             List<Statement> f = _contFalse.pop();
-            BoolExpr ret = compute(t, mods);
+            BoolExpr ret = compute(t, mods, inExprCall, inStmtCall);
             _contTrue.push(t);
             _contFalse.push(f);
             return ret;
@@ -439,13 +486,13 @@ public class TransferFunction {
         }
     }
 
-    private BoolExpr returnFalse(Modifications mods) {
+    private BoolExpr returnFalse(Modifications mods, boolean inExprCall, boolean inStmtCall) {
         if (!_operands.isEmpty() && !_operands.peek().isEmpty()) {
-            return compute(_contFalse.peek(), mods);
+            return compute(_contFalse.peek(), mods, inExprCall, inStmtCall);
         } else if (!_contFalse.isEmpty()) {
             List<Statement> t = _contTrue.pop();
             List<Statement> f = _contFalse.pop();
-            BoolExpr ret = compute(f, mods);
+            BoolExpr ret = compute(f, mods, inExprCall, inStmtCall);
             _contTrue.push(t);
             _contFalse.push(f);
             return ret;
@@ -455,7 +502,8 @@ public class TransferFunction {
     }
 
     // TODO: make fewer copies of mods
-    private BoolExpr compute(List<Statement> statements, Modifications mods) {
+    private BoolExpr compute(List<Statement> statements, Modifications mods, boolean inExprCall,
+            boolean inStmtCall) {
         Modifications freshMods = new Modifications(mods);
 
         ListIterator<Statement> it = statements.listIterator();
@@ -466,10 +514,10 @@ public class TransferFunction {
                 Statements.StaticStatement ss = (Statements.StaticStatement) s;
 
                 if (ss.getType() == ExitAccept || ss.getType() == ReturnTrue) {
-                    return returnTrue(freshMods);
+                    return returnTrue(freshMods, inExprCall, inStmtCall);
 
                 } else if (ss.getType() == ExitReject || ss.getType() == ReturnFalse) {
-                    return returnFalse(freshMods);
+                    return returnFalse(freshMods, inExprCall, inStmtCall);
 
                 } else if (ss.getType() == SetDefaultActionAccept) {
                     freshMods.addModification(s);
@@ -480,9 +528,9 @@ public class TransferFunction {
                 } else if (ss.getType() == ReturnLocalDefaultAction) {
                     // TODO: need to set local default action in an environment
                     if (freshMods.getDefaultAcceptLocal()) {
-                        return returnTrue(freshMods);
+                        return returnTrue(freshMods, inExprCall, inStmtCall);
                     } else {
-                        return returnFalse(freshMods);
+                        return returnFalse(freshMods, inExprCall, inStmtCall);
                     }
 
                 } else {
@@ -507,18 +555,21 @@ public class TransferFunction {
                 if (hasStatement(i.getGuard())) {
                     _contTrue.push(remainingx);
                     _contFalse.push(remainingy);
-                    BoolExpr ret = compute(i.getGuard(), freshMods, false);
+                    BoolExpr ret = compute(i.getGuard(), freshMods, false, inExprCall, inStmtCall);
                     _contTrue.pop();
                     _contFalse.pop();
                     return ret;
                 } else {
                     Modifications modsTrue = new Modifications(freshMods);
                     Modifications modsFalse = new Modifications(freshMods);
-                    BoolExpr trueBranch = compute(remainingx, modsTrue);
-                    BoolExpr falseBranch = compute(remainingy, modsFalse);
-                    BoolExpr guard = compute(i.getGuard(), freshMods, true);
+                    BoolExpr trueBranch = compute(remainingx, modsTrue, inExprCall, inStmtCall);
+                    BoolExpr falseBranch = compute(remainingy, modsFalse, inExprCall, inStmtCall);
+                    BoolExpr guard = compute(i.getGuard(), freshMods, true, inExprCall, inStmtCall);
                     return _enc.If(guard, trueBranch, falseBranch);
                 }
+
+            } else if (s instanceof SetDefaultPolicy) {
+                freshMods.addModification(s);
 
             } else if (s instanceof SetMetric) {
                 freshMods.addModification(s);
@@ -547,9 +598,9 @@ public class TransferFunction {
         }
 
         if (freshMods.getDefaultAccept()) {
-            return returnTrue(freshMods);
+            return returnTrue(freshMods, inExprCall, inStmtCall);
         } else {
-            return returnFalse(freshMods);
+            return returnFalse(freshMods, inExprCall, inStmtCall);
         }
     }
 
@@ -557,34 +608,23 @@ public class TransferFunction {
         _prefixLen = _other.getPrefixLength();
 
         if (_isExport) {
-
-            // System.out.println("IS EXPORT: " + _conf.getName());
-
             _aggregates = aggregateRoutes();
 
             if (_aggregates.size() > 0) {
-
-                // System.out.println("MULTIPLE AGGREGATES");
-
-                ArithExpr i = _enc.getCtx().mkIntConst(_other.getName() + "_NEW-LEN(" + _iface.getName() + ")");
+                ArithExpr i = _enc.getCtx().mkIntConst(_other.getName() + "_NEW-LEN(" + _iface
+                        .getName() + ")");
                 _enc.getAllVariables().add(i);
 
                 _aggregates.forEach((prefix, isSuppressed) -> {
-
-                    // System.out.println("  PREFIX: " + prefix.toString() + ", " + isSuppressed);
-
                     Prefix p = prefix.getNetworkPrefix();
                     ArithExpr len = _enc.Int(p.getPrefixLength());
                     BoolExpr relevantPfx = _enc.isRelevantFor(p, _enc.getSymbolicPacket().getDstIp());
                     BoolExpr relevantLen = _enc.Gt(_other.getPrefixLength(), len);
-                    BoolExpr relevant = _enc.And(relevantPfx, relevantLen);
-
+                    BoolExpr relevant = _enc.And(relevantPfx, relevantLen, _enc.Bool(isSuppressed));
                     _prefixLen = _enc.If(relevant, len, _prefixLen);
                 });
 
-                // System.out.println("New Value: " + _prefixLen.toString());
-
-                _enc.add( _enc.Eq(i, _prefixLen) );
+                _enc.add(_enc.Eq(i, _prefixLen));
                 _prefixLen = i;
             }
         }
@@ -596,7 +636,7 @@ public class TransferFunction {
         _operands = new Stack<>();
         _contTrue = new Stack<>();
         _contFalse = new Stack<>();
-        return compute(_statements, mods);
+        return compute(_statements, mods, false, false);
     }
 
 }

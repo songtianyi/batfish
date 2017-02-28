@@ -5,6 +5,7 @@ import org.batfish.datamodel.Configuration;
 import org.batfish.datamodel.routing_policy.RoutingPolicy;
 import org.batfish.datamodel.routing_policy.expr.*;
 import org.batfish.datamodel.routing_policy.statement.If;
+import org.batfish.datamodel.routing_policy.statement.SetDefaultPolicy;
 import org.batfish.datamodel.routing_policy.statement.Statement;
 
 import java.util.List;
@@ -22,14 +23,29 @@ public class AstVisitor {
             for (BooleanExpr be : c.getConjuncts()) {
                 visit(conf, be, fs, fe);
             }
+
         } else if (e instanceof Disjunction) {
             Disjunction d = (Disjunction) e;
             for (BooleanExpr be : d.getDisjuncts()) {
                 visit(conf, be, fs, fe);
             }
+
+        } else if (e instanceof ConjunctionChain) {
+            ConjunctionChain c = (ConjunctionChain) e;
+            for (BooleanExpr be : c.getSubroutines()) {
+                visit(conf, be, fs, fe);
+            }
+
+        } else if (e instanceof DisjunctionChain) {
+            DisjunctionChain d = (DisjunctionChain) e;
+            for (BooleanExpr be : d.getSubroutines()) {
+                visit(conf, be, fs, fe);
+            }
+
         } else if (e instanceof Not) {
             Not n = (Not) e;
             visit(conf, n.getExpr(), fs, fe);
+
         } else if (e instanceof CallExpr) {
             CallExpr c = (CallExpr) e;
             RoutingPolicy rp = conf.getRoutingPolicies().get(c.getCalledPolicyName());
@@ -39,12 +55,19 @@ public class AstVisitor {
 
     public void visit(Configuration conf, Statement s, Consumer<Statement> fs, Consumer<BooleanExpr> fe) {
         fs.accept(s);
+
         if (s instanceof If) {
             If i = (If) s;
             visit(conf, i.getGuard(), fs, fe);
             visit(conf, i.getTrueStatements(), fs, fe);
             visit(conf, i.getFalseStatements(), fs, fe);
+
+        } else if (s instanceof SetDefaultPolicy) {
+            SetDefaultPolicy p = (SetDefaultPolicy) s;
+            RoutingPolicy rp = conf.getRoutingPolicies().get(p.getDefaultPolicy());
+            visit(conf, rp.getStatements(), fs, fe);
         }
+
     }
 
     public void visit(Configuration conf, List<Statement> ss, Consumer<Statement> fs, Consumer<BooleanExpr> fe) {

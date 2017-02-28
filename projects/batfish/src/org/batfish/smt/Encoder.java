@@ -1873,7 +1873,7 @@ public class Encoder {
                     if (pol != null) {
 
                         TransferFunction f = new TransferFunction(this, conf, varsOther, vars,
-                                proto, proto, pol.getStatements(), null, iface, false);
+                                proto, proto, pol.getStatements(), 0, iface, false);
                         importFunction = f.compute();
 
                     } else {

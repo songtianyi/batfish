@@ -68,3 +68,5 @@ test tests/java-smt/area1-forwarding.ref get smt-forwarding dstIps=["70.70.70.70
 # Check correct handling of aggregation
 test tests/java-smt/aggregation1-init.ref init-testrig test_rigs/smt-examples/AGGREGATION1
 test tests/java-smt/aggregation1-forwarding.ref get smt-forwarding dstIps=["42.42.42.1"]
+test tests/java-smt/aggregation2-init.ref init-testrig test_rigs/smt-examples/AGGREGATION2
+test tests/java-smt/aggregation2-forwarding.ref get smt-forwarding dstIps=["42.42.42.1"]
