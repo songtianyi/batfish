@@ -283,6 +283,10 @@ public class Encoder {
         this(e.getHeaderSpace(), graph, e.getCtx(), e.getSolver(), e.getAllVariables());
     }
 
+    public Optimizations getOptimizations() {
+        return _optimizations;
+    }
+
     public HeaderSpace getHeaderSpace() {
         return _headerSpace;
     }
@@ -377,13 +381,31 @@ public class Encoder {
         return (BoolExpr) _ctx.mkITE(cond, case1, case2);
     }
 
-    public boolean overlaps(Prefix p1, Prefix p2) {
+    public ArithExpr If(BoolExpr cond, ArithExpr case1, ArithExpr case2) {
+        return (ArithExpr) _ctx.mkITE(cond, case1, case2);
+    }
+
+    private boolean overlaps(Prefix p1, Prefix p2) {
         long l1 = p1.getNetworkPrefix().getAddress().asLong();
         long l2 = p2.getNetworkPrefix().getAddress().asLong();
         long u1 = p1.getNetworkPrefix().getEndAddress().asLong();
         long u2 = p2.getNetworkPrefix().getEndAddress().asLong();
         return (l1 >= l2 && l1 <= u2) || (u1 <= u2 && u1 >= l2) || (u2 >= l1 && u2 <= u1) || (l2
                 >= l1 && l2 <= u1);
+    }
+
+    private boolean overlaps(HeaderSpace h, Prefix p) {
+        for (IpWildcard ipWildcard : h.getDstIps()) {
+            Prefix p2 = ipWildcard.toPrefix();
+            if (overlaps(p, p2)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public boolean relevantPrefix(Prefix p) {
+        return overlaps(_headerSpace, p);
     }
 
     private void addChoiceVariables() {
@@ -787,7 +809,7 @@ public class Encoder {
         }
     }
 
-    public BoolExpr isRelevantFor(SymbolicRecord vars, PrefixRange range) {
+    public BoolExpr isRelevantFor(ArithExpr prefixLen, PrefixRange range) {
         Prefix p = range.getPrefix();
         SubRange r = range.getLengthRange();
         long pfx = p.getNetworkAddress().asLong();
@@ -800,11 +822,11 @@ public class Encoder {
 
         BoolExpr lowerBitsMatch = firstBitsEqual(_symbolicPacket.getDstIp(), pfx, len);
         if (lower == upper) {
-            BoolExpr equalLen = Eq(vars.getPrefixLength(), Int(lower));
+            BoolExpr equalLen = Eq(prefixLen, Int(lower));
             return And(equalLen, lowerBitsMatch);
         } else {
-            BoolExpr lengthLowerBound = Ge(vars.getPrefixLength(), Int(lower));
-            BoolExpr lengthUpperBound = Le(vars.getPrefixLength(), Int(upper));
+            BoolExpr lengthLowerBound = Ge(prefixLen, Int(lower));
+            BoolExpr lengthUpperBound = Le(prefixLen, Int(upper));
             return And(lengthLowerBound, lengthUpperBound, lowerBitsMatch);
         }
     }
@@ -961,7 +983,7 @@ public class Encoder {
     }
 
 
-    private BoolExpr isRelevantFor(Prefix p, ArithExpr ae) {
+    public BoolExpr isRelevantFor(Prefix p, ArithExpr ae) {
         long pfx = p.getNetworkAddress().asLong();
         return firstBitsEqual(ae, pfx, p.getPrefixLength());
     }
@@ -1851,7 +1873,7 @@ public class Encoder {
                     if (pol != null) {
 
                         TransferFunction f = new TransferFunction(this, conf, varsOther, vars,
-                                proto, proto, pol.getStatements(), null, iface);
+                                proto, proto, pol.getStatements(), null, iface, false);
                         importFunction = f.compute();
 
                     } else {
@@ -1930,7 +1952,7 @@ public class Encoder {
 
                     // System.out.println("Got export function for: " + router);
                     TransferFunction f = new TransferFunction(this, conf, varsOther, vars, proto,
-                            proto, statements, cost, iface);
+                            proto, statements, cost, iface, true);
                     acc = f.compute();
 
                     // System.out.println("EXPORT FUNCTION: " + router + " " + varsOther.getName());

@@ -18,13 +18,17 @@ class Optimizations {
 
     private static final boolean ENABLE_SLICING_OPTIMIZATION = true;
 
+    private static final String AGGREGATION_SUPPRESS_NAME = "MATCH_SUPPRESSED_SUMMARY_ONLY";
+
     private Encoder _encoder;
 
     private boolean _hasEnvironment;
 
-    private Set<String> _sliceHasSingleProtocol;
+    private Map<String, Set<Prefix>> _suppressedAggregates;
 
-    private Set<Long> _areaIds;
+    private Map<String, List<GeneratedRoute>> _relevantAggregates;
+
+    private Set<String> _sliceHasSingleProtocol;
 
     // TODO: convert to Table2
     private Map<String, EnumMap<RoutingProtocol, Boolean>> _sliceCanKeepSingleExportVar;
@@ -46,7 +50,8 @@ class Optimizations {
     Optimizations(Encoder encoder) {
         _encoder = encoder;
         _hasEnvironment = false;
-        _areaIds = new HashSet<>();
+        _relevantAggregates = new HashMap<>();
+        _suppressedAggregates = new HashMap<>();
         _sliceHasSingleProtocol = new HashSet<>();
         _sliceCanCombineImportExportVars = new HashMap<>();
         _sliceCanKeepSingleExportVar = new HashMap<>();
@@ -59,7 +64,8 @@ class Optimizations {
     }
 
     void computeOptimizations() {
-        computeAreaIds();
+        computeRelevantAggregates();
+        computeSuppressedAggregates();
         _hasEnvironment = computeHasEnvironment();
         _keepLocalPref = computeKeepLocalPref();
         _keepAdminDist = computeKeepAdminDistance();
@@ -127,17 +133,36 @@ class Optimizations {
     // TODO: also check if med never set
     private boolean computeKeepMed() {
         return !Optimizations.ENABLE_SLICING_OPTIMIZATION;
-            /* if (!Optimizations.ENABLE_SLICING_OPTIMIZATION) {
-                return true;
-            }
-            return _hasEnvironment; */
+        /* if (!Optimizations.ENABLE_SLICING_OPTIMIZATION) {
+            return true;
+        }
+        return _hasEnvironment; */
     }
 
-    private void computeAreaIds() {
-        // Next check if the there are multiple ospf areas
+    private void computeRelevantAggregates() {
         _encoder.getGraph().getConfigurations().forEach((router, conf) -> {
-            Set<Long> ids = _encoder.getGraph().getAreaIds().get(router);
-            _areaIds.addAll(ids);
+            List<GeneratedRoute> routes = new ArrayList<>();
+            _relevantAggregates.put(router, routes);
+            for (GeneratedRoute gr : conf.getDefaultVrf().getGeneratedRoutes()) {
+                Prefix p = gr.getNetwork();
+                if (_encoder.relevantPrefix(p)) {
+                    routes.add(gr);
+                }
+            }
+        });
+    }
+
+    private void computeSuppressedAggregates() {
+        _encoder.getGraph().getConfigurations().forEach((router,conf) -> {
+           Set<Prefix> prefixes = new HashSet<>();
+           _suppressedAggregates.put(router, prefixes);
+           conf.getRouteFilterLists().forEach((name,filter) -> {
+               if (name.contains(AGGREGATION_SUPPRESS_NAME)) {
+                   for (RouteFilterLine line : filter.getLines()) {
+                       prefixes.add(line.getPrefix());
+                   }
+               }
+           });
         });
     }
 
@@ -163,7 +188,13 @@ class Optimizations {
         }
 
         // Next see if the there are multiple ospf areas
-        return _areaIds.size() > 1;
+        Set<Long> areaIds = new HashSet<>();
+        _encoder.getGraph().getConfigurations().forEach((router, conf) -> {
+            Set<Long> ids = _encoder.getGraph().getAreaIds().get(router);
+            areaIds.addAll(ids);
+        });
+
+        return areaIds.size() > 1;
     }
 
     private void initProtocols() {
@@ -358,11 +389,8 @@ class Optimizations {
     private boolean hasRelevantOriginatedRoute(Configuration conf, RoutingProtocol proto) {
         List<Prefix> prefixes = _encoder.getOriginatedNetworks(conf, proto);
         for (Prefix p1 : prefixes) {
-            for (IpWildcard ipWildcard : _encoder.getHeaderSpace().getDstIps()) {
-                Prefix p2 = ipWildcard.toPrefix();
-                if (_encoder.overlaps(p1, p2)) {
-                    return true;
-                }
+            if (_encoder.relevantPrefix(p1)) {
+                return true;
             }
         }
         return false;
@@ -383,6 +411,14 @@ class Optimizations {
             }
         }
         return false;
+    }
+
+    Map<String, List<GeneratedRoute>> getRelevantAggregates() {
+        return _relevantAggregates;
+    }
+
+    Map<String, Set<Prefix>> getSuppressedAggregates() {
+        return _suppressedAggregates;
     }
 
     Set<String> getNeedRouterId() {
@@ -417,7 +453,7 @@ class Optimizations {
         return _keepMed;
     }
 
-    public boolean getKeepOspfType() {
+    boolean getKeepOspfType() {
         return _keepOspfType;
     }
 }

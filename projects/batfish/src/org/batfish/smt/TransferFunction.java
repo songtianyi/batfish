@@ -39,9 +39,15 @@ public class TransferFunction {
 
     private Stack<List<Statement>> _contFalse;
 
+    private Map<Prefix, Boolean> _aggregates;
+
+    private ArithExpr _prefixLen;
+
+    private boolean _isExport;
+
     public TransferFunction(Encoder encoder, Configuration conf, SymbolicRecord other,
             SymbolicRecord current, RoutingProtocol to, RoutingProtocol from, List<Statement>
-            statements, Integer addedCost, Interface iface) {
+            statements, Integer addedCost, Interface iface, boolean isExport) {
         _enc = encoder;
         _conf = conf;
         _other = other;
@@ -51,6 +57,20 @@ public class TransferFunction {
         _statements = statements;
         _addedCost = addedCost;
         _iface = iface;
+        _isExport = isExport;
+        _aggregates = null;
+        _prefixLen = null;
+    }
+
+    private Map<Prefix, Boolean> aggregateRoutes() {
+        Map<Prefix, Boolean> acc = new HashMap<>();
+        List<GeneratedRoute> aggregates = _enc.getOptimizations().getRelevantAggregates().get(_conf.getName());
+        Set<Prefix> suppressed = _enc.getOptimizations().getSuppressedAggregates().get(_conf.getName());
+        for (GeneratedRoute gr : aggregates) {
+            Prefix p = gr.getNetwork();
+            acc.put(p, suppressed.contains(p));
+        }
+        return acc;
     }
 
     private BoolExpr matchFilterList(RouteFilterList x) {
@@ -63,7 +83,7 @@ public class TransferFunction {
             Prefix p = line.getPrefix();
             SubRange r = line.getLengthRange();
             PrefixRange range = new PrefixRange(p, r);
-            BoolExpr matches = _enc.isRelevantFor(_other, range);
+            BoolExpr matches = _enc.isRelevantFor(_prefixLen, range);
             BoolExpr action = _enc.Bool(line.getAction() == LineAction.ACCEPT);
             acc = _enc.If(matches, action, acc);
         }
@@ -81,7 +101,7 @@ public class TransferFunction {
 
             BoolExpr acc = _enc.False();
             for (PrefixRange range : ranges) {
-                acc = _enc.Or(acc, _enc.isRelevantFor(_other, range));
+                acc = _enc.Or(acc, _enc.isRelevantFor(_prefixLen, range));
             }
             return acc;
 
@@ -304,6 +324,7 @@ public class TransferFunction {
             met = _enc.safeEq(_current.getMetric(), metValue);
         }
 
+        // Update local preference
         BoolExpr lp;
         ArithExpr otherLp = getOrDefault(_other.getLocalPref(), defaultLp);
         if (mods.getSetLp() == null) {
@@ -313,9 +334,11 @@ public class TransferFunction {
             lp = _enc.safeEq(_current.getLocalPref(), applyIntExprModification(otherLp, ie));
         }
 
+        // Update prefix length when aggregation
+        BoolExpr len = _enc.safeEq(_current.getPrefixLength(), getOrDefault(_prefixLen, defaultLen));
+
         BoolExpr per = _enc.safeEq(_current.getPermitted(), _other.getPermitted());
-        BoolExpr len = _enc.safeEq(_current.getPrefixLength(), getOrDefault(_other
-                .getPrefixLength(), defaultLen));
+
         BoolExpr id = _enc.safeEq(_current.getRouterId(), getOrDefault(_other.getRouterId(),
                 defaultId));
 
@@ -530,7 +553,45 @@ public class TransferFunction {
         }
     }
 
+    private void computeIntermediatePrefixLen() {
+        _prefixLen = _other.getPrefixLength();
+
+        if (_isExport) {
+
+            // System.out.println("IS EXPORT: " + _conf.getName());
+
+            _aggregates = aggregateRoutes();
+
+            if (_aggregates.size() > 0) {
+
+                // System.out.println("MULTIPLE AGGREGATES");
+
+                ArithExpr i = _enc.getCtx().mkIntConst(_other.getName() + "_NEW-LEN(" + _iface.getName() + ")");
+                _enc.getAllVariables().add(i);
+
+                _aggregates.forEach((prefix, isSuppressed) -> {
+
+                    // System.out.println("  PREFIX: " + prefix.toString() + ", " + isSuppressed);
+
+                    Prefix p = prefix.getNetworkPrefix();
+                    ArithExpr len = _enc.Int(p.getPrefixLength());
+                    BoolExpr relevantPfx = _enc.isRelevantFor(p, _enc.getSymbolicPacket().getDstIp());
+                    BoolExpr relevantLen = _enc.Gt(_other.getPrefixLength(), len);
+                    BoolExpr relevant = _enc.And(relevantPfx, relevantLen);
+
+                    _prefixLen = _enc.If(relevant, len, _prefixLen);
+                });
+
+                // System.out.println("New Value: " + _prefixLen.toString());
+
+                _enc.add( _enc.Eq(i, _prefixLen) );
+                _prefixLen = i;
+            }
+        }
+    }
+
     public BoolExpr compute() {
+        computeIntermediatePrefixLen();
         Modifications mods = new Modifications(_enc, _conf);
         _operands = new Stack<>();
         _contTrue = new Stack<>();
