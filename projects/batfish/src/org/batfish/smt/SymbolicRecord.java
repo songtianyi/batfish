@@ -16,6 +16,8 @@ public class SymbolicRecord {
 
     private String _name;
 
+    private RoutingProtocol _proto;
+
     private boolean _isUsed;
 
     private boolean _isEnv;
@@ -47,8 +49,9 @@ public class SymbolicRecord {
     private Map<CommunityVar, BoolExpr> _communities;
 
 
-    public SymbolicRecord(String name) {
+    public SymbolicRecord(String name, RoutingProtocol proto) {
         _name = name;
+        _proto = proto;
         _isUsed = false;
         _isBest = false;
         _isBestOverall = false;
@@ -69,8 +72,9 @@ public class SymbolicRecord {
             Context ctx, SymbolicEnum<RoutingProtocol> h) {
 
         _name = name;
+        _proto = proto;
         _isUsed = true;
-        _isEnv = _name.contains("_ENV_");
+        _isEnv = _name.contains("_ENV-");
         _isBest = _name.contains("_BEST");
         _isBestOverall = (_isBest && _name.contains("_OVERALL"));
 
@@ -253,4 +257,10 @@ public class SymbolicRecord {
     public SymbolicEnum<RoutingProtocol> getProtocolHistory() {
         return _protocolHistory;
     }
+
+    public RoutingProtocol getProto() {
+        return _proto;
+    }
 }
+
+

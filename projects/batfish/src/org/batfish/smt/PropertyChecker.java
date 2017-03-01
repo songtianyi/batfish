@@ -16,15 +16,6 @@ import java.util.regex.Pattern;
 
 public class PropertyChecker {
 
-    private static HeaderSpace defaultHeaderSpace() {
-        HeaderSpace h = new HeaderSpace();
-        SortedSet<IpWildcard> ips = new TreeSet<>();
-        Prefix p = new Prefix("0.0.0.0/0");
-        ips.add(new IpWildcard(p));
-        h.setDstIps(ips);
-        return h;
-    }
-
     public static AnswerElement computeForwarding(IBatfish batfish, HeaderSpace h) {
         Encoder encoder = new Encoder(batfish, h);
         encoder.computeEncoding();
@@ -39,17 +30,13 @@ public class PropertyChecker {
         return answer;
     }
 
+    public static AnswerElement computeReachability(IBatfish batfish, HeaderSpace h, String
+            ingressNodeRegexStr, String notIngressNodeRegexStr, String finalNodeRegexStr, String
+            notFinalNodeRegexStr, String finalIfaceRegexStr, String notFinalIfaceRegexStr) {
 
-    public static AnswerElement computeReachability(IBatfish batfish,
-            HeaderSpace h,
-            String ingressNodeRegexStr, String notIngressNodeRegexStr,
-            String finalNodeRegexStr, String notFinalNodeRegexStr,
-            String finalIfaceRegexStr, String notFinalIfaceRegexStr) {
-
-        PathRegexes p = new PathRegexes(
-                finalNodeRegexStr, notFinalNodeRegexStr,
-                finalIfaceRegexStr, notFinalIfaceRegexStr,
-                ingressNodeRegexStr, notIngressNodeRegexStr);
+        PathRegexes p = new PathRegexes(finalNodeRegexStr, notFinalNodeRegexStr,
+                finalIfaceRegexStr, notFinalIfaceRegexStr, ingressNodeRegexStr,
+                notIngressNodeRegexStr);
 
         Graph graph = new Graph(batfish);
         List<GraphEdge> destinationPorts = PatternUtils.findMatchingEdges(graph, p);
@@ -96,11 +83,10 @@ public class PropertyChecker {
         return answer;
     }
 
-
     public static AnswerElement computeBlackHole(IBatfish batfish) {
         Graph graph = new Graph(batfish);
 
-        HeaderSpace h = defaultHeaderSpace();
+        HeaderSpace h = new HeaderSpace();
 
         Encoder enc = new Encoder(h, graph);
         enc.computeEncoding();
@@ -161,16 +147,13 @@ public class PropertyChecker {
         return answer;
     }
 
+    public static AnswerElement computeBoundedLength(IBatfish batfish, HeaderSpace h, String
+            ingressNodeRegexStr, String notIngressNodeRegexStr, String finalNodeRegexStr, String
+            notFinalNodeRegexStr, String finalIfaceRegexStr, String notFinalIfaceRegexStr, int k) {
 
-    public static AnswerElement computeBoundedLength(IBatfish batfish, HeaderSpace h,
-            String ingressNodeRegexStr, String notIngressNodeRegexStr,
-            String finalNodeRegexStr, String notFinalNodeRegexStr,
-            String finalIfaceRegexStr, String notFinalIfaceRegexStr, int k) {
-
-        PathRegexes p = new PathRegexes(
-                finalNodeRegexStr, notFinalNodeRegexStr,
-                finalIfaceRegexStr, notFinalIfaceRegexStr,
-                ingressNodeRegexStr, notIngressNodeRegexStr);
+        PathRegexes p = new PathRegexes(finalNodeRegexStr, notFinalNodeRegexStr,
+                finalIfaceRegexStr, notFinalIfaceRegexStr, ingressNodeRegexStr,
+                notIngressNodeRegexStr);
 
         Graph graph = new Graph(batfish);
         List<GraphEdge> destinationPorts = PatternUtils.findMatchingEdges(graph, p);
@@ -220,15 +203,13 @@ public class PropertyChecker {
     }
 
 
-    public static AnswerElement computeEqualLength(IBatfish batfish, HeaderSpace h,
-            String ingressNodeRegexStr, String notIngressNodeRegexStr,
-            String finalNodeRegexStr, String notFinalNodeRegexStr,
-            String finalIfaceRegexStr, String notFinalIfaceRegexStr) {
+    public static AnswerElement computeEqualLength(IBatfish batfish, HeaderSpace h, String
+            ingressNodeRegexStr, String notIngressNodeRegexStr, String finalNodeRegexStr, String
+            notFinalNodeRegexStr, String finalIfaceRegexStr, String notFinalIfaceRegexStr) {
 
-        PathRegexes p = new PathRegexes(
-                finalNodeRegexStr, notFinalNodeRegexStr,
-                finalIfaceRegexStr, notFinalIfaceRegexStr,
-                ingressNodeRegexStr, notIngressNodeRegexStr);
+        PathRegexes p = new PathRegexes(finalNodeRegexStr, notFinalNodeRegexStr,
+                finalIfaceRegexStr, notFinalIfaceRegexStr, ingressNodeRegexStr,
+                notIngressNodeRegexStr);
 
         Graph graph = new Graph(batfish);
         List<GraphEdge> destinationPorts = PatternUtils.findMatchingEdges(graph, p);
@@ -279,15 +260,13 @@ public class PropertyChecker {
 
     // TODO: this is broken due to peer regex
 
-    public static AnswerElement computeLoadBalance(IBatfish batfish, HeaderSpace h,
-            String ingressNodeRegexStr, String notIngressNodeRegexStr,
-            String finalNodeRegexStr, String notFinalNodeRegexStr,
-            String finalIfaceRegexStr, String notFinalIfaceRegexStr, int k) {
+    public static AnswerElement computeLoadBalance(IBatfish batfish, HeaderSpace h, String
+            ingressNodeRegexStr, String notIngressNodeRegexStr, String finalNodeRegexStr, String
+            notFinalNodeRegexStr, String finalIfaceRegexStr, String notFinalIfaceRegexStr, int k) {
 
-        PathRegexes p = new PathRegexes(
-                finalNodeRegexStr, notFinalNodeRegexStr,
-                finalIfaceRegexStr, notFinalIfaceRegexStr,
-                ingressNodeRegexStr, notIngressNodeRegexStr);
+        PathRegexes p = new PathRegexes(finalNodeRegexStr, notFinalNodeRegexStr,
+                finalIfaceRegexStr, notFinalIfaceRegexStr, ingressNodeRegexStr,
+                notIngressNodeRegexStr);
 
         Graph graph = new Graph(batfish);
         List<GraphEdge> destinationPorts = PatternUtils.findMatchingEdges(graph, p);
@@ -359,7 +338,7 @@ public class PropertyChecker {
 
         Map<String, VerificationResult> result = new HashMap<>();
 
-        HeaderSpace h = defaultHeaderSpace();
+        HeaderSpace h = new HeaderSpace();
 
         int len = routers.size();
         if (len <= 1) {
@@ -410,15 +389,14 @@ public class PropertyChecker {
 
             // TODO: check running same protocols?
 
-            Map<String, EnumMap<RoutingProtocol, Map<String, EnumMap<EdgeType, LogicalEdge>>>>
-                    lgeMap1 = logicalEdgeMap(e1);
+            // Map<String, EnumMap<RoutingProtocol, Map<String, EnumMap<EdgeType, LogicalEdge>>>>
+            //        lgeMap1 = logicalEdgeMap(e1);
             Map<String, EnumMap<RoutingProtocol, Map<String, EnumMap<EdgeType, LogicalEdge>>>>
                     lgeMap2 = logicalEdgeMap(e2);
 
             BoolExpr equalEnvs = ctx.mkBool(true);
             BoolExpr equalOutputs = ctx.mkBool(true);
             BoolExpr equalIncomingAcls = ctx.mkBool(true);
-            BoolExpr equalOutgoingAcls = ctx.mkBool(true);
 
             Configuration conf1 = g1.getConfigurations().get(r1);
             Configuration conf2 = g2.getConfigurations().get(r2);
@@ -430,6 +408,7 @@ public class PropertyChecker {
                     for (LogicalEdge lge1 : es) {
 
                         String ifaceName = lge1.getEdge().getStart().getName();
+
                         LogicalEdge lge2 = lgeMap2.get(r2).get(proto1).get(ifaceName).get
                                 (lge1.getEdgeType());
 
@@ -517,9 +496,21 @@ public class PropertyChecker {
             SymbolicPacket p2 = e2.getSymbolicPacket();
             BoolExpr equalPackets = p1.mkEqual(p2);
 
-            BoolExpr assumptions = ctx.mkAnd(equalEnvs, validDest, equalPackets);
-            BoolExpr required = ctx.mkAnd(sameForwarding, equalOutputs, equalIncomingAcls,
-                    equalOutgoingAcls);
+            BoolExpr assumptions = ctx.mkAnd(equalEnvs, equalPackets, validDest);
+            BoolExpr required = ctx.mkAnd(equalOutputs, equalIncomingAcls);
+
+            /* System.out.println("\nAssume Equal Envs: ");
+            System.out.println(equalEnvs.simplify());
+            System.out.println("\nAssume valid destination: ");
+            System.out.println(validDest.simplify());
+            System.out.println("\nAssume equal packets: ");
+            System.out.println(equalPackets.simplify());
+            System.out.println("\nRequire same forwarding: ");
+            System.out.println(sameForwarding.simplify());
+            System.out.println("\nRequire equal outputs");
+            System.out.println(equalOutputs.simplify());
+            System.out.println("\nRequire equal incoming Acls");
+            System.out.println(equalIncomingAcls.simplify()); */
 
             solver.add(assumptions);
             solver.add(ctx.mkNot(required));
@@ -547,6 +538,7 @@ public class PropertyChecker {
 
     private static Map<String, EnumMap<RoutingProtocol, Map<String, EnumMap<EdgeType,
             LogicalEdge>>>> logicalEdgeMap(Encoder enc) {
+
         Map<String, EnumMap<RoutingProtocol, Map<String, EnumMap<EdgeType, LogicalEdge>>>> acc =
                 new HashMap<>();
         enc.getLogicalGraph().getLogicalEdges().forEach((router, map) -> {
@@ -579,6 +571,7 @@ public class PropertyChecker {
 
     private static BoolExpr ignoredDestinations(Context ctx, Encoder e1, String r1, Configuration
             conf1) {
+        // TODO BGP networks and aggregated routes
         // Don't consider directly connected routes
         BoolExpr validDest = ctx.mkBool(true);
         for (RoutingProtocol proto1 : e1.getGraph().getProtocols().get(r1)) {
@@ -588,6 +581,7 @@ public class PropertyChecker {
                 validDest = ctx.mkAnd(validDest, ctx.mkNot(dest));
             }
         }
+
         return validDest;
     }
 
@@ -600,13 +594,11 @@ public class PropertyChecker {
     }
 
     public static AnswerElement computeMultipathConsistency(IBatfish batfish, HeaderSpace h,
-            String finalNodeRegexStr, String notFinalNodeRegexStr,
-            String finalIfaceRegexStr, String notFinalIfaceRegexStr) {
+            String finalNodeRegexStr, String notFinalNodeRegexStr, String finalIfaceRegexStr,
+            String notFinalIfaceRegexStr) {
 
-        PathRegexes p = new PathRegexes(
-                finalNodeRegexStr, notFinalNodeRegexStr,
-                finalIfaceRegexStr, notFinalIfaceRegexStr,
-                null, null);
+        PathRegexes p = new PathRegexes(finalNodeRegexStr, notFinalNodeRegexStr,
+                finalIfaceRegexStr, notFinalIfaceRegexStr, null, null);
 
         Graph graph = new Graph(batfish);
         List<GraphEdge> destinationPorts = PatternUtils.findMatchingEdges(graph, p);

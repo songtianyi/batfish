@@ -11,24 +11,6 @@ import org.batfish.datamodel.routing_policy.statement.*;
 import java.util.*;
 import java.util.regex.Matcher;
 
-// Features:
-// ---------
-//   - Avoid loops in BGP when non-standard (or non-common) local-pref internally
-//   - iBGP by comparing local-pref internally
-//     * Requires reachability, and no ACLs for loopbacks
-//   - RIP, EIGRP routing protocols
-//
-// Environment stuff:
-// ------------------
-//   - Ensure Local preference/MED transitive depending on local/remote/send community AS?
-//
-// Small items:
-// ------------
-//   - How to handle one side of a link being inactive?
-//   - What to do with overflow?
-//   - Ensure distance is transfered over with redistribution
-//   - Compute multipath correctly (how do we handle some multipath)
-
 
 /**
  * An object that is responsible for creating a symbolic representation
@@ -45,8 +27,6 @@ public class Encoder {
     static final String BGP_NETWORK_FILTER_LIST_NAME = "BGP_NETWORK_NETWORKS_FILTER";
 
     static final String BGP_COMMON_FILTER_LIST_NAME = "BGP_COMMON_EXPORT_POLICY";
-
-    static final String BGP_AGGREGATE_FILTER_LIST_NAME = "BGP_AGGREGATE_NETWORKS_FILTER";
 
     private static int encodingId = 0;
 
@@ -279,12 +259,8 @@ public class Encoder {
         return comms;
     }
 
-    public Encoder(Encoder e, Graph graph) {
-        this(e.getHeaderSpace(), graph, e.getCtx(), e.getSolver(), e.getAllVariables());
-    }
-
-    public Optimizations getOptimizations() {
-        return _optimizations;
+    public Encoder(Encoder e, Graph g) {
+        this(e.getHeaderSpace(), g, e.getCtx(), e.getSolver(), e.getAllVariables());
     }
 
     public HeaderSpace getHeaderSpace() {
@@ -301,6 +277,10 @@ public class Encoder {
 
     public List<Expr> getAllVariables() {
         return _allVariables;
+    }
+
+    public Optimizations getOptimizations() {
+        return _optimizations;
     }
 
     public LogicalGraph getLogicalGraph() {
@@ -369,10 +349,6 @@ public class Encoder {
         throw new BatfishException("Invalid call the Le while encoding control plane");
     }
 
-    public ArithExpr Sum(ArithExpr e1, ArithExpr e2) {
-        return _ctx.mkAdd(e1, e2);
-    }
-
     public ArithExpr Sub(ArithExpr e1, ArithExpr e2) {
         return _ctx.mkSub(e1, e2);
     }
@@ -385,16 +361,14 @@ public class Encoder {
         return (ArithExpr) _ctx.mkITE(cond, case1, case2);
     }
 
-    private boolean overlaps(Prefix p1, Prefix p2) {
-        long l1 = p1.getNetworkPrefix().getAddress().asLong();
-        long l2 = p2.getNetworkPrefix().getAddress().asLong();
-        long u1 = p1.getNetworkPrefix().getEndAddress().asLong();
-        long u2 = p2.getNetworkPrefix().getEndAddress().asLong();
-        return (l1 >= l2 && l1 <= u2) || (u1 <= u2 && u1 >= l2) || (u2 >= l1 && u2 <= u1) || (l2
-                >= l1 && l2 <= u1);
+    public boolean relevantPrefix(Prefix p) {
+        return overlaps(_headerSpace, p);
     }
 
     private boolean overlaps(HeaderSpace h, Prefix p) {
+        if (h.getDstIps().isEmpty()) {
+            return true;
+        }
         for (IpWildcard ipWildcard : h.getDstIps()) {
             Prefix p2 = ipWildcard.toPrefix();
             if (overlaps(p, p2)) {
@@ -404,8 +378,13 @@ public class Encoder {
         return false;
     }
 
-    public boolean relevantPrefix(Prefix p) {
-        return overlaps(_headerSpace, p);
+    private boolean overlaps(Prefix p1, Prefix p2) {
+        long l1 = p1.getNetworkPrefix().getAddress().asLong();
+        long l2 = p2.getNetworkPrefix().getAddress().asLong();
+        long u1 = p1.getNetworkPrefix().getEndAddress().asLong();
+        long u2 = p2.getNetworkPrefix().getEndAddress().asLong();
+        return (l1 >= l2 && l1 <= u2) || (u1 <= u2 && u1 >= l2) || (u2 >= l1 && u2 <= u1) || (l2
+                >= l1 && l2 <= u1);
     }
 
     private void addChoiceVariables() {
@@ -580,7 +559,7 @@ public class Encoder {
                             if (notNeeded) {
                                 String name = String.format("%s_%s_%s_%s", router, proto
                                         .protocolName(), ifaceName, "IMPORT");
-                                SymbolicRecord ev2 = new SymbolicRecord(name);
+                                SymbolicRecord ev2 = new SymbolicRecord(name, proto);
                                 LogicalEdge eImport = new LogicalEdge(e, EdgeType.IMPORT, len, ev2);
                                 importEdgeList.add(eImport);
                             } else {
@@ -746,19 +725,22 @@ public class Encoder {
         for (SymbolicRecord e : _allSymbolicRecords) {
             if (e.getAdminDist() != null) {
                 add(Ge(e.getAdminDist(), zero));
-                //_solver.add(_ctx.mkLe(e.getAdminDist(), _ctx.mkInt(200)));
+                add(Lt(e.getAdminDist(), upperBound8));
             }
             if (e.getMed() != null) {
                 add(Ge(e.getMed(), zero));
-                //_solver.add(_ctx.mkLe(e.getMed(), _ctx.mkInt(100)));
+                add(Lt(e.getMed(), upperBound32));
             }
             if (e.getLocalPref() != null) {
                 add(Ge(e.getLocalPref(), zero));
-                //_solver.add(_ctx.mkLe(e.getLocalPref(), _ctx.mkInt(100)));
+                add(Lt(e.getLocalPref(), upperBound32));
             }
             if (e.getMetric() != null) {
                 add(Ge(e.getMetric(), zero));
-                //_solver.add(_ctx.mkLe(e.getMetric(), _ctx.mkInt(200)));
+                if (e.isEnv()) {
+                    add(Lt(e.getMetric(), upperBound8));
+                }
+                add(Lt(e.getMetric(), upperBound16));
             }
             if (e.getPrefixLength() != null) {
                 add(Ge(e.getPrefixLength(), zero));
@@ -778,7 +760,6 @@ public class Encoder {
                         BoolExpr depExpr = r.getCommunities().get(dep);
                         acc = Or(acc, depExpr);
                     }
-                    // System.out.println("Community constraint:\n" + acc.simplify());
                     add(acc);
                 }
             });
@@ -887,7 +868,6 @@ public class Encoder {
         throw new BatfishException("Invalid call the Le while encoding control plane");
     }
 
-
     /**
      * TODO:
      * This was copied from BdpDataPlanePlugin.java
@@ -919,7 +899,6 @@ public class Encoder {
             });
         }
     }
-
 
     public Set<RoutingProtocol> findRedistributedProtocols(Configuration conf, RoutingPolicy pol,
             RoutingProtocol p) {
@@ -981,7 +960,6 @@ public class Encoder {
             }
         });
     }
-
 
     public BoolExpr isRelevantFor(Prefix p, ArithExpr ae) {
         long pfx = p.getNetworkAddress().asLong();
@@ -1054,6 +1032,10 @@ public class Encoder {
             return Eq(x, value);
         }
         return Eq(x, Sum(value, Int(cost)));
+    }
+
+    public ArithExpr Sum(ArithExpr e1, ArithExpr e2) {
+        return _ctx.mkAdd(e1, e2);
     }
 
     public <T> BoolExpr safeEqEnum(SymbolicEnum<T> x, T value) {
@@ -1317,7 +1299,8 @@ public class Encoder {
         BitVecExpr bestType = (best.getOspfType() == null ? null : best.getOspfType().getBitVec());
         BitVecExpr varsType = (vars.getOspfType() == null ? null : vars.getOspfType().getBitVec());
 
-        BoolExpr betterOspfType = geBetterHelper(bestType, varsType, defaultOspfType, true, keepType);
+        BoolExpr betterOspfType = geBetterHelper(bestType, varsType, defaultOspfType, true,
+                keepType);
         BoolExpr equalOspfType = geEqualHelper(bestType, varsType, defaultOspfType, keepType);
 
         BoolExpr tiebreak;
@@ -1859,40 +1842,35 @@ public class Encoder {
 
             if (proto == RoutingProtocol.OSPF || proto == RoutingProtocol.BGP) {
                 BoolExpr val = Not(vars.getPermitted());
+
                 if (varsOther != null) {
-                    // Get the import policy for a given network, can return null if none,
-                    // in which case we just will copy over the old variables.
-
                     BoolExpr isRoot = relevantOrigination(originations);
-
                     BoolExpr active = interfaceActive(iface, proto);
-
                     BoolExpr usable = And(Not(isRoot), active, varsOther.getPermitted(), notFailed);
+
                     BoolExpr importFunction;
                     RoutingPolicy pol = getGraph().findImportRoutingPolicy(router, proto, e);
-                    if (pol != null) {
 
-                        TransferFunction f = new TransferFunction(this, conf, varsOther, vars,
-                                proto, proto, pol.getStatements(), 0, iface, false);
-                        importFunction = f.compute();
-
+                    List<Statement> statements;
+                    if (pol == null) {
+                        Statements.StaticStatement s = new Statements.StaticStatement(Statements
+                                .ExitAccept);
+                        statements = Collections.singletonList(s);
                     } else {
-                        // just copy the export policy in ospf/bgp
-                        BoolExpr per = Eq(vars.getPermitted(), varsOther.getPermitted());
-                        BoolExpr lp = safeEq(vars.getLocalPref(), varsOther.getLocalPref());
-                        BoolExpr ad = safeEq(vars.getAdminDist(), varsOther.getAdminDist());
-                        BoolExpr met = safeEq(vars.getMetric(), varsOther.getMetric());
-                        BoolExpr med = safeEq(vars.getMed(), varsOther.getMed());
-                        BoolExpr len = safeEq(vars.getPrefixLength(), varsOther.getPrefixLength());
-                        BoolExpr type = safeEqEnum(vars.getOspfType(), varsOther.getOspfType());
-                        BoolExpr area = safeEqEnum(vars.getOspfArea(), varsOther.getOspfArea());
-                        importFunction = And(per, lp, ad, met, med, len, type, area);
+                        statements = pol.getStatements();
                     }
 
+                    TransferFunction f = new TransferFunction(this, conf, varsOther, vars,
+                            proto, proto, statements, 0, iface, false);
+                    importFunction = f.compute();
+
                     // System.out.println("IMPORT FUNCTION: " + router + " " + varsOther.getName());
+                    // System.out.println(importFunction);
+                    // System.out.println("IMPORT FUNCTION (simpl): " + router + " " + varsOther.getName());
                     // System.out.println(importFunction.simplify());
 
                     add(If(usable, importFunction, val));
+
                 } else {
                     add(val);
                 }
@@ -1933,54 +1911,36 @@ public class Encoder {
 
                 BoolExpr acc;
                 RoutingPolicy pol = getGraph().findExportRoutingPolicy(router, proto, e);
-                if (pol != null) {
 
-                    // We have to wrap this with the right thing for some reason
-                    List<Statement> statements;
-                    if (proto == RoutingProtocol.OSPF) {
-                        If i = new If();
-                        Statements.StaticStatement s = new Statements.StaticStatement(Statements
-                                .ExitAccept);
-                        i.setTrueStatements(Collections.singletonList(s));
-                        i.setFalseStatements(pol.getStatements());
-                        BooleanExpr expr = new MatchProtocol(RoutingProtocol.OSPF);
-                        i.setGuard(expr);
-                        statements = Collections.singletonList(i);
-                    } else {
-                        statements = pol.getStatements();
-                    }
+                // We have to wrap this with the right thing for some reason
+                List<Statement> statements;
+                Statements.StaticStatement s1 = new Statements.StaticStatement(Statements
+                        .ExitAccept);
+                Statements.StaticStatement s2 = new Statements.StaticStatement(Statements
+                        .ExitReject);
 
-                    // System.out.println("Got export function for: " + router);
-                    TransferFunction f = new TransferFunction(this, conf, varsOther, vars, proto,
-                            proto, statements, cost, iface, true);
-                    acc = f.compute();
-
-                    // System.out.println("EXPORT FUNCTION: " + router + " " + varsOther.getName());
-                    // System.out.println(acc);
-                    // System.out.println("SIMPLIFIED: " + router + " " + varsOther.getName());
-                    // System.out.println(acc.simplify());
-
+                if (proto == RoutingProtocol.OSPF) {
+                    If i = new If();
+                    List<Statement> stmts =
+                            (pol == null ? Collections.singletonList(s2) : pol.getStatements());
+                    i.setTrueStatements(Collections.singletonList(s1));
+                    i.setFalseStatements(stmts);
+                    BooleanExpr expr = new MatchProtocol(RoutingProtocol.OSPF);
+                    i.setGuard(expr);
+                    statements = Collections.singletonList(i);
                 } else {
-
-                    // TODO: make this just call the transfer function to keep logic in one place
-                    BoolExpr per = vars.getPermitted();
-                    BoolExpr len = safeEq(vars.getPrefixLength(), varsOther.getPrefixLength());
-                    BoolExpr ad = safeEq(vars.getAdminDist(), varsOther.getAdminDist());
-                    BoolExpr med = safeEq(vars.getMed(), varsOther.getMed());
-                    BoolExpr lp = safeEq(vars.getLocalPref(), varsOther.getLocalPref());
-                    BoolExpr area = safeEqEnum(vars.getOspfArea(), varsOther.getOspfArea());
-                    BoolExpr type = safeEqEnum(vars.getOspfType(), varsOther.getOspfType());
-                    BoolExpr met = safeEqAdd(vars.getMetric(), varsOther.getMetric(), cost);
-                    acc = And(per, len, ad, med, lp, met, area, type);
-
-                    // TODO: need a cleaner way to deal with this
-                    // Wrap OSPF with a new If statement checking if OSPF protocol first
-                    if (proto == RoutingProtocol.OSPF) {
-                        BoolExpr isOspf = varsOther.getProtocolHistory().checkIfValue(proto);
-                        acc = If(isOspf, acc, val);
-                    }
-
+                    statements =
+                            (pol == null ? Collections.singletonList(s1) : pol.getStatements());
                 }
+
+                TransferFunction f = new TransferFunction(this, conf, varsOther, vars, proto,
+                        proto, statements, cost, iface, true);
+                acc = f.compute();
+
+                // System.out.println("EXPORT FUNCTION: " + router + " " + varsOther.getName());
+                // System.out.println(acc);
+                // System.out.println("SIMPLIFIED: " + router + " " + varsOther.getName());
+                // System.out.println(acc.simplify());
 
                 acc = If(usable, acc, val);
 
@@ -2028,8 +1988,6 @@ public class Encoder {
                                     break;
 
                                 case EXPORT:
-                                    // varsOther = _symbolicDecisions.getBestVars(_optimizations,
-                                    // router, proto);
                                     varsOther = _symbolicDecisions.getBestNeighbor().get(router);
                                     usedExport = addExportConstraint(e, varsOther, conf, proto,
                                             iface, router, usedExport, originations);
@@ -2044,14 +2002,13 @@ public class Encoder {
 
     private void addHistoryConstraints() {
         _symbolicDecisions.getBestNeighborPerProtocol().forEach((router, proto, vars) -> {
-            assert (vars.getProtocolHistory() != null);
-            add(vars.getProtocolHistory().checkIfValue(proto));
+            add(Implies(vars.getPermitted(), vars.getProtocolHistory().checkIfValue(proto)));
         });
 
         _symbolicDecisions.getBestNeighbor().forEach((router, vars) -> {
             if (_optimizations.getSliceHasSingleProtocol().contains(router)) {
                 RoutingProtocol proto = getGraph().getProtocols().get(router).get(0);
-                add(vars.getProtocolHistory().checkIfValue(proto));
+                add(Implies(vars.getPermitted(), vars.getProtocolHistory().checkIfValue(proto)));
             }
         });
     }
