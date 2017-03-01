@@ -1,6 +1,5 @@
 package org.batfish.smt.utils;
 
-import java.util.ConcurrentModificationException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;

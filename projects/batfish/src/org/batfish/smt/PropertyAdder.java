@@ -31,8 +31,7 @@ public class PropertyAdder {
         Context ctx = _encoder.getCtx();
         Solver solver = _encoder.getSolver();
 
-        BoolExpr fwdIface = _encoder.getSymbolicDecisions().getDataForwarding().get(ge.getRouter
-                (), ge);
+        BoolExpr fwdIface = _encoder.getForwardsAcross().get(ge.getRouter(), ge);
 
         Map<String, BoolExpr> reachableVars = new HashMap<>();
         _encoder.getGraph().getConfigurations().forEach((router, conf) -> {
@@ -50,8 +49,7 @@ public class PropertyAdder {
                 BoolExpr var = reachableVars.get(router);
                 BoolExpr acc = ctx.mkBool(false);
                 for (GraphEdge edge : edges) {
-                    BoolExpr fwd = _encoder.getSymbolicDecisions().getDataForwarding().get
-                            (router, edge);
+                    BoolExpr fwd = _encoder.getForwardsAcross().get(router, edge);
                     if (edge.getPeer() != null) {
                         BoolExpr peerReachable = reachableVars.get(edge.getPeer());
                         acc = ctx.mkOr(acc, ctx.mkAnd(fwd, peerReachable));
@@ -75,8 +73,7 @@ public class PropertyAdder {
         Context ctx = _encoder.getCtx();
         Solver solver = _encoder.getSolver();
 
-        BoolExpr fwdIface = _encoder.getSymbolicDecisions().getDataForwarding().get(ge.getRouter
-                (), ge);
+        BoolExpr fwdIface = _encoder.getForwardsAcross().get(ge.getRouter(), ge);
 
         Map<String, ArithExpr> lenVars = new HashMap<>();
         _encoder.getGraph().getConfigurations().forEach((router, conf) -> {
@@ -104,8 +101,7 @@ public class PropertyAdder {
             if (!router.equals(ge.getRouter())) {
                 for (GraphEdge edge : edges) {
                     if (edge.getPeer() != null) {
-                        BoolExpr dataFwd = _encoder.getSymbolicDecisions().getDataForwarding()
-                                                   .get(router, edge);
+                        BoolExpr dataFwd = _encoder.getForwardsAcross().get(router, edge);
 
                         ArithExpr y = lenVars.get(edge.getPeer());
                         accNone = ctx.mkAnd(accNone, ctx.mkOr(ctx.mkLt(y, zero), ctx.mkNot
@@ -128,8 +124,7 @@ public class PropertyAdder {
         Context ctx = _encoder.getCtx();
         Solver solver = _encoder.getSolver();
 
-        BoolExpr fwdIface = _encoder.getSymbolicDecisions().getDataForwarding().get(ge.getRouter
-                (), ge);
+        BoolExpr fwdIface = _encoder.getForwardsAcross().get(ge.getRouter(), ge);
 
         Map<String, ArithExpr> loadVars = new HashMap<>();
         _encoder.getGraph().getConfigurations().forEach((router, conf) -> {
@@ -154,8 +149,7 @@ public class PropertyAdder {
                 ArithExpr var = loadVars.get(router);
                 ArithExpr acc = ctx.mkInt(0);
                 for (GraphEdge edge : edges) {
-                    BoolExpr fwd = _encoder.getSymbolicDecisions().getDataForwarding().get
-                            (router, edge);
+                    BoolExpr fwd = _encoder.getForwardsAcross().get(router, edge);
                     if (edge.getPeer() != null) {
                         ArithExpr peerLoad = loadVars.get(edge.getPeer());
                         ArithExpr x = (ArithExpr) ctx.mkITE(fwd, peerLoad, zero);
@@ -186,7 +180,7 @@ public class PropertyAdder {
             BoolExpr var = onLoop.get(r);
             BoolExpr acc = ctx.mkBool(false);
             for (GraphEdge edge : edges) {
-                BoolExpr fwd = _encoder.getSymbolicDecisions().getDataForwarding().get(r, edge);
+                BoolExpr fwd = _encoder.getForwardsAcross().get(r, edge);
                 String peer = edge.getPeer();
                 if (peer != null) {
                     // If next hop is static route router, then on loop

@@ -60,14 +60,13 @@ public class PropertyChecker {
             Map<String, BoolExpr> reachableVars = pa.instrumentReachability(ge);
 
             Context ctx = enc.getCtx();
-            Solver solver = enc.getSolver();
 
             BoolExpr allReach = ctx.mkBool(false);
             for (String router : sourceRouters) {
                 BoolExpr reach = reachableVars.get(router);
                 allReach = ctx.mkOr(allReach, ctx.mkNot(reach));
             }
-            solver.add(allReach);
+            enc.add(allReach);
 
             VerificationResult res = enc.verify();
             result.put(ge.getRouter() + "," + ge.getStart().getName(), res);
@@ -92,7 +91,6 @@ public class PropertyChecker {
         enc.computeEncoding();
 
         Context ctx = enc.getCtx();
-        Solver solver = enc.getSolver();
 
         // Collect routers that have no host/environment edge
         List<String> toCheck = new ArrayList<>();
@@ -138,7 +136,7 @@ public class PropertyChecker {
             someBlackHole = ctx.mkOr(someBlackHole, ctx.mkAnd(isFwdTo, doesNotFwd));
         }
 
-        solver.add(someBlackHole);
+        enc.add(someBlackHole);
 
         VerificationResult result = enc.verify();
 
@@ -177,7 +175,6 @@ public class PropertyChecker {
             Map<String, ArithExpr> lenVars = pa.instrumentPathLength(ge);
 
             Context ctx = enc.getCtx();
-            Solver solver = enc.getSolver();
 
             // All routers bounded by a particular length
             BoolExpr allBounded = ctx.mkBool(false);
@@ -186,7 +183,7 @@ public class PropertyChecker {
                 ArithExpr bound = ctx.mkInt(k);
                 allBounded = ctx.mkOr(allBounded, ctx.mkGt(len, bound));
             }
-            solver.add(allBounded);
+            enc.add(allBounded);
 
             VerificationResult res = enc.verify();
             result.put(ge.getRouter() + "," + ge.getStart().getName(), res);
@@ -233,7 +230,6 @@ public class PropertyChecker {
             Map<String, ArithExpr> lenVars = pa.instrumentPathLength(ge);
 
             Context ctx = enc.getCtx();
-            Solver solver = enc.getSolver();
 
             // All routers have the same length through transitivity
             List<Expr> lens = new ArrayList<>();
@@ -242,7 +238,7 @@ public class PropertyChecker {
             }
             BoolExpr allEqual = PropertyAdder.allEqual(ctx, lens);
 
-            solver.add(ctx.mkNot(allEqual));
+            enc.add(ctx.mkNot(allEqual));
 
             VerificationResult res = enc.verify();
             result.put(ge.getRouter() + "," + ge.getStart().getName(), res);
@@ -305,7 +301,6 @@ public class PropertyChecker {
             Map<String, ArithExpr> loadVars = pa.instrumentLoad(ge);
 
             Context ctx = enc.getCtx();
-            Solver solver = enc.getSolver();
 
             // TODO: add threshold
             // All routers bounded by a particular length
@@ -317,7 +312,7 @@ public class PropertyChecker {
                 }
             });
             BoolExpr evenLoads = PropertyAdder.allEqual(ctx, peerLoads);
-            solver.add(ctx.mkNot(evenLoads));
+            enc.add(ctx.mkNot(evenLoads));
 
             VerificationResult res = enc.verify();
             result.put(ge.getRouter() + "," + ge.getStart().getName(), res);
@@ -361,7 +356,6 @@ public class PropertyChecker {
             e1.computeEncoding();
 
             Context ctx = e1.getCtx();
-            Solver solver = e1.getSolver();
 
             // Create transfer function for router 2
             // Reuse the context and solver
@@ -499,21 +493,8 @@ public class PropertyChecker {
             BoolExpr assumptions = ctx.mkAnd(equalEnvs, equalPackets, validDest);
             BoolExpr required = ctx.mkAnd(equalOutputs, equalIncomingAcls);
 
-            /* System.out.println("\nAssume Equal Envs: ");
-            System.out.println(equalEnvs.simplify());
-            System.out.println("\nAssume valid destination: ");
-            System.out.println(validDest.simplify());
-            System.out.println("\nAssume equal packets: ");
-            System.out.println(equalPackets.simplify());
-            System.out.println("\nRequire same forwarding: ");
-            System.out.println(sameForwarding.simplify());
-            System.out.println("\nRequire equal outputs");
-            System.out.println(equalOutputs.simplify());
-            System.out.println("\nRequire equal incoming Acls");
-            System.out.println(equalIncomingAcls.simplify()); */
-
-            solver.add(assumptions);
-            solver.add(ctx.mkNot(required));
+            e2.add(assumptions);
+            e2.add(ctx.mkNot(required));
 
             VerificationResult res = e2.verify();
 
@@ -571,17 +552,12 @@ public class PropertyChecker {
 
     private static BoolExpr ignoredDestinations(Context ctx, Encoder e1, String r1, Configuration
             conf1) {
-        // TODO BGP networks and aggregated routes
-        // Don't consider directly connected routes
         BoolExpr validDest = ctx.mkBool(true);
         for (RoutingProtocol proto1 : e1.getGraph().getProtocols().get(r1)) {
-            if (proto1 == RoutingProtocol.CONNECTED) {
-                List<Prefix> prefixes = e1.getOriginatedNetworks(conf1, proto1);
-                BoolExpr dest = e1.relevantOrigination(prefixes);
-                validDest = ctx.mkAnd(validDest, ctx.mkNot(dest));
-            }
+            List<Prefix> prefixes = e1.getOriginatedNetworks(conf1, proto1);
+            BoolExpr dest = e1.relevantOrigination(prefixes);
+            validDest = ctx.mkAnd(validDest, ctx.mkNot(dest));
         }
-
         return validDest;
     }
 
@@ -624,7 +600,7 @@ public class PropertyChecker {
             Solver solver = enc.getSolver();
 
             // All neighbor forwarded to have the same length
-            BoolExpr acc = ctx.mkBool(false);
+            /* BoolExpr acc = ctx.mkBool(false);
             for (Map.Entry<String, Configuration> entry : graph.getConfigurations().entrySet()) {
                 String router = entry.getKey();
                 BoolExpr reach = reachableVars.get(router);
@@ -637,10 +613,41 @@ public class PropertyChecker {
                     bad = ctx.mkOr(bad, ctx.mkAnd(ctrFwd, ctx.mkNot(dataFwd)));
                 }
                 acc = ctx.mkOr(acc, ctx.mkAnd(reach, bad));
+            } */
+
+            BoolExpr acc = enc.False();
+
+            for (Map.Entry<String, Configuration> entry : graph.getConfigurations().entrySet()) {
+                String router = entry.getKey();
+                BoolExpr reach = reachableVars.get(router);
+
+                BoolExpr all = enc.True();
+                for (GraphEdge edge : graph.getEdgeMap().get(router)) {
+                    BoolExpr dataFwd = enc.getForwardsAcross().get(router, edge);
+                    BoolExpr ctrFwd = enc.getSymbolicDecisions().getControlForwarding().get
+                            (router, edge);
+                    BoolExpr peerReach = enc.True();
+                    if (edge.getPeer() != null) {
+                        peerReach = reachableVars.get(edge.getPeer());
+                    }
+                    BoolExpr imp = enc.Implies(ctrFwd, enc.And(dataFwd, peerReach));
+
+                    all = enc.And(all, imp);
+                }
+
+                acc = enc.Or(acc, enc.Not(enc.Implies(reach, all)));
             }
-            solver.add(acc);
+
+            // System.out.println(acc);
+            // System.out.println("");
+            // System.out.println(acc.simplify());
+
+            enc.add( acc );
+
             VerificationResult res = enc.verify();
-            // result.debug();
+
+            // res.debug(enc);
+
             result.put(ge.getRouter() + "," + ge.getStart().getName(), res);
 
             if (addedDestination) {
@@ -695,7 +702,7 @@ public class PropertyChecker {
             BoolExpr hasLoop = pa.instrumentLoop(router);
             someLoop = ctx.mkOr(someLoop, hasLoop);
         }
-        solver.add(someLoop);
+        enc.add(someLoop);
 
         VerificationResult result = enc.verify();
 

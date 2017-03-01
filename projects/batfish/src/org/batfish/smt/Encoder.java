@@ -7,6 +7,7 @@ import org.batfish.datamodel.*;
 import org.batfish.datamodel.routing_policy.RoutingPolicy;
 import org.batfish.datamodel.routing_policy.expr.*;
 import org.batfish.datamodel.routing_policy.statement.*;
+import org.batfish.smt.utils.Table2;
 
 import java.util.*;
 import java.util.regex.Matcher;
@@ -45,6 +46,8 @@ public class Encoder {
     private Map<Interface, BoolExpr> _inboundAcls;
 
     private Map<Interface, BoolExpr> _outboundAcls;
+
+    private Table2<String, GraphEdge, BoolExpr> _forwardsAcross;
 
     private Set<CommunityVar> _allCommunities;
 
@@ -128,13 +131,21 @@ public class Encoder {
 
         _inboundAcls = new HashMap<>();
         _outboundAcls = new HashMap<>();
-
-        initCommunities();
+        _forwardsAcross = new Table2<>();
 
         _unsatCore = new UnsatCore(ENABLE_DEBUGGING);
+
+        if (ENABLE_DEBUGGING) {
+            System.out.println(getGraph().toString());
+        }
+        initCommunities();
+        initConfigurations();
+        initOptimizations();
+        initRedistributionProtocols();
+        initVariables();
     }
 
-    public void initCommunities() {
+    private void initCommunities() {
         _allCommunities = findAllCommunities();
 
         // TODO: only add other communities if there is another value that can be matched.
@@ -301,6 +312,10 @@ public class Encoder {
 
     public Map<Interface, BoolExpr> getOutgoingAcls() {
         return _outboundAcls;
+    }
+
+    public Table2<String, GraphEdge, BoolExpr> getForwardsAcross() {
+        return _forwardsAcross;
     }
 
     public Set<CommunityVar> getAllCommunities() {
@@ -622,7 +637,7 @@ public class Encoder {
         });
     }
 
-    private void computeOptimizations() {
+    private void initOptimizations() {
         _optimizations.computeOptimizations();
     }
 
@@ -682,7 +697,7 @@ public class Encoder {
         });
     }
 
-    private void addVariables() {
+    private void initVariables() {
         buildEdgeMap();
         addForwardingVariables();
         addBestVariables();
@@ -1751,10 +1766,25 @@ public class Encoder {
         });
     }
 
+    private void addForwardingAcross() {
+        _symbolicDecisions.getDataForwarding().forEach((router, edge, var) -> {
+            BoolExpr inAcl;
+            if (edge.getEnd() == null) {
+                inAcl = True();
+            } else {
+                inAcl =  _inboundAcls.get(edge.getEnd());
+                if (inAcl == null) {
+                    inAcl = True();
+                }
+            }
+            _forwardsAcross.put(router, edge, And(var, inAcl));
+        });
+    }
+
     private void addDataForwardingConstraints() {
         getGraph().getEdgeMap().forEach((router, edges) -> {
             for (GraphEdge ge : edges) {
-                BoolExpr acl = _inboundAcls.get(ge.getStart());
+                BoolExpr acl = _outboundAcls.get(ge.getStart());
                 if (acl == null) {
                     acl = True();
                 }
@@ -2457,13 +2487,6 @@ public class Encoder {
     }
 
     public void computeEncoding() {
-        if (ENABLE_DEBUGGING) {
-            System.out.println(getGraph().toString());
-        }
-        initConfigurations();
-        computeOptimizations();
-        initRedistributionProtocols();
-        addVariables();
         addBoundConstraints();
         addCommunityConstraints();
         addFailedConstraints(0);
@@ -2474,6 +2497,7 @@ public class Encoder {
         addBestOverallConstraints();
         addControlForwardingConstraints();
         addAclFunctions();
+        addForwardingAcross();
         addDataForwardingConstraints();
         addUnusedDefaultValueConstraints();
         addInactiveLinkConstraints();
