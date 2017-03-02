@@ -9,7 +9,7 @@ import java.util.Set;
 
 public class Modifications {
 
-    private Encoder _encoder;
+    private EncoderSlice _encoderSlice;
 
     private Configuration _conf;
 
@@ -35,8 +35,8 @@ public class Modifications {
 
     private Set<CommunityVar> _negativeCommunities;
 
-    public Modifications(Encoder encoder, Configuration conf) {
-        _encoder = encoder;
+    public Modifications(EncoderSlice encoderSlice, Configuration conf) {
+        _encoderSlice = encoderSlice;
         _conf = conf;
         _defaultPolicy = null;
         _defaultAccept = false;
@@ -62,7 +62,7 @@ public class Modifications {
         SetOspfMetricType h = other.getSetOspfMetricType();
         SetDefaultPolicy i = other.getSetDefaultPolicy();
 
-        _encoder = other._encoder;
+        _encoderSlice = other._encoderSlice;
         _conf = other._conf;
         _defaultPolicy = (i == null ? null : new SetDefaultPolicy(i.getDefaultPolicy()));
         _defaultAccept = other._defaultAccept;
@@ -133,19 +133,19 @@ public class Modifications {
 
         if (stmt instanceof AddCommunity) {
             AddCommunity x = (AddCommunity) stmt;
-            Set<CommunityVar> comms = _encoder.findAllCommunities(_conf, x.getExpr());
+            Set<CommunityVar> comms = _encoderSlice.findAllCommunities(_conf, x.getExpr());
             addPositiveCommunities(comms);
         }
 
         if (stmt instanceof SetCommunity) {
             SetCommunity x = (SetCommunity) stmt;
-            Set<CommunityVar> comms = _encoder.findAllCommunities(_conf, x.getExpr());
+            Set<CommunityVar> comms = _encoderSlice.findAllCommunities(_conf, x.getExpr());
             addPositiveCommunities(comms);
         }
 
         if (stmt instanceof DeleteCommunity) {
             DeleteCommunity x = (DeleteCommunity) stmt;
-            Set<CommunityVar> comms = _encoder.findAllCommunities(_conf, x.getExpr());
+            Set<CommunityVar> comms = _encoderSlice.findAllCommunities(_conf, x.getExpr());
             addNegativeCommunities(comms);
         }
 

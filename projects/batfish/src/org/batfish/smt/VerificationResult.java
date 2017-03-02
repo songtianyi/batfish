@@ -128,7 +128,7 @@ public class VerificationResult {
     }
 
 
-    public void debug(Encoder enc) {
+    public void debug(EncoderSlice enc) {
         System.out.println("================= Constraints ==================");
         for (BoolExpr be : enc.getSolver().getAssertions()) {
             System.out.println(be.simplify());

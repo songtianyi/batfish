@@ -15,7 +15,7 @@ import static org.batfish.datamodel.routing_policy.statement.Statements.*;
 
 public class TransferFunction {
 
-    private Encoder _enc;
+    private EncoderSlice _enc;
 
     private Configuration _conf;
 
@@ -45,10 +45,10 @@ public class TransferFunction {
 
     private boolean _isExport;
 
-    public TransferFunction(Encoder encoder, Configuration conf, SymbolicRecord other,
+    public TransferFunction(EncoderSlice encoderSlice, Configuration conf, SymbolicRecord other,
             SymbolicRecord current, RoutingProtocol to, RoutingProtocol from, List<Statement>
             statements, Integer addedCost, Interface iface, boolean isExport) {
-        _enc = encoder;
+        _enc = encoderSlice;
         _conf = conf;
         _other = other;
         _current = current;

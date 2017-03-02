@@ -7,6 +7,7 @@ import org.batfish.datamodel.routing_policy.RoutingPolicy;
 import org.batfish.datamodel.routing_policy.expr.BooleanExpr;
 import org.batfish.datamodel.routing_policy.expr.CallExpr;
 import org.batfish.datamodel.routing_policy.statement.*;
+import org.batfish.smt.utils.Table2;
 
 import java.util.*;
 
@@ -20,9 +21,11 @@ class Optimizations {
 
     private static final String AGGREGATION_SUPPRESS_NAME = "MATCH_SUPPRESSED_SUMMARY_ONLY";
 
-    private Encoder _encoder;
+    private EncoderSlice _encoderSlice;
 
     private boolean _hasEnvironment;
+
+    private Map<String, List<RoutingProtocol>> _protocols;
 
     private Map<String, Set<Prefix>> _suppressedAggregates;
 
@@ -30,12 +33,11 @@ class Optimizations {
 
     private Set<String> _sliceHasSingleProtocol;
 
-    // TODO: convert to Table2
-    private Map<String, EnumMap<RoutingProtocol, Boolean>> _sliceCanKeepSingleExportVar;
+    private Table2<String, RoutingProtocol, Boolean> _sliceCanKeepSingleExportVar;
 
-    private Map<String, EnumMap<RoutingProtocol, List<GraphEdge>>> _sliceCanCombineImportExportVars;
+    private Table2<String, RoutingProtocol, List<GraphEdge>> _sliceCanCombineImportExportVars;
 
-    private Map<String, EnumMap<RoutingProtocol, Boolean>> _needRouterIdProto;
+    private Table2<String, RoutingProtocol, Boolean> _needRouterIdProto;
 
     private Set<String> _needRouterId;
 
@@ -47,15 +49,16 @@ class Optimizations {
 
     private boolean _keepOspfType;
 
-    Optimizations(Encoder encoder) {
-        _encoder = encoder;
+    Optimizations(EncoderSlice encoderSlice) {
+        _encoderSlice = encoderSlice;
         _hasEnvironment = false;
+        _protocols = new HashMap<>();
         _relevantAggregates = new HashMap<>();
         _suppressedAggregates = new HashMap<>();
         _sliceHasSingleProtocol = new HashSet<>();
-        _sliceCanCombineImportExportVars = new HashMap<>();
-        _sliceCanKeepSingleExportVar = new HashMap<>();
-        _needRouterIdProto = new HashMap<>();
+        _sliceCanCombineImportExportVars = new Table2<>();
+        _sliceCanKeepSingleExportVar = new Table2<>();
+        _needRouterIdProto = new Table2<>();
         _needRouterId = new HashSet<>();
         _keepLocalPref = true;
         _keepAdminDist = true;
@@ -64,8 +67,6 @@ class Optimizations {
     }
 
     void computeOptimizations() {
-        computeRelevantAggregates();
-        computeSuppressedAggregates();
         _hasEnvironment = computeHasEnvironment();
         _keepLocalPref = computeKeepLocalPref();
         _keepAdminDist = computeKeepAdminDistance();
@@ -76,14 +77,16 @@ class Optimizations {
         computeCanUseSingleBest();
         computeCanMergeExportVars();
         computeCanMergeImportExportVars();
+        computeRelevantAggregates();
+        computeSuppressedAggregates();
     }
 
     private boolean computeHasEnvironment() {
         Boolean[] val = new Boolean[1];
         val[0] = false;
-        _encoder.getGraph().getEdgeMap().forEach((router, edges) -> {
+        _encoderSlice.getGraph().getEdgeMap().forEach((router, edges) -> {
             for (GraphEdge ge : edges) {
-                if (ge.getEnd() == null && _encoder.getGraph().getBgpNeighbors().containsKey(ge)) {
+                if (ge.getEnd() == null && _encoderSlice.getGraph().getBgpNeighbors().containsKey(ge)) {
                     val[0] = true;
                 }
             }
@@ -97,7 +100,7 @@ class Optimizations {
         }
         Boolean[] val = new Boolean[1];
         val[0] = false;
-        _encoder.getGraph().getConfigurations().forEach((router, conf) -> {
+        _encoderSlice.getGraph().getConfigurations().forEach((router, conf) -> {
             conf.getRoutingPolicies().forEach((name, pol) -> {
                 AstVisitor v = new AstVisitor();
                 v.visit(conf, pol.getStatements(), stmt -> {
@@ -117,7 +120,7 @@ class Optimizations {
         AstVisitor v = new AstVisitor();
         Boolean[] val = new Boolean[1];
         val[0] = false;
-        _encoder.getGraph().getConfigurations().forEach((router, conf) -> {
+        _encoderSlice.getGraph().getConfigurations().forEach((router, conf) -> {
             conf.getRoutingPolicies().forEach((name, pol) -> {
                 v.visit(conf, pol.getStatements(), stmt -> {
                     // TODO: how is admin distance set?
@@ -140,12 +143,12 @@ class Optimizations {
     }
 
     private void computeRelevantAggregates() {
-        _encoder.getGraph().getConfigurations().forEach((router, conf) -> {
+        _encoderSlice.getGraph().getConfigurations().forEach((router, conf) -> {
             List<GeneratedRoute> routes = new ArrayList<>();
             _relevantAggregates.put(router, routes);
             for (GeneratedRoute gr : conf.getDefaultVrf().getGeneratedRoutes()) {
                 Prefix p = gr.getNetwork();
-                if (_encoder.relevantPrefix(p)) {
+                if (_encoderSlice.relevantPrefix(p)) {
                     routes.add(gr);
                 }
             }
@@ -153,7 +156,7 @@ class Optimizations {
     }
 
     private void computeSuppressedAggregates() {
-        _encoder.getGraph().getConfigurations().forEach((router,conf) -> {
+        _encoderSlice.getGraph().getConfigurations().forEach((router,conf) -> {
            Set<Prefix> prefixes = new HashSet<>();
            _suppressedAggregates.put(router, prefixes);
            conf.getRouteFilterLists().forEach((name,filter) -> {
@@ -174,7 +177,7 @@ class Optimizations {
         AstVisitor v = new AstVisitor();
         Boolean[] val = new Boolean[1];
         val[0] = false;
-        _encoder.getGraph().getConfigurations().forEach((router, conf) -> {
+        _encoderSlice.getGraph().getConfigurations().forEach((router, conf) -> {
             conf.getRoutingPolicies().forEach((name, pol) -> {
                 v.visit(conf, pol.getStatements(), stmt -> {
                     if (stmt instanceof SetOspfMetricType) {
@@ -189,8 +192,8 @@ class Optimizations {
 
         // Next see if the there are multiple ospf areas
         Set<Long> areaIds = new HashSet<>();
-        _encoder.getGraph().getConfigurations().forEach((router, conf) -> {
-            Set<Long> ids = _encoder.getGraph().getAreaIds().get(router);
+        _encoderSlice.getGraph().getConfigurations().forEach((router, conf) -> {
+            Set<Long> ids = _encoderSlice.getGraph().getAreaIds().get(router);
             areaIds.addAll(ids);
         });
 
@@ -198,12 +201,12 @@ class Optimizations {
     }
 
     private void initProtocols() {
-        Graph g = _encoder.getGraph();
+        Graph g = _encoderSlice.getGraph();
         g.getConfigurations().forEach((router, conf) -> {
-            g.getProtocols().put(router, new ArrayList<>());
+            getProtocols().put(router, new ArrayList<>());
         });
         g.getConfigurations().forEach((router, conf) -> {
-            List<RoutingProtocol> protos = _encoder.getGraph().getProtocols().get(router);
+            List<RoutingProtocol> protos = getProtocols().get(router);
             if (conf.getDefaultVrf().getOspfProcess() != null) {
                 protos.add(RoutingProtocol.OSPF);
             }
@@ -221,11 +224,11 @@ class Optimizations {
 
     // Check if we need the routerID for each router/protocol pair
     private void computeRouterIdNeeded() {
-        _encoder.getGraph().getConfigurations().forEach((router, conf) -> {
+        _encoderSlice.getGraph().getConfigurations().forEach((router, conf) -> {
             EnumMap<RoutingProtocol, Boolean> map = new EnumMap<>(RoutingProtocol.class);
             _needRouterIdProto.put(router, map);
-            for (RoutingProtocol proto : _encoder.getGraph().getProtocols().get(router)) {
-                if (_encoder.isMultipath(conf, proto)) {
+            for (RoutingProtocol proto : getProtocols().get(router)) {
+                if (_encoderSlice.isMultipath(conf, proto)) {
                     map.put(proto, false);
                 } else {
                     map.put(proto, true);
@@ -238,8 +241,8 @@ class Optimizations {
 
     // Check if we can avoid keeping both a best and overall best copy?
     private void computeCanUseSingleBest() {
-        _encoder.getGraph().getConfigurations().forEach((router, conf) -> {
-            if (_encoder.getGraph().getProtocols().get(router).size() == 1) {
+        _encoderSlice.getGraph().getConfigurations().forEach((router, conf) -> {
+            if (getProtocols().get(router).size() == 1) {
                 _sliceHasSingleProtocol.add(router);
             }
         });
@@ -247,15 +250,15 @@ class Optimizations {
 
     // Merge export variables into a single copy when no peer-specific export
     private void computeCanMergeExportVars() {
-        Graph g = _encoder.getGraph();
+        Graph g = _encoderSlice.getGraph();
 
-        _encoder.getGraph().getConfigurations().forEach((router, conf) -> {
+        _encoderSlice.getGraph().getConfigurations().forEach((router, conf) -> {
             EnumMap<RoutingProtocol, Boolean> map = new EnumMap<>(RoutingProtocol.class);
             _sliceCanKeepSingleExportVar.put(router, map);
 
             // Can be no peer-specific export, which includes dropping due to
             // the neighbor already being the root of the tree.
-            for (RoutingProtocol proto : _encoder.getGraph().getProtocols().get(router)) {
+            for (RoutingProtocol proto : getProtocols().get(router)) {
                 if (proto == RoutingProtocol.CONNECTED || proto == RoutingProtocol.STATIC) {
                     map.put(proto, Optimizations.ENABLE_EXPORT_MERGE_OPTIMIZATION);
 
@@ -268,7 +271,7 @@ class Optimizations {
                     }
 
                     // Ensure single area for this router
-                    boolean singleArea = _encoder.getGraph().getAreaIds().get(router).size() <= 1;
+                    boolean singleArea = _encoderSlice.getGraph().getAreaIds().get(router).size() <= 1;
 
                     map.put(proto, allIfacesActive && singleArea && Optimizations.ENABLE_EXPORT_MERGE_OPTIMIZATION);
 
@@ -294,10 +297,10 @@ class Optimizations {
     // Merge import and export variables when there is no peer-specific import
     private void computeCanMergeImportExportVars() {
 
-        _encoder.getGraph().getConfigurations().forEach((router, conf) -> {
+        _encoderSlice.getGraph().getConfigurations().forEach((router, conf) -> {
             EnumMap<RoutingProtocol, List<GraphEdge>> map = new EnumMap<>(RoutingProtocol.class);
             _sliceCanCombineImportExportVars.put(router, map);
-            for (RoutingProtocol proto : _encoder.getGraph().getProtocols().get(router)) {
+            for (RoutingProtocol proto : getProtocols().get(router)) {
 
                 List<GraphEdge> edges = new ArrayList<>();
                 if (Optimizations.ENABLE_IMPORT_EXPORT_MERGE_OPTIMIZATION) {
@@ -308,7 +311,7 @@ class Optimizations {
 
                         boolean isNotRoot = !hasRelevantOriginatedRoute(conf, proto);
                         if (isNotRoot) {
-                            for (GraphEdge e : _encoder.getGraph().getEdgeMap().get(router)) {
+                            for (GraphEdge e : _encoderSlice.getGraph().getEdgeMap().get(router)) {
                                 if (hasExportVariables(e, proto)) {
                                     edges.add(e);
                                 }
@@ -383,13 +386,13 @@ class Optimizations {
 
         CallExpr ce = (CallExpr) be;
 
-        return ce.getCalledPolicyName().contains(Encoder.BGP_COMMON_FILTER_LIST_NAME);
+        return ce.getCalledPolicyName().contains(EncoderSlice.BGP_COMMON_FILTER_LIST_NAME);
     }
 
     private boolean hasRelevantOriginatedRoute(Configuration conf, RoutingProtocol proto) {
-        List<Prefix> prefixes = _encoder.getOriginatedNetworks(conf, proto);
+        List<Prefix> prefixes = _encoderSlice.getOriginatedNetworks(conf, proto);
         for (Prefix p1 : prefixes) {
-            if (_encoder.relevantPrefix(p1)) {
+            if (_encoderSlice.relevantPrefix(p1)) {
                 return true;
             }
         }
@@ -402,15 +405,19 @@ class Optimizations {
     private boolean hasExportVariables(GraphEdge e, RoutingProtocol proto) {
         if (e.getEnd() != null) {
             String peer = e.getPeer();
-            List<RoutingProtocol> peerProtocols = _encoder.getGraph().getProtocols().get(peer);
+            List<RoutingProtocol> peerProtocols = getProtocols().get(peer);
             if (peerProtocols.contains(proto)) {
-                Configuration peerConf = _encoder.getGraph().getConfigurations().get(peer);
-                if (_encoder.getGraph().isInterfaceUsed(peerConf, proto, e.getEnd())) {
+                Configuration peerConf = _encoderSlice.getGraph().getConfigurations().get(peer);
+                if (_encoderSlice.getGraph().isInterfaceUsed(peerConf, proto, e.getEnd())) {
                     return true;
                 }
             }
         }
         return false;
+    }
+
+    Map<String, List<RoutingProtocol>> getProtocols() {
+        return _protocols;
     }
 
     Map<String, List<GeneratedRoute>> getRelevantAggregates() {
@@ -425,15 +432,15 @@ class Optimizations {
         return _needRouterId;
     }
 
-    Map<String, EnumMap<RoutingProtocol, Boolean>> getNeedRouterIdProto() {
+    Table2<String, RoutingProtocol, Boolean> getNeedRouterIdProto() {
         return _needRouterIdProto;
     }
 
-    Map<String, EnumMap<RoutingProtocol, Boolean>> getSliceCanKeepSingleExportVar() {
+    Table2<String, RoutingProtocol, Boolean> getSliceCanKeepSingleExportVar() {
         return _sliceCanKeepSingleExportVar;
     }
 
-    Map<String, EnumMap<RoutingProtocol, List<GraphEdge>>> getSliceCanCombineImportExportVars() {
+    Table2<String, RoutingProtocol, List<GraphEdge>> getSliceCanCombineImportExportVars() {
         return _sliceCanCombineImportExportVars;
     }
 

@@ -28,8 +28,6 @@ public class Graph {
 
     private Map<GraphEdge, BgpNeighbor> _bgpNeighbors;
 
-    private Map<String, List<RoutingProtocol>> _protocols;
-
     public Graph(IBatfish batfish) {
         this(batfish, null);
     }
@@ -43,7 +41,6 @@ public class Graph {
         _staticRoutes = new HashMap<>();
         _neighbors = new HashMap<>();
         _bgpNeighbors = new HashMap<>();
-        _protocols = new HashMap<>();
 
         // Remove the routers we don't want to model
         if (routers != null) {
@@ -100,10 +97,7 @@ public class Graph {
                     if (hasMultipleEnds) {
                         GraphEdge ge = new GraphEdge(i1, null, router, null);
                         graphEdges.add(ge);
-                        // System.out.println("Warning: edge " + ge + " has multiple ends");
                     } else {
-                        // System.out.println("NIP: " + nip.toString());
-
                         for (Edge e : es) {
                             // System.out.println("  edge: " + e.toString());
                             if (!router.equals(e.getNode2())) {
@@ -167,7 +161,6 @@ public class Graph {
             List<BgpNeighbor> ns = new ArrayList<>();
             ips.put(router, ipList);
             neighbors.put(router, ns);
-
             if (conf.getDefaultVrf().getBgpProcess() != null) {
                 conf.getDefaultVrf().getBgpProcess().getNeighbors().forEach((pfx, neighbor) -> {
                     ipList.add(neighbor.getAddress());
@@ -236,7 +229,7 @@ public class Graph {
         if (proto == RoutingProtocol.BGP) {
             for (Map.Entry<String, RoutingPolicy> entry : conf.getRoutingPolicies().entrySet()) {
                 String name = entry.getKey();
-                if (name.contains(Encoder.BGP_COMMON_FILTER_LIST_NAME)) {
+                if (name.contains(EncoderSlice.BGP_COMMON_FILTER_LIST_NAME)) {
                     return entry.getValue();
                 }
             }
@@ -326,18 +319,12 @@ public class Graph {
             }
         });
 
-        //sb.append("---------- Other End of Edge ----------\n");
-        //_otherEnd.forEach((e1, e2) -> {
-        //    sb.append(e1).append(" maps to ").append(e2).append("\n");
-        //});
-
-
         sb.append("---------- Static Routes by Interface ----------\n");
         _staticRoutes.forEach((router, map) -> {
             map.forEach((iface, srs) -> {
                 for (StaticRoute sr : srs) {
-                    sb.append("Router: " + router + ", Interface: " + iface + " --> " + sr
-                            .getNetwork().toString() + "\n");
+                    sb.append("Router: ").append(router).append(", Interface: ").append(iface)
+                      .append(" --> ").append(sr.getNetwork().toString()).append("\n");
                 }
             });
         });
@@ -364,10 +351,6 @@ public class Graph {
 
     public Map<GraphEdge, GraphEdge> getOtherEnd() {
         return _otherEnd;
-    }
-
-    public Map<String, List<RoutingProtocol>> getProtocols() {
-        return _protocols;
     }
 
 }

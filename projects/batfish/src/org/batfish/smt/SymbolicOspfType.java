@@ -7,7 +7,7 @@ import java.util.List;
 public class SymbolicOspfType extends SymbolicEnum<OspfType> {
 
 
-    public SymbolicOspfType(Encoder enc, List<OspfType> values, String name) {
+    public SymbolicOspfType(EncoderSlice enc, List<OspfType> values, String name) {
         super(enc, values, name);
     }
 

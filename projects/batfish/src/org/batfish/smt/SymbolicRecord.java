@@ -68,7 +68,7 @@ public class SymbolicRecord {
     }
 
     public SymbolicRecord(
-            Encoder enc, String name, String router, RoutingProtocol proto, Optimizations opts,
+            EncoderSlice enc, String name, String router, RoutingProtocol proto, Optimizations opts,
             Context ctx, SymbolicEnum<RoutingProtocol> h) {
 
         _name = name;
@@ -78,8 +78,8 @@ public class SymbolicRecord {
         _isBest = _name.contains("_BEST");
         _isBestOverall = (_isBest && _name.contains("_OVERALL"));
 
-        boolean hasOspf = enc.getGraph().getProtocols().get(router).contains(RoutingProtocol.OSPF);
-        boolean multipleProtos = enc.getGraph().getProtocols().get(router).size() > 1;
+        boolean hasOspf = enc.getProtocols().get(router).contains(RoutingProtocol.OSPF);
+        boolean multipleProtos = enc.getProtocols().get(router).size() > 1;
         boolean modelAd = (_isBestOverall && multipleProtos) || opts.getKeepAdminDist();
 
         _protocolHistory = h;
@@ -170,7 +170,7 @@ public class SymbolicRecord {
         addExprs(enc);
     }
 
-    private void addExprs(Encoder enc) {
+    private void addExprs(EncoderSlice enc) {
         List<Expr> all = enc.getAllVariables();
 
         all.add(_permitted);

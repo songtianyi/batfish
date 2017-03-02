@@ -20,7 +20,7 @@ import java.util.Map;
  */
 public class SymbolicEnum<T> {
 
-    protected Encoder _enc;
+    protected EncoderSlice _enc;
 
     protected BitVecExpr _bitvec;
 
@@ -30,7 +30,7 @@ public class SymbolicEnum<T> {
 
     protected Map<T, BitVecExpr> _valueMap;
 
-    public SymbolicEnum(Encoder enc, List<T> values, String name) {
+    public SymbolicEnum(EncoderSlice enc, List<T> values, String name) {
         _enc = enc;
 
         int size = values.size();

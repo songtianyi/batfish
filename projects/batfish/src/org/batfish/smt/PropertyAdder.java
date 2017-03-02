@@ -9,10 +9,10 @@ import java.util.Map;
 
 public class PropertyAdder {
 
-    private Encoder _encoder;
+    private EncoderSlice _encoderSlice;
 
-    public PropertyAdder(Encoder encoder) {
-        _encoder = encoder;
+    public PropertyAdder(EncoderSlice encoderSlice) {
+        _encoderSlice = encoderSlice;
     }
 
     public static BoolExpr allEqual(Context ctx, List<Expr> exprs) {
@@ -28,28 +28,28 @@ public class PropertyAdder {
     }
 
     public Map<String, BoolExpr> instrumentReachability(GraphEdge ge) {
-        Context ctx = _encoder.getCtx();
-        Solver solver = _encoder.getSolver();
+        Context ctx = _encoderSlice.getCtx();
+        Solver solver = _encoderSlice.getSolver();
 
-        BoolExpr fwdIface = _encoder.getForwardsAcross().get(ge.getRouter(), ge);
+        BoolExpr fwdIface = _encoderSlice.getForwardsAcross().get(ge.getRouter(), ge);
 
         Map<String, BoolExpr> reachableVars = new HashMap<>();
-        _encoder.getGraph().getConfigurations().forEach((router, conf) -> {
+        _encoderSlice.getGraph().getConfigurations().forEach((router, conf) -> {
             BoolExpr var = ctx.mkBoolConst("reachable_" + router);
             reachableVars.put(router, var);
-            _encoder.getAllVariables().add(var);
+            _encoderSlice.getAllVariables().add(var);
         });
 
 
         BoolExpr baseRouterReachable = reachableVars.get(ge.getRouter());
         solver.add(ctx.mkEq(fwdIface, baseRouterReachable));
 
-        _encoder.getGraph().getEdgeMap().forEach((router, edges) -> {
+        _encoderSlice.getGraph().getEdgeMap().forEach((router, edges) -> {
             if (!router.equals(ge.getRouter())) {
                 BoolExpr var = reachableVars.get(router);
                 BoolExpr acc = ctx.mkBool(false);
                 for (GraphEdge edge : edges) {
-                    BoolExpr fwd = _encoder.getForwardsAcross().get(router, edge);
+                    BoolExpr fwd = _encoderSlice.getForwardsAcross().get(router, edge);
                     if (edge.getPeer() != null) {
                         BoolExpr peerReachable = reachableVars.get(edge.getPeer());
                         acc = ctx.mkOr(acc, ctx.mkAnd(fwd, peerReachable));
@@ -70,16 +70,16 @@ public class PropertyAdder {
     }
 
     public Map<String, ArithExpr> instrumentPathLength(GraphEdge ge) {
-        Context ctx = _encoder.getCtx();
-        Solver solver = _encoder.getSolver();
+        Context ctx = _encoderSlice.getCtx();
+        Solver solver = _encoderSlice.getSolver();
 
-        BoolExpr fwdIface = _encoder.getForwardsAcross().get(ge.getRouter(), ge);
+        BoolExpr fwdIface = _encoderSlice.getForwardsAcross().get(ge.getRouter(), ge);
 
         Map<String, ArithExpr> lenVars = new HashMap<>();
-        _encoder.getGraph().getConfigurations().forEach((router, conf) -> {
+        _encoderSlice.getGraph().getConfigurations().forEach((router, conf) -> {
             ArithExpr var = ctx.mkIntConst("path-length_" + router);
             lenVars.put(router, var);
-            _encoder.getAllVariables().add(var);
+            _encoderSlice.getAllVariables().add(var);
         });
 
         // Lower bound for all lengths
@@ -94,14 +94,14 @@ public class PropertyAdder {
 
         // If no peer has a path, then I don't have a path
         // Otherwise I choose 1 + somePeer value to capture all possible lengths
-        _encoder.getGraph().getEdgeMap().forEach((router, edges) -> {
+        _encoderSlice.getGraph().getEdgeMap().forEach((router, edges) -> {
             BoolExpr accNone = ctx.mkBool(true);
             BoolExpr accSome = ctx.mkBool(false);
             ArithExpr x = lenVars.get(router);
             if (!router.equals(ge.getRouter())) {
                 for (GraphEdge edge : edges) {
                     if (edge.getPeer() != null) {
-                        BoolExpr dataFwd = _encoder.getForwardsAcross().get(router, edge);
+                        BoolExpr dataFwd = _encoderSlice.getForwardsAcross().get(router, edge);
 
                         ArithExpr y = lenVars.get(edge.getPeer());
                         accNone = ctx.mkAnd(accNone, ctx.mkOr(ctx.mkLt(y, zero), ctx.mkNot
@@ -121,16 +121,16 @@ public class PropertyAdder {
     }
 
     public Map<String, ArithExpr> instrumentLoad(GraphEdge ge) {
-        Context ctx = _encoder.getCtx();
-        Solver solver = _encoder.getSolver();
+        Context ctx = _encoderSlice.getCtx();
+        Solver solver = _encoderSlice.getSolver();
 
-        BoolExpr fwdIface = _encoder.getForwardsAcross().get(ge.getRouter(), ge);
+        BoolExpr fwdIface = _encoderSlice.getForwardsAcross().get(ge.getRouter(), ge);
 
         Map<String, ArithExpr> loadVars = new HashMap<>();
-        _encoder.getGraph().getConfigurations().forEach((router, conf) -> {
+        _encoderSlice.getGraph().getConfigurations().forEach((router, conf) -> {
             ArithExpr var = ctx.mkIntConst("load_" + router);
             loadVars.put(router, var);
-            _encoder.getAllVariables().add(var);
+            _encoderSlice.getAllVariables().add(var);
         });
 
         // Lower bound for all lengths
@@ -144,12 +144,12 @@ public class PropertyAdder {
         ArithExpr baseRouterLoad = loadVars.get(ge.getRouter());
         solver.add(ctx.mkImplies(fwdIface, ctx.mkEq(baseRouterLoad, one)));
 
-        _encoder.getGraph().getEdgeMap().forEach((router, edges) -> {
+        _encoderSlice.getGraph().getEdgeMap().forEach((router, edges) -> {
             if (!router.equals(ge.getRouter())) {
                 ArithExpr var = loadVars.get(router);
                 ArithExpr acc = ctx.mkInt(0);
                 for (GraphEdge edge : edges) {
-                    BoolExpr fwd = _encoder.getForwardsAcross().get(router, edge);
+                    BoolExpr fwd = _encoderSlice.getForwardsAcross().get(router, edge);
                     if (edge.getPeer() != null) {
                         ArithExpr peerLoad = loadVars.get(edge.getPeer());
                         ArithExpr x = (ArithExpr) ctx.mkITE(fwd, peerLoad, zero);
@@ -164,23 +164,23 @@ public class PropertyAdder {
     }
 
     public BoolExpr instrumentLoop(String router) {
-        Context ctx = _encoder.getCtx();
-        Solver solver = _encoder.getSolver();
+        Context ctx = _encoderSlice.getCtx();
+        Solver solver = _encoderSlice.getSolver();
 
         // Add on-loop variables to track a loop
         Map<String, BoolExpr> onLoop = new HashMap<>();
-        _encoder.getGraph().getConfigurations().forEach((r, conf) -> {
+        _encoderSlice.getGraph().getConfigurations().forEach((r, conf) -> {
             BoolExpr var = ctx.mkBoolConst("on-loop_" + router + "_" + r);
             onLoop.put(r, var);
-            _encoder.getAllVariables().add(var);
+            _encoderSlice.getAllVariables().add(var);
         });
 
         // Transitive closure for other routers
-        _encoder.getGraph().getEdgeMap().forEach((r, edges) -> {
+        _encoderSlice.getGraph().getEdgeMap().forEach((r, edges) -> {
             BoolExpr var = onLoop.get(r);
             BoolExpr acc = ctx.mkBool(false);
             for (GraphEdge edge : edges) {
-                BoolExpr fwd = _encoder.getForwardsAcross().get(r, edge);
+                BoolExpr fwd = _encoderSlice.getForwardsAcross().get(r, edge);
                 String peer = edge.getPeer();
                 if (peer != null) {
                     // If next hop is static route router, then on loop

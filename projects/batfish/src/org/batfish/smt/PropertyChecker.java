@@ -17,16 +17,16 @@ import java.util.regex.Pattern;
 public class PropertyChecker {
 
     public static AnswerElement computeForwarding(IBatfish batfish, HeaderSpace h) {
-        Encoder encoder = new Encoder(batfish, h);
+        Encoder encoder = new Encoder(h, batfish);
         encoder.computeEncoding();
-        if (encoder.getLogicalGraph().getEnvironmentVars().size() > 0) {
+        if (encoder.getMainSlice().getLogicalGraph().getEnvironmentVars().size() > 0) {
             System.out.println("Warning: forwarding computed for only a single concrete " +
                     "environment");
         }
         VerificationResult result = encoder.verify();
         SmtOneAnswerElement answer = new SmtOneAnswerElement();
         answer.setResult(result);
-        // result.debug(encoder);
+        // result.debug(encoderSlice);
         return answer;
     }
 
@@ -56,7 +56,9 @@ public class PropertyChecker {
             Encoder enc = new Encoder(h, graph);
             enc.computeEncoding();
 
-            PropertyAdder pa = new PropertyAdder(enc);
+            EncoderSlice slice = enc.getMainSlice();
+
+            PropertyAdder pa = new PropertyAdder(slice);
             Map<String, BoolExpr> reachableVars = pa.instrumentReachability(ge);
 
             Context ctx = enc.getCtx();
@@ -92,6 +94,8 @@ public class PropertyChecker {
 
         Context ctx = enc.getCtx();
 
+        EncoderSlice slice = enc.getMainSlice();
+
         // Collect routers that have no host/environment edge
         List<String> toCheck = new ArrayList<>();
         graph.getEdgeMap().forEach((router, edges) -> {
@@ -111,7 +115,7 @@ public class PropertyChecker {
         BoolExpr someBlackHole = ctx.mkBool(false);
 
         for (String router : toCheck) {
-            Map<GraphEdge, BoolExpr> edges = enc.getSymbolicDecisions().getDataForwarding().get
+            Map<GraphEdge, BoolExpr> edges = slice.getSymbolicDecisions().getDataForwarding().get
                     (router);
             BoolExpr doesNotFwd = ctx.mkBool(true);
             for (Map.Entry<GraphEdge, BoolExpr> entry : edges.entrySet()) {
@@ -122,7 +126,7 @@ public class PropertyChecker {
             BoolExpr isFwdTo = ctx.mkBool(false);
             Set<String> neighbors = graph.getNeighbors().get(router);
             for (String n : neighbors) {
-                for (Map.Entry<GraphEdge, BoolExpr> entry : enc.getSymbolicDecisions()
+                for (Map.Entry<GraphEdge, BoolExpr> entry : slice.getSymbolicDecisions()
                                                                .getDataForwarding().get(n)
                                                                .entrySet()) {
                     GraphEdge ge = entry.getKey();
@@ -171,7 +175,9 @@ public class PropertyChecker {
             Encoder enc = new Encoder(h, graph);
             enc.computeEncoding();
 
-            PropertyAdder pa = new PropertyAdder(enc);
+            EncoderSlice slice = enc.getMainSlice();
+
+            PropertyAdder pa = new PropertyAdder(slice);
             Map<String, ArithExpr> lenVars = pa.instrumentPathLength(ge);
 
             Context ctx = enc.getCtx();
@@ -226,7 +232,9 @@ public class PropertyChecker {
             Encoder enc = new Encoder(h, graph);
             enc.computeEncoding();
 
-            PropertyAdder pa = new PropertyAdder(enc);
+            EncoderSlice slice = enc.getMainSlice();
+
+            PropertyAdder pa = new PropertyAdder(slice);
             Map<String, ArithExpr> lenVars = pa.instrumentPathLength(ge);
 
             Context ctx = enc.getCtx();
@@ -297,7 +305,9 @@ public class PropertyChecker {
             Encoder enc = new Encoder(h, graph);
             enc.computeEncoding();
 
-            PropertyAdder pa = new PropertyAdder(enc);
+            EncoderSlice slice = enc.getMainSlice();
+
+            PropertyAdder pa = new PropertyAdder(slice);
             Map<String, ArithExpr> loadVars = pa.instrumentLoad(ge);
 
             Context ctx = enc.getCtx();
@@ -365,6 +375,9 @@ public class PropertyChecker {
             Encoder e2 = new Encoder(e1, g2);
             e2.computeEncoding();
 
+            EncoderSlice slice1 = e1.getMainSlice();
+            EncoderSlice slice2 = e2.getMainSlice();
+
             // Ensure that the two routers have the same interfaces for comparison
             Pattern p = Pattern.compile(".*");
             Pattern neg = Pattern.compile("");
@@ -386,7 +399,7 @@ public class PropertyChecker {
             // Map<String, EnumMap<RoutingProtocol, Map<String, EnumMap<EdgeType, LogicalEdge>>>>
             //        lgeMap1 = logicalEdgeMap(e1);
             Map<String, EnumMap<RoutingProtocol, Map<String, EnumMap<EdgeType, LogicalEdge>>>>
-                    lgeMap2 = logicalEdgeMap(e2);
+                    lgeMap2 = logicalEdgeMap(slice2);
 
             BoolExpr equalEnvs = ctx.mkBool(true);
             BoolExpr equalOutputs = ctx.mkBool(true);
@@ -396,8 +409,8 @@ public class PropertyChecker {
             Configuration conf2 = g2.getConfigurations().get(r2);
 
             // Set environments equal
-            for (RoutingProtocol proto1 : e1.getGraph().getProtocols().get(r1)) {
-                for (ArrayList<LogicalEdge> es : e1.getLogicalGraph().getLogicalEdges().get(r1)
+            for (RoutingProtocol proto1 : slice1.getProtocols().get(r1)) {
+                for (ArrayList<LogicalEdge> es : slice1.getLogicalGraph().getLogicalEdges().get(r1)
                                                    .get(proto1)) {
                     for (LogicalEdge lge1 : es) {
 
@@ -408,13 +421,13 @@ public class PropertyChecker {
 
                         if (lge1.getEdgeType() == EdgeType.IMPORT) {
 
-                            SymbolicRecord vars1 = e1.getLogicalGraph().getEnvironmentVars().get
+                            SymbolicRecord vars1 = slice1.getLogicalGraph().getEnvironmentVars().get
                                     (lge1);
-                            SymbolicRecord vars2 = e2.getLogicalGraph().getEnvironmentVars().get
+                            SymbolicRecord vars2 = slice2.getLogicalGraph().getEnvironmentVars().get
                                     (lge2);
 
-                            BoolExpr aclIn1 = e1.getIncomingAcls().get(lge1.getEdge().getStart());
-                            BoolExpr aclIn2 = e2.getIncomingAcls().get(lge2.getEdge().getStart());
+                            BoolExpr aclIn1 = slice1.getIncomingAcls().get(lge1.getEdge().getStart());
+                            BoolExpr aclIn2 = slice2.getIncomingAcls().get(lge2.getEdge().getStart());
 
                             if (aclIn1 == null) {
                                 aclIn1 = ctx.mkBool(true);
@@ -447,7 +460,7 @@ public class PropertyChecker {
                                     equalComms = e1.And(equalComms, e1.Eq(ce1, ce2));
                                 }
 
-                                BoolExpr equalVars = e1.equal(conf1, proto1, vars1, vars2, lge1);
+                                BoolExpr equalVars = slice1.equal(conf1, proto1, vars1, vars2, lge1);
                                 equalEnvs = ctx.mkAnd(equalEnvs, samePermitted, equalVars,
                                         equalComms);
 
@@ -462,7 +475,7 @@ public class PropertyChecker {
                             SymbolicRecord out1 = lge1.getSymbolicRecord();
                             SymbolicRecord out2 = lge2.getSymbolicRecord();
 
-                            equalOutputs = ctx.mkAnd(equalOutputs, e1.equal(conf1, proto1, out1,
+                            equalOutputs = ctx.mkAnd(equalOutputs, slice1.equal(conf1, proto1, out1,
                                     out2, lge1));
                         }
                     }
@@ -473,21 +486,21 @@ public class PropertyChecker {
             // connection)
 
             BoolExpr validDest;
-            validDest = ignoredDestinations(ctx, e1, r1, conf1);
-            validDest = ctx.mkAnd(validDest, ignoredDestinations(ctx, e2, r2, conf2));
+            validDest = ignoredDestinations(ctx, slice1, r1, conf1);
+            validDest = ctx.mkAnd(validDest, ignoredDestinations(ctx, slice2, r2, conf2));
 
             Map<String, GraphEdge> geMap2 = interfaceMap(edges2);
             BoolExpr sameForwarding = ctx.mkBool(true);
             for (GraphEdge ge1 : edges1) {
                 GraphEdge ge2 = geMap2.get(ge1.getStart().getName());
-                BoolExpr dataFwd1 = e1.getSymbolicDecisions().getDataForwarding().get(r1, ge1);
-                BoolExpr dataFwd2 = e2.getSymbolicDecisions().getDataForwarding().get(r2, ge2);
+                BoolExpr dataFwd1 = slice1.getSymbolicDecisions().getDataForwarding().get(r1, ge1);
+                BoolExpr dataFwd2 = slice2.getSymbolicDecisions().getDataForwarding().get(r2, ge2);
                 sameForwarding = ctx.mkAnd(sameForwarding, ctx.mkEq(dataFwd1, dataFwd2));
             }
 
             // Ensure packets are the same
-            SymbolicPacket p1 = e1.getSymbolicPacket();
-            SymbolicPacket p2 = e2.getSymbolicPacket();
+            SymbolicPacket p1 = slice1.getSymbolicPacket();
+            SymbolicPacket p2 = slice2.getSymbolicPacket();
             BoolExpr equalPackets = p1.mkEqual(p2);
 
             BoolExpr assumptions = ctx.mkAnd(equalEnvs, equalPackets, validDest);
@@ -518,7 +531,7 @@ public class PropertyChecker {
     }
 
     private static Map<String, EnumMap<RoutingProtocol, Map<String, EnumMap<EdgeType,
-            LogicalEdge>>>> logicalEdgeMap(Encoder enc) {
+            LogicalEdge>>>> logicalEdgeMap(EncoderSlice enc) {
 
         Map<String, EnumMap<RoutingProtocol, Map<String, EnumMap<EdgeType, LogicalEdge>>>> acc =
                 new HashMap<>();
@@ -550,10 +563,10 @@ public class PropertyChecker {
         return acc;
     }
 
-    private static BoolExpr ignoredDestinations(Context ctx, Encoder e1, String r1, Configuration
+    private static BoolExpr ignoredDestinations(Context ctx, EncoderSlice e1, String r1, Configuration
             conf1) {
         BoolExpr validDest = ctx.mkBool(true);
-        for (RoutingProtocol proto1 : e1.getGraph().getProtocols().get(r1)) {
+        for (RoutingProtocol proto1 : e1.getProtocols().get(r1)) {
             List<Prefix> prefixes = e1.getOriginatedNetworks(conf1, proto1);
             BoolExpr dest = e1.relevantOrigination(prefixes);
             validDest = ctx.mkAnd(validDest, ctx.mkNot(dest));
@@ -593,38 +606,20 @@ public class PropertyChecker {
             Encoder enc = new Encoder(h, graph);
             enc.computeEncoding();
 
-            PropertyAdder pa = new PropertyAdder(enc);
+            EncoderSlice slice = enc.getMainSlice();
+
+            PropertyAdder pa = new PropertyAdder(slice);
             Map<String, BoolExpr> reachableVars = pa.instrumentReachability(ge);
 
-            Context ctx = enc.getCtx();
-            Solver solver = enc.getSolver();
-
-            // All neighbor forwarded to have the same length
-            /* BoolExpr acc = ctx.mkBool(false);
-            for (Map.Entry<String, Configuration> entry : graph.getConfigurations().entrySet()) {
-                String router = entry.getKey();
-                BoolExpr reach = reachableVars.get(router);
-                BoolExpr bad = ctx.mkBool(false);
-                for (GraphEdge edge : graph.getEdgeMap().get(router)) {
-                    BoolExpr dataFwd = enc.getSymbolicDecisions().getDataForwarding().get(router,
-                            edge);
-                    BoolExpr ctrFwd = enc.getSymbolicDecisions().getControlForwarding().get
-                            (router, edge);
-                    bad = ctx.mkOr(bad, ctx.mkAnd(ctrFwd, ctx.mkNot(dataFwd)));
-                }
-                acc = ctx.mkOr(acc, ctx.mkAnd(reach, bad));
-            } */
-
             BoolExpr acc = enc.False();
-
             for (Map.Entry<String, Configuration> entry : graph.getConfigurations().entrySet()) {
                 String router = entry.getKey();
                 BoolExpr reach = reachableVars.get(router);
 
                 BoolExpr all = enc.True();
                 for (GraphEdge edge : graph.getEdgeMap().get(router)) {
-                    BoolExpr dataFwd = enc.getForwardsAcross().get(router, edge);
-                    BoolExpr ctrFwd = enc.getSymbolicDecisions().getControlForwarding().get
+                    BoolExpr dataFwd = slice.getForwardsAcross().get(router, edge);
+                    BoolExpr ctrFwd = slice.getSymbolicDecisions().getControlForwarding().get
                             (router, edge);
                     BoolExpr peerReach = enc.True();
                     if (edge.getPeer() != null) {
@@ -638,16 +633,9 @@ public class PropertyChecker {
                 acc = enc.Or(acc, enc.Not(enc.Implies(reach, all)));
             }
 
-            // System.out.println(acc);
-            // System.out.println("");
-            // System.out.println(acc.simplify());
-
             enc.add( acc );
 
             VerificationResult res = enc.verify();
-
-            // res.debug(enc);
-
             result.put(ge.getRouter() + "," + ge.getStart().getName(), res);
 
             if (addedDestination) {
@@ -693,9 +681,10 @@ public class PropertyChecker {
         Encoder enc = new Encoder(h, graph);
         enc.computeEncoding();
         Context ctx = enc.getCtx();
-        Solver solver = enc.getSolver();
 
-        PropertyAdder pa = new PropertyAdder(enc);
+        EncoderSlice slice = enc.getMainSlice();
+
+        PropertyAdder pa = new PropertyAdder(slice);
 
         BoolExpr someLoop = ctx.mkBool(false);
         for (String router : routers) {
