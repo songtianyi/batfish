@@ -128,10 +128,13 @@ public class VerificationResult {
     }
 
 
-    public void debug(EncoderSlice enc) {
+    public void debug(EncoderSlice enc, String filter) {
         System.out.println("================= Constraints ==================");
         for (BoolExpr be : enc.getSolver().getAssertions()) {
-            System.out.println(be.simplify());
+            String x = be.simplify().toString();
+            if (filter == null || x.contains(filter)) {
+                System.out.println(x);
+            }
         }
         if (_verified) {
             System.out.println("verified");
@@ -150,7 +153,9 @@ public class VerificationResult {
             });
             System.out.println("");
             _model.forEach((var, val) -> {
-                System.out.println(var + "=" + val);
+                if (filter == null || var.contains(filter)) {
+                    System.out.println(var + "=" + val);
+                }
             });
         }
 

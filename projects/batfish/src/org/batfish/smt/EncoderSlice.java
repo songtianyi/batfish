@@ -12,6 +12,22 @@ import org.batfish.smt.utils.Table2;
 import java.util.*;
 import java.util.regex.Matcher;
 
+/* TODO List
+ *
+ * - Basic iBGP support
+ *      * Mark messages as iBGP or eBGP
+ *         + Don't update length along iBGP
+ *         + Don't re-export iBGP routes
+ *      * Optimize for failures=0 case
+ *      * Optimize for consistent preferences case
+ *
+ * - Add check for block-to-external for internal prefix space
+ * - Add check for block-to-internal for internal prefix space
+ * - Ensure that loopbacks/next-hops are reachable
+ * - Check for BGP route deflection
+ *
+ */
+
 
 /**
  * An object that is responsible for creating a symbolic representation
@@ -20,8 +36,6 @@ import java.util.regex.Matcher;
 public class EncoderSlice {
 
     static final int BITS = 0;
-
-    static final int DEFAULT_CISCO_VLAN_OSPF_COST = 1;
 
     static final String BGP_NETWORK_FILTER_LIST_NAME = "BGP_NETWORK_NETWORKS_FILTER";
 
@@ -48,7 +62,6 @@ public class EncoderSlice {
     private Set<CommunityVar> _allCommunities;
 
     private Map<CommunityVar, List<CommunityVar>> _communityDependencies;
-
 
     public EncoderSlice(Encoder enc, HeaderSpace h, IBatfish batfish) {
         this(enc, h, new Graph(batfish));
@@ -83,7 +96,6 @@ public class EncoderSlice {
         _forwardsAcross = new Table2<>();
 
         initCommunities();
-        initConfigurations();
         initOptimizations();
         initRedistributionProtocols();
         initVariables();
@@ -504,7 +516,7 @@ public class EncoderSlice {
                                 } else {
                                     ev1 = singleVars;
                                 }
-                                LogicalEdge eExport = new LogicalEdge(e, EdgeType.EXPORT, len, ev1);
+                                LogicalEdge eExport = new LogicalEdge(e, EdgeType.EXPORT, ev1);
                                 exportEdgeList.add(eExport);
 
                             } else {
@@ -514,7 +526,7 @@ public class EncoderSlice {
 
                                 SymbolicRecord ev1 = new SymbolicRecord(this, name, router,
                                         proto, _optimizations, getCtx(), null);
-                                LogicalEdge eExport = new LogicalEdge(e, EdgeType.EXPORT, len, ev1);
+                                LogicalEdge eExport = new LogicalEdge(e, EdgeType.EXPORT, ev1);
                                 exportEdgeList.add(eExport);
                                 getAllSymbolicRecords().add(ev1);
                             }
@@ -526,7 +538,7 @@ public class EncoderSlice {
                                 String name = String.format("%s_%s_%s_%s", router, proto
                                         .protocolName(), ifaceName, "IMPORT");
                                 SymbolicRecord ev2 = new SymbolicRecord(name, proto);
-                                LogicalEdge eImport = new LogicalEdge(e, EdgeType.IMPORT, len, ev2);
+                                LogicalEdge eImport = new LogicalEdge(e, EdgeType.IMPORT, ev2);
                                 importEdgeList.add(eImport);
                             } else {
 
@@ -534,7 +546,7 @@ public class EncoderSlice {
                                         .protocolName(), ifaceName, "IMPORT");
                                 SymbolicRecord ev2 = new SymbolicRecord(this, name, router,
                                         proto, _optimizations, getCtx(), null);
-                                LogicalEdge eImport = new LogicalEdge(e, EdgeType.IMPORT, len, ev2);
+                                LogicalEdge eImport = new LogicalEdge(e, EdgeType.IMPORT, ev2);
                                 importEdgeList.add(eImport);
                                 getAllSymbolicRecords().add(ev2);
                             }
@@ -599,7 +611,7 @@ public class EncoderSlice {
                     _logicalGraph.getLogicalEdges().get(router, proto).forEach(eList -> {
                         eList.forEach(e -> {
                             if (e.getEdgeType() == EdgeType.IMPORT) {
-                                BgpNeighbor n = getGraph().getBgpNeighbors().get(e.getEdge());
+                                BgpNeighbor n = getGraph().getEbgpNeighbors().get(e.getEdge());
                                 if (n != null && e.getEdge().getEnd() == null) {
                                     String address;
                                     if (n.getAddress() == null) {
@@ -765,38 +777,6 @@ public class EncoderSlice {
 
     public BoolExpr Lt(Expr e1, Expr e2) {
         return _encoder.Lt(e1, e2);
-    }
-
-    /**
-     * TODO:
-     * This was copied from BdpDataPlanePlugin.java
-     * to make things easier for now.
-     */
-    private void initOspfInterfaceCosts(Configuration conf) {
-        if (conf.getDefaultVrf().getOspfProcess() != null) {
-            conf.getInterfaces().forEach((interfaceName, i) -> {
-                if (i.getActive()) {
-                    Integer ospfCost = i.getOspfCost();
-                    if (ospfCost == null) {
-                        if (interfaceName.startsWith("Vlan")) {
-                            // TODO: fix for non-cisco
-                            ospfCost = DEFAULT_CISCO_VLAN_OSPF_COST;
-                        } else {
-                            if (i.getBandwidth() != null) {
-                                ospfCost = Math.max((int) (conf.getDefaultVrf().getOspfProcess()
-                                                               .getReferenceBandwidth() / i
-                                        .getBandwidth()), 1);
-                            } else {
-                                throw new BatfishException("Expected non-null interface " +
-                                        "bandwidth" + " for \"" + conf.getHostname() + "\":\"" +
-                                        interfaceName + "\"");
-                            }
-                        }
-                    }
-                    i.setOspfCost(ospfCost);
-                }
-            });
-        }
     }
 
     public Set<RoutingProtocol> findRedistributedProtocols(Configuration conf, RoutingPolicy pol,
@@ -2163,12 +2143,6 @@ public class EncoderSlice {
         }
 
         // TODO: need to implement fragment offsets, Ecns, states, etc
-    }
-
-    private void initConfigurations() {
-        getGraph().getConfigurations().forEach((router, conf) -> {
-            initOspfInterfaceCosts(conf);
-        });
     }
 
     public void computeEncoding() {

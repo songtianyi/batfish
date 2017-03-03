@@ -7,32 +7,30 @@ public class LogicalEdge {
 
     private EdgeType _type;
 
-    private int _prefixLen;
-
     private SymbolicRecord _symbolicRecord;
 
-    public LogicalEdge(GraphEdge edge, EdgeType type, int prefixLen, SymbolicRecord symbolicRecord) {
+    public LogicalEdge(GraphEdge edge, EdgeType type, SymbolicRecord symbolicRecord) {
         _edge = edge;
         _type = type;
-        _prefixLen = prefixLen;
         _symbolicRecord = symbolicRecord;
     }
 
-    public EdgeType getEdgeType() {
+    EdgeType getEdgeType() {
         return _type;
     }
 
-    public int getPrefixLen() {
-        return _prefixLen;
-    }
-
-    public SymbolicRecord getSymbolicRecord() {
+    SymbolicRecord getSymbolicRecord() {
         return _symbolicRecord;
     }
 
-    public GraphEdge getEdge() {
+    GraphEdge getEdge() {
         return _edge;
     }
+
+    boolean isAbstract() {
+        return _edge.isAbstract();
+    }
+
 
     @Override
     public boolean equals(Object o) {
@@ -43,8 +41,6 @@ public class LogicalEdge {
 
         LogicalEdge that = (LogicalEdge) o;
 
-        if (_prefixLen != that._prefixLen)
-            return false;
         if (_edge != null ? !_edge.equals(that._edge) : that._edge != null)
             return false;
         if (_type != that._type)
@@ -57,7 +53,6 @@ public class LogicalEdge {
     public int hashCode() {
         int result = _edge != null ? _edge.hashCode() : 0;
         result = 31 * result + (_type != null ? _type.hashCode() : 0);
-        result = 31 * result + _prefixLen;
         result = 31 * result + (_symbolicRecord != null ? _symbolicRecord.hashCode() : 0);
         return result;
     }

@@ -15,6 +15,8 @@ public class GraphEdge {
 
     private static final String PEER_VAR = "peer";
 
+    private static final String ABSTRACT_VAR = "isAbstract";
+
     private Interface _start;
 
     private Interface _end;
@@ -23,14 +25,18 @@ public class GraphEdge {
 
     private String _peer;
 
+    private boolean _isAbstract;
+
     @JsonCreator
     public GraphEdge(
             @JsonProperty(START_VAR) Interface start, @JsonProperty(END_VAR) Interface end,
-            @JsonProperty(ROUTER_VAR) String router, @JsonProperty(PEER_VAR) String peer) {
+            @JsonProperty(ROUTER_VAR) String router, @JsonProperty(PEER_VAR) String peer,
+            @JsonProperty(ABSTRACT_VAR) boolean isAbstract) {
         _start = start;
         _end = end;
         _router = router;
         _peer = peer;
+        _isAbstract = isAbstract;
     }
 
     @JsonProperty(START_VAR)
@@ -53,14 +59,11 @@ public class GraphEdge {
         return _peer;
     }
 
-    @Override
-    public int hashCode() {
-        int result = _start != null ? _start.hashCode() : 0;
-        result = 31 * result + (_end != null ? _end.hashCode() : 0);
-        result = 31 * result + (_router != null ? _router.hashCode() : 0);
-        result = 31 * result + (_peer != null ? _peer.hashCode() : 0);
-        return result;
+    @JsonProperty(ABSTRACT_VAR)
+    public boolean isAbstract() {
+        return _isAbstract;
     }
+
 
     @Override
     public boolean equals(Object o) {
@@ -71,6 +74,8 @@ public class GraphEdge {
 
         GraphEdge graphEdge = (GraphEdge) o;
 
+        if (_isAbstract != graphEdge._isAbstract)
+            return false;
         if (_start != null ? !_start.equals(graphEdge._start) : graphEdge._start != null)
             return false;
         if (_end != null ? !_end.equals(graphEdge._end) : graphEdge._end != null)
@@ -78,6 +83,16 @@ public class GraphEdge {
         if (_router != null ? !_router.equals(graphEdge._router) : graphEdge._router != null)
             return false;
         return _peer != null ? _peer.equals(graphEdge._peer) : graphEdge._peer == null;
+    }
+
+    @Override
+    public int hashCode() {
+        int result = _start != null ? _start.hashCode() : 0;
+        result = 31 * result + (_end != null ? _end.hashCode() : 0);
+        result = 31 * result + (_router != null ? _router.hashCode() : 0);
+        result = 31 * result + (_peer != null ? _peer.hashCode() : 0);
+        result = 31 * result + (_isAbstract ? 1 : 0);
+        return result;
     }
 
     @Override

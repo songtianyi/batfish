@@ -26,7 +26,10 @@ public class PropertyChecker {
         VerificationResult result = encoder.verify();
         SmtOneAnswerElement answer = new SmtOneAnswerElement();
         answer.setResult(result);
-        // result.debug(encoderSlice);
+
+        // EncoderSlice slice = encoder.getMainSlice();
+        // result.debug(slice, null);
+
         return answer;
     }
 

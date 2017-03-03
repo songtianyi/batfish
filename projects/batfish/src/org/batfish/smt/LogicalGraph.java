@@ -71,7 +71,7 @@ public class LogicalGraph {
             Configuration peerConf = getGraph().getConfigurations().get(peer);
             return routerId(peerConf, proto);
         }
-        BgpNeighbor n = getGraph().getBgpNeighbors().get(e.getEdge());
+        BgpNeighbor n = getGraph().getEbgpNeighbors().get(e.getEdge());
         if (n != null && n.getAddress() != null) {
             return n.getAddress().asLong();
         }

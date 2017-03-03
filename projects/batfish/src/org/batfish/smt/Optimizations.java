@@ -86,7 +86,8 @@ class Optimizations {
         val[0] = false;
         _encoderSlice.getGraph().getEdgeMap().forEach((router, edges) -> {
             for (GraphEdge ge : edges) {
-                if (ge.getEnd() == null && _encoderSlice.getGraph().getBgpNeighbors().containsKey(ge)) {
+                if (ge.getEnd() == null && _encoderSlice.getGraph().getEbgpNeighbors()
+                                                        .containsKey(ge)) {
                     val[0] = true;
                 }
             }
@@ -140,33 +141,6 @@ class Optimizations {
             return true;
         }
         return _hasEnvironment; */
-    }
-
-    private void computeRelevantAggregates() {
-        _encoderSlice.getGraph().getConfigurations().forEach((router, conf) -> {
-            List<GeneratedRoute> routes = new ArrayList<>();
-            _relevantAggregates.put(router, routes);
-            for (GeneratedRoute gr : conf.getDefaultVrf().getGeneratedRoutes()) {
-                Prefix p = gr.getNetwork();
-                if (_encoderSlice.relevantPrefix(p)) {
-                    routes.add(gr);
-                }
-            }
-        });
-    }
-
-    private void computeSuppressedAggregates() {
-        _encoderSlice.getGraph().getConfigurations().forEach((router,conf) -> {
-           Set<Prefix> prefixes = new HashSet<>();
-           _suppressedAggregates.put(router, prefixes);
-           conf.getRouteFilterLists().forEach((name,filter) -> {
-               if (name.contains(AGGREGATION_SUPPRESS_NAME)) {
-                   for (RouteFilterLine line : filter.getLines()) {
-                       prefixes.add(line.getPrefix());
-                   }
-               }
-           });
-        });
     }
 
     private boolean computeKeepOspfType() {
@@ -266,14 +240,18 @@ class Optimizations {
                     // Ensure all interfaces are active
                     boolean allIfacesActive = true;
                     for (GraphEdge edge : g.getEdgeMap().get(router)) {
-                        Interface iface = edge.getStart();
-                        allIfacesActive = allIfacesActive && g.isInterfaceActive(proto, iface);
+                        if (g.isInterfaceUsed(conf, proto, edge.getStart())) {
+                            Interface iface = edge.getStart();
+                            allIfacesActive = allIfacesActive && g.isInterfaceActive(proto, iface);
+                        }
                     }
 
                     // Ensure single area for this router
-                    boolean singleArea = _encoderSlice.getGraph().getAreaIds().get(router).size() <= 1;
+                    boolean singleArea = _encoderSlice.getGraph().getAreaIds().get(router).size()
+                            <= 1;
 
-                    map.put(proto, allIfacesActive && singleArea && Optimizations.ENABLE_EXPORT_MERGE_OPTIMIZATION);
+                    map.put(proto, allIfacesActive && singleArea && Optimizations
+                            .ENABLE_EXPORT_MERGE_OPTIMIZATION);
 
                 } else if (proto == RoutingProtocol.BGP) {
                     boolean allDefault = true;
@@ -312,8 +290,10 @@ class Optimizations {
                         boolean isNotRoot = !hasRelevantOriginatedRoute(conf, proto);
                         if (isNotRoot) {
                             for (GraphEdge e : _encoderSlice.getGraph().getEdgeMap().get(router)) {
-                                if (hasExportVariables(e, proto)) {
-                                    edges.add(e);
+                                if (_encoderSlice.getGraph().isInterfaceUsed(conf, proto, e.getStart())) {
+                                    if (hasExportVariables(e, proto)) {
+                                        edges.add(e);
+                                    }
                                 }
                             }
                         }
@@ -322,6 +302,37 @@ class Optimizations {
                 map.put(proto, edges);
             }
         });
+    }
+
+    private void computeRelevantAggregates() {
+        _encoderSlice.getGraph().getConfigurations().forEach((router, conf) -> {
+            List<GeneratedRoute> routes = new ArrayList<>();
+            _relevantAggregates.put(router, routes);
+            for (GeneratedRoute gr : conf.getDefaultVrf().getGeneratedRoutes()) {
+                Prefix p = gr.getNetwork();
+                if (_encoderSlice.relevantPrefix(p)) {
+                    routes.add(gr);
+                }
+            }
+        });
+    }
+
+    private void computeSuppressedAggregates() {
+        _encoderSlice.getGraph().getConfigurations().forEach((router, conf) -> {
+            Set<Prefix> prefixes = new HashSet<>();
+            _suppressedAggregates.put(router, prefixes);
+            conf.getRouteFilterLists().forEach((name, filter) -> {
+                if (name.contains(AGGREGATION_SUPPRESS_NAME)) {
+                    for (RouteFilterLine line : filter.getLines()) {
+                        prefixes.add(line.getPrefix());
+                    }
+                }
+            });
+        });
+    }
+
+    Map<String, List<RoutingProtocol>> getProtocols() {
+        return _protocols;
     }
 
     private boolean needToModelConnected(Configuration conf) {
@@ -414,10 +425,6 @@ class Optimizations {
             }
         }
         return false;
-    }
-
-    Map<String, List<RoutingProtocol>> getProtocols() {
-        return _protocols;
     }
 
     Map<String, List<GeneratedRoute>> getRelevantAggregates() {

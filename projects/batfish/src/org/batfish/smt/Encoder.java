@@ -4,16 +4,15 @@ package org.batfish.smt;
 import com.microsoft.z3.*;
 import org.batfish.common.BatfishException;
 import org.batfish.common.plugin.IBatfish;
-import org.batfish.datamodel.HeaderSpace;
-import org.batfish.datamodel.Interface;
-import org.batfish.datamodel.Ip;
-import org.batfish.datamodel.Prefix;
+import org.batfish.datamodel.*;
 
 import java.util.*;
 
 public class Encoder {
 
     static final boolean ENABLE_DEBUGGING = false;
+
+    static final int DEFAULT_CISCO_VLAN_OSPF_COST = 1;
 
     static int encodingId = 0;
 
@@ -86,10 +85,11 @@ public class Encoder {
 
         _unsatCore = new UnsatCore(ENABLE_DEBUGGING);
 
+        initConfigurations();
+        initFailedLinkVariables();
+
         _slices = new HashMap<>();
         _slices.put("main", new EncoderSlice(this, h, graph));
-
-        initFailedLinkVariables();
     }
 
     Encoder(Encoder e, Graph g) {
@@ -182,6 +182,43 @@ public class Encoder {
         return (ArithExpr) getCtx().mkITE(cond, case1, case2);
     }
 
+    private void initConfigurations() {
+        _graph.getConfigurations().forEach((router, conf) -> {
+            initOspfInterfaceCosts(conf);
+        });
+    }
+
+    /**
+     * TODO:
+     * This was copied from BdpDataPlanePlugin.java
+     * to make things easier for now.
+     */
+    private void initOspfInterfaceCosts(Configuration conf) {
+        if (conf.getDefaultVrf().getOspfProcess() != null) {
+            conf.getInterfaces().forEach((interfaceName, i) -> {
+                if (i.getActive()) {
+                    Integer ospfCost = i.getOspfCost();
+                    if (ospfCost == null) {
+                        if (interfaceName.startsWith("Vlan")) {
+                            // TODO: fix for non-cisco
+                            ospfCost = DEFAULT_CISCO_VLAN_OSPF_COST;
+                        } else {
+                            if (i.getBandwidth() != null) {
+                                ospfCost = Math.max((int) (conf.getDefaultVrf().getOspfProcess()
+                                                               .getReferenceBandwidth() / i
+                                        .getBandwidth()), 1);
+                            } else {
+                                throw new BatfishException("Expected non-null interface " +
+                                        "bandwidth" + " for \"" + conf.getHostname() + "\":\"" +
+                                        interfaceName + "\"");
+                            }
+                        }
+                    }
+                    i.setOspfCost(ospfCost);
+                }
+            });
+        }
+    }
 
     private void initFailedLinkVariables() {
         _graph.getEdgeMap().forEach((router, edges) -> {
@@ -440,31 +477,31 @@ public class Encoder {
         });
     }
 
-    public EncoderSlice getMainSlice() {
+    EncoderSlice getMainSlice() {
         return _slices.get("main");
     }
 
-    public SymbolicFailures getSymbolicFailures() {
+    SymbolicFailures getSymbolicFailures() {
         return _symbolicFailures;
     }
 
-    public List<Expr> getAllVariables() {
+    List<Expr> getAllVariables() {
         return _allVariables;
     }
 
-    public List<SymbolicRecord> getAllSymbolicRecords() {
+    List<SymbolicRecord> getAllSymbolicRecords() {
         return _allSymbolicRecords;
     }
 
-    public Context getCtx() {
+    Context getCtx() {
         return _ctx;
     }
 
-    public Solver getSolver() {
+    Solver getSolver() {
         return _solver;
     }
 
-    public UnsatCore getUnsatCore() {
+    UnsatCore getUnsatCore() {
         return _unsatCore;
     }
 }
