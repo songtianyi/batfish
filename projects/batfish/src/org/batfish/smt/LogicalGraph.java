@@ -3,7 +3,6 @@ package org.batfish.smt;
 
 import org.batfish.datamodel.BgpNeighbor;
 import org.batfish.datamodel.Configuration;
-import org.batfish.datamodel.Interface;
 import org.batfish.datamodel.RoutingProtocol;
 import org.batfish.smt.utils.Table2;
 
@@ -56,8 +55,7 @@ public class LogicalGraph {
 
     public boolean isEdgeUsed(Configuration conf, RoutingProtocol proto, LogicalEdge e) {
         GraphEdge ge = e.getEdge();
-        Interface iface = ge.getStart();
-        return _graph.isInterfaceUsed(conf, proto, iface);
+        return _graph.isEdgeUsed(conf, proto, ge);
     }
 
     public Graph getGraph() {

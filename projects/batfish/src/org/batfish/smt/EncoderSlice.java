@@ -487,10 +487,9 @@ public class EncoderSlice {
 
                 for (GraphEdge e : edges) {
 
-                    Interface iface = e.getStart();
                     Configuration conf = getGraph().getConfigurations().get(router);
 
-                    if (getGraph().isInterfaceUsed(conf, proto, iface)) {
+                    if (getGraph().isEdgeUsed(conf, proto, e)) {
 
                         ArrayList<LogicalEdge> importEdgeList = new ArrayList<>();
                         ArrayList<LogicalEdge> exportEdgeList = new ArrayList<>();
@@ -520,7 +519,6 @@ public class EncoderSlice {
                                 exportEdgeList.add(eExport);
 
                             } else {
-                                // String name = proto.protocolName();
                                 String name = String.format("%s_%s_%s_%s", router, proto
                                         .protocolName(), ifaceName, "EXPORT");
 
@@ -1010,6 +1008,14 @@ public class EncoderSlice {
         return history;
     }
 
+    public BoolExpr equalBgpInternal(RoutingProtocol proto, SymbolicRecord best, SymbolicRecord vars) {
+        if (best.getBgpInternal() == null || vars.getBgpInternal() == null) {
+            return True();
+        } else  {
+            return Eq(best.getBgpInternal(), vars.getBgpInternal());
+        }
+    }
+
     private BoolExpr equalAreas(SymbolicRecord best, SymbolicRecord vars, LogicalEdge e) {
         BoolExpr equalOspfArea;
         boolean hasBestArea = (best.getOspfArea() != null && best.getOspfArea().getBitVec() !=
@@ -1086,6 +1092,7 @@ public class EncoderSlice {
         BoolExpr equalOspfType;
         BoolExpr equalId;
         BoolExpr equalHistory;
+        BoolExpr equalBgpInternal;
 
         equalLen = equalHelper(best.getPrefixLength(), vars.getPrefixLength(), defaultLen);
         equalAd = equalHelper(best.getAdminDist(), vars.getAdminDist(), defaultAdmin);
@@ -1098,9 +1105,10 @@ public class EncoderSlice {
 
         equalId = equalIds(best, vars, conf, proto, e);
         equalHistory = equalHistories(proto, best, vars);
+        equalBgpInternal = equalBgpInternal(proto, best, vars);
 
         return And(equalLen, equalAd, equalLp, equalMet, equalMed, equalOspfArea, equalOspfType,
-                equalId, equalHistory);
+                equalId, equalHistory, equalBgpInternal);
     }
 
     private BoolExpr geBetterHelper(
@@ -1691,9 +1699,11 @@ public class EncoderSlice {
 
     private void addImportConstraint(
             LogicalEdge e, SymbolicRecord varsOther, Configuration conf, RoutingProtocol proto,
-            Interface iface, String router, List<Prefix> originations) {
+            GraphEdge ge, String router, List<Prefix> originations) {
 
         SymbolicRecord vars = e.getSymbolicRecord();
+
+        Interface iface = ge.getStart();
 
         ArithExpr failed = getSymbolicFailures().getFailedVariable(e.getEdge());
         BoolExpr notFailed = Eq(failed, Int(0));
@@ -1737,6 +1747,9 @@ public class EncoderSlice {
                 BoolExpr val = Not(vars.getPermitted());
 
                 if (varsOther != null) {
+
+                    // TODO: replace varsOther.getPermitted() with the reachability query
+
                     BoolExpr isRoot = relevantOrigination(originations);
                     BoolExpr active = interfaceActive(iface, proto);
                     BoolExpr usable = And(Not(isRoot), active, varsOther.getPermitted(), notFailed);
@@ -1754,7 +1767,7 @@ public class EncoderSlice {
                     }
 
                     TransferFunction f = new TransferFunction(this, conf, varsOther, vars,
-                            proto, proto, statements, 0, iface, false);
+                            proto, proto, statements, 0, ge, false);
                     importFunction = f.compute();
 
                     // System.out.println("IMPORT FUNCTION: " + router + " " + varsOther.getName());
@@ -1774,9 +1787,11 @@ public class EncoderSlice {
 
     private boolean addExportConstraint(
             LogicalEdge e, SymbolicRecord varsOther, Configuration conf, RoutingProtocol proto,
-            Interface iface, String router, boolean usedExport, List<Prefix> originations) {
+            GraphEdge ge, String router, boolean usedExport, List<Prefix> originations) {
 
         SymbolicRecord vars = e.getSymbolicRecord();
+
+        Interface iface = ge.getStart();
 
         ArithExpr failed = getSymbolicFailures().getFailedVariable(e.getEdge());
         BoolExpr notFailed = Eq(failed, Int(0));
@@ -1796,12 +1811,22 @@ public class EncoderSlice {
             }
 
             if (proto == RoutingProtocol.OSPF || proto == RoutingProtocol.BGP) {
+
                 Integer cost = addedCost(proto, iface);
+
                 BoolExpr val = Not(vars.getPermitted());
 
                 BoolExpr active = interfaceActive(iface, proto);
-                BoolExpr usable = And(active, varsOther.getPermitted(), notFailed);
 
+                // Don't re-export routes learned via iBGP
+                boolean isIbgp = (proto == RoutingProtocol.BGP) && (getGraph().getIbgpNeighbors().containsKey(ge)) && varsOther.isBest();
+                BoolExpr doExport = True();
+                if (isIbgp) {
+                    doExport = Not(varsOther.getBgpInternal());
+                    cost = 0;
+                }
+
+                BoolExpr usable = And(active, doExport, varsOther.getPermitted(), notFailed);
                 BoolExpr acc;
                 RoutingPolicy pol = getGraph().findExportRoutingPolicy(router, proto, e);
 
@@ -1822,12 +1847,11 @@ public class EncoderSlice {
                     i.setGuard(expr);
                     statements = Collections.singletonList(i);
                 } else {
-                    statements =
-                            (pol == null ? Collections.singletonList(s1) : pol.getStatements());
+                    statements = (pol == null ? Collections.singletonList(s1) : pol.getStatements());
                 }
 
                 TransferFunction f = new TransferFunction(this, conf, varsOther, vars, proto,
-                        proto, statements, cost, iface, true);
+                        proto, statements, cost, ge, true);
                 acc = f.compute();
 
                 // System.out.println("EXPORT FUNCTION: " + router + " " + varsOther.getName());
@@ -1870,20 +1894,20 @@ public class EncoderSlice {
                         proto)) {
                     for (LogicalEdge e : eList) {
                         GraphEdge ge = e.getEdge();
-                        Interface iface = ge.getStart();
-                        if (getGraph().isInterfaceUsed(conf, proto, iface)) {
+
+                        if (getGraph().isEdgeUsed(conf, proto, ge)) {
                             SymbolicRecord varsOther;
                             switch (e.getEdgeType()) {
                                 case IMPORT:
                                     varsOther = _logicalGraph.findOtherVars(e);
-                                    addImportConstraint(e, varsOther, conf, proto, iface, router,
+                                    addImportConstraint(e, varsOther, conf, proto, ge, router,
                                             originations);
                                     break;
 
                                 case EXPORT:
                                     varsOther = _symbolicDecisions.getBestNeighbor().get(router);
                                     usedExport = addExportConstraint(e, varsOther, conf, proto,
-                                            iface, router, usedExport, originations);
+                                            ge, router, usedExport, originations);
                                     break;
                             }
                         }
@@ -1935,6 +1959,9 @@ public class EncoderSlice {
             }
             if (vars.getProtocolHistory() != null) {
                 add(Implies(notPermitted, vars.getProtocolHistory().isDefaultValue()));
+            }
+            if (vars.getBgpInternal() != null) {
+                add(Implies(notPermitted, Not(vars.getBgpInternal())));
             }
             vars.getCommunities().forEach((cvar, e) -> {
                 add(Implies(notPermitted, Not(e)));
@@ -2145,6 +2172,25 @@ public class EncoderSlice {
         // TODO: need to implement fragment offsets, Ecns, states, etc
     }
 
+    private void addFoo() {
+        // System.out.println("ADDING FOO");
+        getLogicalGraph().getEnvironmentVars().forEach((le, vars) -> {
+            add(vars.getPermitted());
+        });
+
+        /* getLogicalGraph().getLogicalEdges().forEach((router, proto, es) -> {
+            for (ArrayList<LogicalEdge> e : es) {
+                for (LogicalEdge le : e) {
+                    System.out.println("  LOGICAL EDGE: " + le.getSymbolicRecord().getName());
+                    if (le.getSymbolicRecord().isEnv()) {
+                        System.out.println("ADDING  !!!!!!!!!!!!!!!!!!!");
+                        add(le.getSymbolicRecord().getPermitted());
+                    }
+                }
+            }
+        }); */
+    }
+
     public void computeEncoding() {
         addBoundConstraints();
         addCommunityConstraints();
@@ -2160,5 +2206,6 @@ public class EncoderSlice {
         addUnusedDefaultValueConstraints();
         addInactiveLinkConstraints();
         addHeaderSpaceConstraint();
+        // addFoo();
     }
 }

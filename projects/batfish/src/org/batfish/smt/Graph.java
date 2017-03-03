@@ -29,7 +29,7 @@ public class Graph {
 
     private Map<GraphEdge, BgpNeighbor> _ebgpNeighbors;
 
-    private Table2<String, String, BgpNeighbor> _ibgpNeighbors;
+    private Map<GraphEdge, BgpNeighbor> _ibgpNeighbors;
 
     public Graph(IBatfish batfish) {
         this(batfish, null);
@@ -44,7 +44,7 @@ public class Graph {
         _staticRoutes = new HashMap<>();
         _neighbors = new HashMap<>();
         _ebgpNeighbors = new HashMap<>();
-        _ibgpNeighbors = new Table2<>();
+        _ibgpNeighbors = new HashMap<>();
 
         // Remove the routers we don't want to model
         if (routers != null) {
@@ -203,12 +203,16 @@ public class Graph {
     private void initIbgpNeighbors() {
         Map<String, Ip> ips = new HashMap<>();
 
+        Table2<String, String, BgpNeighbor> neighbors = new Table2<>();
+
         // Match iBGP sessions with pairs of routers and BgpNeighbor
         _configurations.forEach((router, conf) -> {
             BgpProcess p = conf.getDefaultVrf().getBgpProcess();
             if (p != null) {
                 p.getNeighbors().forEach((pfx, n) -> {
-                    ips.put(router, n.getLocalIp());
+                    if (n.getLocalAs().equals(n.getRemoteAs())) {
+                        ips.put(router, n.getLocalIp());
+                    }
                 });
             }
         });
@@ -220,7 +224,7 @@ public class Graph {
                     if (n.getLocalAs().equals(n.getRemoteAs())) {
                         ips.forEach((r, ip) -> {
                             if (!router.equals(r) && pfx.contains(ip)) {
-                                _ibgpNeighbors.put(router, r, n);
+                                neighbors.put(router, r, n);
                             }
                         });
                     }
@@ -231,10 +235,10 @@ public class Graph {
         // Add abstract graph edges for iBGP sessions
         Table2<String, String, GraphEdge> reverse = new Table2<>();
 
-        _ibgpNeighbors.forEach((r1, r2, n1) -> {
+        neighbors.forEach((r1, r2, n1) -> {
             Interface iface1 = createIbgpInterface(n1);
 
-            BgpNeighbor n2 = _ibgpNeighbors.get(r2, r1);
+            BgpNeighbor n2 = neighbors.get(r2, r1);
 
             GraphEdge ge;
             if (n2 != null) {
@@ -243,6 +247,8 @@ public class Graph {
             } else {
                 ge = new GraphEdge(iface1, null, r1, null, true);
             }
+
+            _ibgpNeighbors.put(ge, n1);
 
             reverse.put(r1, r2, ge);
 
@@ -285,20 +291,29 @@ public class Graph {
         return iface.getActive();
     }
 
-    boolean isInterfaceUsed(Configuration conf, RoutingProtocol proto, Interface iface) {
-        // Only use specified edges from static routes
-        if (proto == RoutingProtocol.STATIC) {
-            List<StaticRoute> srs = getStaticRoutes().get(conf.getName()).get(iface.getName());
-            return iface.getActive() && srs != null && srs.size() > 0;
-        }
+    boolean isEdgeUsed(Configuration conf, RoutingProtocol proto, GraphEdge ge) {
+        Interface iface = ge.getStart();
+
         // Exclude abstract iBGP edges from all protocols except BGP
         if (iface.getName().startsWith("iBGP-")) {
             return (proto == RoutingProtocol.BGP);
         }
         // Never use Loopbacks for any protocol except connected
-        if (iface.isLoopback(conf.getConfigurationFormat())) {
+        if (ge.getStart().isLoopback(conf.getConfigurationFormat())) {
             return (proto == RoutingProtocol.CONNECTED);
         }
+        // Only use specified edges from static routes
+        if (proto == RoutingProtocol.STATIC) {
+            List<StaticRoute> srs = getStaticRoutes().get(conf.getName()).get(iface.getName());
+            return iface.getActive() && srs != null && srs.size() > 0;
+        }
+        // Only use an edge in BGP if there is an explicit peering
+        if (proto == RoutingProtocol.BGP) {
+            BgpNeighbor n1 = _ebgpNeighbors.get(ge);
+            BgpNeighbor n2 = _ibgpNeighbors.get(ge);
+            return (n1 != null || n2 != null);
+        }
+
         return true;
     }
 
@@ -330,6 +345,14 @@ public class Graph {
         throw new BatfishException("TODO: findCommonRoutingPolicy for " + proto.protocolName());
     }
 
+    BgpNeighbor findBgpNeighbor(GraphEdge e) {
+        if (e.isAbstract()) {
+            return _ibgpNeighbors.get(e);
+        } else {
+            return _ebgpNeighbors.get(e);
+        }
+    }
+
     RoutingPolicy findImportRoutingPolicy(String router, RoutingProtocol proto,
             LogicalEdge e) {
         Configuration conf = _configurations.get(router);
@@ -343,7 +366,8 @@ public class Graph {
             return null;
         }
         if (proto == RoutingProtocol.BGP) {
-            BgpNeighbor n = getEbgpNeighbors().get(e.getEdge());
+            GraphEdge ge = e.getEdge();
+            BgpNeighbor n = findBgpNeighbor(ge);
             if (n == null || n.getImportPolicy() == null) {
                 return null;
             }
@@ -356,7 +380,7 @@ public class Graph {
         return _ebgpNeighbors;
     }
 
-    Table2<String, String, BgpNeighbor> getIbgpNeighbors() {
+    Map<GraphEdge, BgpNeighbor> getIbgpNeighbors() {
         return _ibgpNeighbors;
     }
 
@@ -373,13 +397,12 @@ public class Graph {
             return conf.getRoutingPolicies().get(exp);
         }
         if (proto == RoutingProtocol.BGP) {
-            BgpNeighbor n = getEbgpNeighbors().get(e.getEdge());
-
+            GraphEdge ge = e.getEdge();
+            BgpNeighbor n = findBgpNeighbor(ge);
             // if no neighbor (e.g., loopback), or no export policy
             if (n == null || n.getExportPolicy() == null) {
                 return null;
             }
-
             return conf.getRoutingPolicies().get(n.getExportPolicy());
         }
         throw new BatfishException("TODO: findExportRoutingPolicy for " + proto.protocolName());
@@ -411,12 +434,12 @@ public class Graph {
 
         sb.append("---------------- eBGP Neighbors ----------------\n");
         _ebgpNeighbors.forEach((ge, n) -> {
-            sb.append("Edge: ").append(ge).append(" (").append(n.getAddress()).append(")").append("\n");
+            sb.append("Edge: ").append(ge).append(" (").append(n.getAddress()).append(")\n");
         });
 
         sb.append("---------------- iBGP Neighbors ----------------\n");
-        _ibgpNeighbors.forEach((r1, r2, n) -> {
-            sb.append("Edge: ").append(r1).append(" -> ").append(r2).append("\n");
+        _ibgpNeighbors.forEach((ge, n) -> {
+            sb.append("Edge: ").append(ge).append(" (").append(n.getPrefix()).append(")\n");
         });
 
         sb.append("---------- Static Routes by Interface ----------\n");

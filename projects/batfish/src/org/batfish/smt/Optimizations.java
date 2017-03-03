@@ -39,6 +39,8 @@ class Optimizations {
 
     private Table2<String, RoutingProtocol, Boolean> _needRouterIdProto;
 
+    private Set<String> _needBgpMark;
+
     private Set<String> _needRouterId;
 
     private boolean _keepLocalPref;
@@ -60,6 +62,7 @@ class Optimizations {
         _sliceCanKeepSingleExportVar = new Table2<>();
         _needRouterIdProto = new Table2<>();
         _needRouterId = new HashSet<>();
+        _needBgpMark = new HashSet<>();
         _keepLocalPref = true;
         _keepAdminDist = true;
         _keepMed = true;
@@ -74,6 +77,7 @@ class Optimizations {
         _keepOspfType = computeKeepOspfType();
         initProtocols();
         computeRouterIdNeeded();
+        computeBgpMarkNeeded();
         computeCanUseSingleBest();
         computeCanMergeExportVars();
         computeCanMergeImportExportVars();
@@ -213,6 +217,21 @@ class Optimizations {
         });
     }
 
+    // Check if we need to remember if a route was learned in iBGP or eBGP
+    private void computeBgpMarkNeeded() {
+        Set<String> ebgp = new HashSet<>();
+        Set<String> ibgp = new HashSet<>();
+        _encoderSlice.getGraph().getIbgpNeighbors().forEach((ge,n) -> {
+            ibgp.add(ge.getRouter());
+        });
+        _encoderSlice.getGraph().getEbgpNeighbors().forEach((ge,n) -> {
+            ebgp.add(ge.getRouter());
+        });
+
+        ebgp.retainAll(ibgp);
+        _needBgpMark = ebgp;
+    }
+
     // Check if we can avoid keeping both a best and overall best copy?
     private void computeCanUseSingleBest() {
         _encoderSlice.getGraph().getConfigurations().forEach((router, conf) -> {
@@ -240,7 +259,7 @@ class Optimizations {
                     // Ensure all interfaces are active
                     boolean allIfacesActive = true;
                     for (GraphEdge edge : g.getEdgeMap().get(router)) {
-                        if (g.isInterfaceUsed(conf, proto, edge.getStart())) {
+                        if (g.isEdgeUsed(conf, proto, edge)) {
                             Interface iface = edge.getStart();
                             allIfacesActive = allIfacesActive && g.isInterfaceActive(proto, iface);
                         }
@@ -254,16 +273,25 @@ class Optimizations {
                             .ENABLE_EXPORT_MERGE_OPTIMIZATION);
 
                 } else if (proto == RoutingProtocol.BGP) {
-                    boolean allDefault = true;
-                    for (Map.Entry<Prefix, BgpNeighbor> e : conf.getDefaultVrf().getBgpProcess()
-                                                                .getNeighbors().entrySet()) {
+
+                    // TODO: make sure no ibgp
+
+                    boolean acc = true;
+                    BgpProcess p = conf.getDefaultVrf().getBgpProcess();
+                    for (Map.Entry<Prefix, BgpNeighbor> e : p.getNeighbors().entrySet()) {
                         BgpNeighbor n = e.getValue();
+                        // If iBGP used, then don't merge
+                        if (n.getLocalAs().equals(n.getRemoteAs())) {
+                            acc =false;
+                            break;
+                        }
+                        // If not the default export policy, then don't merge
                         if (!isDefaultBgpExport(conf, n)) {
-                            allDefault = false;
+                            acc = false;
                             break;
                         }
                     }
-                    map.put(proto, allDefault && Optimizations.ENABLE_EXPORT_MERGE_OPTIMIZATION);
+                    map.put(proto, acc && Optimizations.ENABLE_EXPORT_MERGE_OPTIMIZATION);
 
                 } else {
                     throw new BatfishException("Error: unkown protocol: " + proto.protocolName());
@@ -285,12 +313,13 @@ class Optimizations {
 
                     boolean relevantProto = (proto != RoutingProtocol.CONNECTED && proto !=
                             RoutingProtocol.STATIC);
+
                     if (relevantProto) {
 
                         boolean isNotRoot = !hasRelevantOriginatedRoute(conf, proto);
                         if (isNotRoot) {
                             for (GraphEdge e : _encoderSlice.getGraph().getEdgeMap().get(router)) {
-                                if (_encoderSlice.getGraph().isInterfaceUsed(conf, proto, e.getStart())) {
+                                if (_encoderSlice.getGraph().isEdgeUsed(conf, proto, e)) {
                                     if (hasExportVariables(e, proto)) {
                                         edges.add(e);
                                     }
@@ -419,7 +448,8 @@ class Optimizations {
             List<RoutingProtocol> peerProtocols = getProtocols().get(peer);
             if (peerProtocols.contains(proto)) {
                 Configuration peerConf = _encoderSlice.getGraph().getConfigurations().get(peer);
-                if (_encoderSlice.getGraph().isInterfaceUsed(peerConf, proto, e.getEnd())) {
+                GraphEdge other = _encoderSlice.getGraph().getOtherEnd().get(e);
+                if (_encoderSlice.getGraph().isEdgeUsed(peerConf, proto, other)) {
                     return true;
                 }
             }
@@ -441,6 +471,10 @@ class Optimizations {
 
     Table2<String, RoutingProtocol, Boolean> getNeedRouterIdProto() {
         return _needRouterIdProto;
+    }
+
+    Set<String> getNeedBgpMark() {
+        return _needBgpMark;
     }
 
     Table2<String, RoutingProtocol, Boolean> getSliceCanKeepSingleExportVar() {

@@ -16,6 +16,8 @@ public class Encoder {
 
     static int encodingId = 0;
 
+    private boolean _modelIgp;
+
     private Map<String, EncoderSlice> _slices;
 
     private SymbolicFailures _symbolicFailures;
@@ -44,6 +46,7 @@ public class Encoder {
     private Encoder(HeaderSpace h, Graph graph, Context ctx, Solver solver, List<Expr> vars) {
 
         _graph = graph;
+        _modelIgp = true;
 
         HashMap<String, String> cfg = new HashMap<>();
 
@@ -475,6 +478,10 @@ public class Encoder {
         _slices.forEach((name, slice) -> {
             slice.computeEncoding();
         });
+    }
+
+    boolean getModelIgp() {
+        return _modelIgp;
     }
 
     EncoderSlice getMainSlice() {

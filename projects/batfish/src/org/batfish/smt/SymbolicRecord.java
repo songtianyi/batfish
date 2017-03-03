@@ -32,13 +32,15 @@ public class SymbolicRecord {
 
     private ArithExpr _adminDist;
 
-    private ArithExpr _localPref;
-
     private ArithExpr _metric;
 
-    private SymbolicEnum<Long> _ospfArea;
-
     private ArithExpr _med;
+
+    private ArithExpr _localPref;
+
+    private BoolExpr _bgpInternal;
+
+    private SymbolicEnum<Long> _ospfArea;
 
     private SymbolicOspfType _ospfType;
 
@@ -58,9 +60,10 @@ public class SymbolicRecord {
         _isEnv = false;
         _prefixLength = null;
         _metric = null;
-        _localPref = null;
         _adminDist = null;
         _med = null;
+        _localPref = null;
+        _bgpInternal = null;
         _routerId = null;
         _permitted = null;
         _ospfType = null;
@@ -68,8 +71,8 @@ public class SymbolicRecord {
     }
 
     public SymbolicRecord(
-            EncoderSlice enc, String name, String router, RoutingProtocol proto, Optimizations opts,
-            Context ctx, SymbolicEnum<RoutingProtocol> h) {
+            EncoderSlice enc, String name, String router, RoutingProtocol proto, Optimizations
+            opts, Context ctx, SymbolicEnum<RoutingProtocol> h) {
 
         _name = name;
         _proto = proto;
@@ -81,6 +84,7 @@ public class SymbolicRecord {
         boolean hasOspf = enc.getProtocols().get(router).contains(RoutingProtocol.OSPF);
         boolean multipleProtos = enc.getProtocols().get(router).size() > 1;
         boolean modelAd = (_isBestOverall && multipleProtos) || opts.getKeepAdminDist();
+        boolean modelIbgp = (opts.getNeedBgpMark().contains(router));
 
         _protocolHistory = h;
         _ospfArea = null;
@@ -92,24 +96,31 @@ public class SymbolicRecord {
             _localPref = (opts.getKeepLocalPref() ? ctx.mkIntConst(_name + "_localPref") : null);
             _adminDist = (modelAd ? ctx.mkIntConst(_name + "_adminDist") : null);
             _med = (opts.getKeepMed() ? ctx.mkIntConst(_name + "_med") : null);
+            _bgpInternal = (modelIbgp ? ctx.mkBoolConst(_name + "_bgpInternal") : null);
 
             if (hasOspf && opts.getKeepOspfType()) {
                 _ospfType = new SymbolicOspfType(enc, OspfType.values, _name + "_ospfType");
             }
 
             // Set OSPF area only for best OSPF or OVERALL choice
-            if (hasOspf && (_isBestOverall || _name.contains("_OSPF_") )) {
+            if (hasOspf && (_isBestOverall || _name.contains("_OSPF_"))) {
                 List<Long> areaIds = new ArrayList<>(enc.getGraph().getAreaIds().get(router));
                 if (areaIds.size() > 1) {
                     _ospfArea = new SymbolicEnum<>(enc, areaIds, _name + "_ospfArea");
                 }
             }
 
+            if (opts.getNeedBgpMark().contains(router)) {
+
+            }
+
+
         } else if (proto == RoutingProtocol.CONNECTED) {
             _metric = null;
             _localPref = null;
             _adminDist = null;
             _med = null;
+            _bgpInternal = null;
             _ospfArea = null;
             _ospfType = null;
 
@@ -118,6 +129,7 @@ public class SymbolicRecord {
             _localPref = null;
             _adminDist = null;
             _med = null;
+            _bgpInternal = null;
             _ospfArea = null;
             _ospfType = null;
 
@@ -126,6 +138,7 @@ public class SymbolicRecord {
             _localPref = (opts.getKeepLocalPref() ? ctx.mkIntConst(_name + "_localPref") : null);
             _adminDist = (opts.getKeepAdminDist() ? ctx.mkIntConst(_name + "_adminDist") : null);
             _med = (opts.getKeepMed() ? ctx.mkIntConst(_name + "_med") : null);
+            _bgpInternal = (modelIbgp ? ctx.mkBoolConst(_name + "_bgpInternal") : null);
             _ospfArea = null;
             _ospfType = null;
 
@@ -133,7 +146,8 @@ public class SymbolicRecord {
             _metric = ctx.mkIntConst(_name + "_metric");
             _localPref = (opts.getKeepLocalPref() ? ctx.mkIntConst(_name + "_localPref") : null);
             _adminDist = (opts.getKeepAdminDist() ? ctx.mkIntConst(_name + "_adminDist") : null);
-            _med = (opts.getKeepMed() ? ctx.mkIntConst(_name + "_med") : null);
+            _med = null;
+            _bgpInternal = null;
 
             if (opts.getKeepOspfType()) {
                 _ospfType = new SymbolicOspfType(enc, OspfType.values, _name + "_ospfType");
@@ -191,6 +205,9 @@ public class SymbolicRecord {
         }
         if (_routerId != null) {
             all.add(_routerId);
+        }
+        if (_bgpInternal != null) {
+            all.add(_bgpInternal);
         }
         _communities.forEach((name, var) -> {
             all.add(var);
@@ -256,6 +273,10 @@ public class SymbolicRecord {
 
     public SymbolicEnum<RoutingProtocol> getProtocolHistory() {
         return _protocolHistory;
+    }
+
+    public BoolExpr getBgpInternal() {
+        return _bgpInternal;
     }
 
     public RoutingProtocol getProto() {

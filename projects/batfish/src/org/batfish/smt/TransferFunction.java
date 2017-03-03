@@ -33,6 +33,8 @@ public class TransferFunction {
 
     private Interface _iface;
 
+    private GraphEdge _graphEdge;
+
     private Stack<Queue<BooleanExpr>> _operands;
 
     private Stack<List<Statement>> _contTrue;
@@ -47,7 +49,7 @@ public class TransferFunction {
 
     public TransferFunction(EncoderSlice encoderSlice, Configuration conf, SymbolicRecord other,
             SymbolicRecord current, RoutingProtocol to, RoutingProtocol from, List<Statement>
-            statements, Integer addedCost, Interface iface, boolean isExport) {
+            statements, Integer addedCost, GraphEdge ge, boolean isExport) {
         _enc = encoderSlice;
         _conf = conf;
         _other = other;
@@ -56,7 +58,8 @@ public class TransferFunction {
         _from = from;
         _statements = statements;
         _addedCost = addedCost;
-        _iface = iface;
+        _graphEdge = ge;
+        _iface = ge.getStart();
         _isExport = isExport;
         _aggregates = null;
         _prefixLen = null;
@@ -393,6 +396,14 @@ public class TransferFunction {
             area = _enc.safeEqEnum(_current.getOspfArea(), _iface.getOspfAreaName());
         }
 
+        boolean isIbgp = _enc.getGraph().getIbgpNeighbors().containsKey(_graphEdge);
+
+        // Set whether or not is iBGP or not on import
+        BoolExpr isInternal = _enc.True();
+        if (_current.getBgpInternal() != null && isIbgp) {
+            isInternal = _enc.safeEq(_current.getBgpInternal(), _enc.True());
+        }
+
         // Update OSPF type
         BoolExpr type;
         if (mods.getSetOspfMetricType() != null) {
@@ -449,7 +460,7 @@ public class TransferFunction {
         BoolExpr ad = _enc.safeEq(_current.getAdminDist(), otherAd);
         BoolExpr med = _enc.safeEq(_current.getMed(), otherMed);
 
-        BoolExpr updates = _enc.And(per, len, ad, med, lp, met, id, type, area, comms, history);
+        BoolExpr updates = _enc.And(per, len, ad, med, lp, met, id, type, area, comms, history, isInternal);
         BoolExpr noOverflow = noOverflow(metValue, _to);
 
         return _enc.If(noOverflow, updates, _enc.Not(_current.getPermitted()));
