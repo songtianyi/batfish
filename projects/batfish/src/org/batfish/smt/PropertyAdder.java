@@ -30,12 +30,13 @@ public class PropertyAdder {
     public Map<String, BoolExpr> instrumentReachability(GraphEdge ge) {
         Context ctx = _encoderSlice.getCtx();
         Solver solver = _encoderSlice.getSolver();
+        String sliceName = _encoderSlice.getSliceName();
 
         BoolExpr fwdIface = _encoderSlice.getForwardsAcross().get(ge.getRouter(), ge);
 
         Map<String, BoolExpr> reachableVars = new HashMap<>();
         _encoderSlice.getGraph().getConfigurations().forEach((router, conf) -> {
-            BoolExpr var = ctx.mkBoolConst("reachable_" + router);
+            BoolExpr var = ctx.mkBoolConst(sliceName + "reachable_" + router);
             reachableVars.put(router, var);
             _encoderSlice.getAllVariables().add(var);
         });
@@ -65,6 +66,39 @@ public class PropertyAdder {
             BoolExpr permit = enc.getBestNeighbor().get(router).getPermitted();
             solver.add(ctx.mkImplies(reach, permit));
         }); */
+
+        return reachableVars;
+    }
+
+    public Map<String, BoolExpr> instrumentReachability(String router) {
+        Context ctx = _encoderSlice.getCtx();
+        Solver solver = _encoderSlice.getSolver();
+        String sliceName = _encoderSlice.getSliceName();
+
+        Map<String, BoolExpr> reachableVars = new HashMap<>();
+        _encoderSlice.getGraph().getConfigurations().forEach((r, conf) -> {
+            BoolExpr var = ctx.mkBoolConst(sliceName + "reachable_" + r);
+            reachableVars.put(r, var);
+            _encoderSlice.getAllVariables().add(var);
+        });
+
+        BoolExpr baseRouterReachable = reachableVars.get(router);
+        _encoderSlice.add(baseRouterReachable);
+
+        _encoderSlice.getGraph().getEdgeMap().forEach((r, edges) -> {
+            if (!r.equals(router)) {
+                BoolExpr var = reachableVars.get(r);
+                BoolExpr acc = ctx.mkBool(false);
+                for (GraphEdge edge : edges) {
+                    BoolExpr fwd = _encoderSlice.getForwardsAcross().get(r, edge);
+                    if (edge.getPeer() != null) {
+                        BoolExpr peerReachable = reachableVars.get(edge.getPeer());
+                        acc = ctx.mkOr(acc, ctx.mkAnd(fwd, peerReachable));
+                    }
+                }
+                solver.add(ctx.mkEq(var, acc));
+            }
+        });
 
         return reachableVars;
     }

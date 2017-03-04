@@ -10,15 +10,19 @@ import java.util.*;
 
 public class Encoder {
 
-    static final boolean ENABLE_DEBUGGING = false;
+    private static final boolean ENABLE_DEBUGGING = false;
+
+    private static final String MAIN_SLICE_NAME = "slice-Main_";
 
     static final int DEFAULT_CISCO_VLAN_OSPF_COST = 1;
 
-    static int encodingId = 0;
+    private int _encodingId;
 
     private boolean _modelIgp;
 
     private Map<String, EncoderSlice> _slices;
+
+    private Map<String, Map<String, BoolExpr>> _sliceReachability;
 
     private SymbolicFailures _symbolicFailures;
 
@@ -40,13 +44,15 @@ public class Encoder {
     }
 
     public Encoder(HeaderSpace h, Graph graph) {
-        this(h, graph, null, null, null);
+        this(h, graph, null, null, null, 0);
     }
 
-    private Encoder(HeaderSpace h, Graph graph, Context ctx, Solver solver, List<Expr> vars) {
-
+    private Encoder(HeaderSpace h, Graph graph, Context ctx, Solver solver, List<Expr> vars, int id) {
         _graph = graph;
         _modelIgp = true;
+        _encodingId = id;
+        _slices = new HashMap<>();
+        _sliceReachability = new HashMap<>();
 
         HashMap<String, String> cfg = new HashMap<>();
 
@@ -70,7 +76,6 @@ public class Encoder {
             }
         } else {
             _solver = solver;
-            encodingId = encodingId + 1;
         }
 
         _symbolicFailures = new SymbolicFailures();
@@ -90,105 +95,66 @@ public class Encoder {
 
         initConfigurations();
         initFailedLinkVariables();
-
-        _slices = new HashMap<>();
-        _slices.put("main", new EncoderSlice(this, h, graph));
-    }
-
-    Encoder(Encoder e, Graph g) {
-        this(e.getMainSlice().getHeaderSpace(), g, e.getCtx(), e.getSolver(), e.getAllVariables());
-    }
-
-    void add(BoolExpr e) {
-        _unsatCore.track(_solver, _ctx, e);
-    }
-
-    BoolExpr Bool(boolean val) {
-        return getCtx().mkBool(val);
-    }
-
-    BoolExpr Not(BoolExpr e) {
-        return getCtx().mkNot(e);
-    }
-
-    BoolExpr Or(BoolExpr... vals) {
-        return getCtx().mkOr(vals);
-    }
-
-    BoolExpr Implies(BoolExpr e1, BoolExpr e2) {
-        return getCtx().mkImplies(e1, e2);
-    }
-
-    BoolExpr Eq(Expr e1, Expr e2) {
-        return getCtx().mkEq(e1, e2);
-    }
-
-    ArithExpr Int(long l) {
-        return getCtx().mkInt(l);
-    }
-
-    BoolExpr And(BoolExpr... vals) {
-        return getCtx().mkAnd(vals);
-    }
-
-    BoolExpr Ge(Expr e1, Expr e2) {
-        if (e1 instanceof ArithExpr && e2 instanceof ArithExpr) {
-            return getCtx().mkGe((ArithExpr) e1, (ArithExpr) e2);
-        }
-        if (e1 instanceof BitVecExpr && e2 instanceof BitVecExpr) {
-            return getCtx().mkBVUGE((BitVecExpr) e1, (BitVecExpr) e2);
-        }
-        throw new BatfishException("Invalid call the Le while encoding control plane");
-    }
-
-    BoolExpr Le(Expr e1, Expr e2) {
-        if (e1 instanceof ArithExpr && e2 instanceof ArithExpr) {
-            return getCtx().mkLe((ArithExpr) e1, (ArithExpr) e2);
-        }
-        if (e1 instanceof BitVecExpr && e2 instanceof BitVecExpr) {
-            return getCtx().mkBVULE((BitVecExpr) e1, (BitVecExpr) e2);
-        }
-        throw new BatfishException("Invalid call the Le while encoding control plane");
-    }
-
-    BoolExpr True() {
-        return getCtx().mkBool(true);
-    }
-
-    BoolExpr False() {
-        return getCtx().mkBool(false);
-    }
-
-    BoolExpr Lt(Expr e1, Expr e2) {
-        if (e1 instanceof ArithExpr && e2 instanceof ArithExpr) {
-            return getCtx().mkLt((ArithExpr) e1, (ArithExpr) e2);
-        }
-        if (e1 instanceof BitVecExpr && e2 instanceof BitVecExpr) {
-            return getCtx().mkBVULT((BitVecExpr) e1, (BitVecExpr) e2);
-        }
-        throw new BatfishException("Invalid call the Le while encoding control plane");
-    }
-
-    ArithExpr Sum(ArithExpr e1, ArithExpr e2) {
-        return getCtx().mkAdd(e1, e2);
-    }
-
-    ArithExpr Sub(ArithExpr e1, ArithExpr e2) {
-        return getCtx().mkSub(e1, e2);
-    }
-
-    BoolExpr If(BoolExpr cond, BoolExpr case1, BoolExpr case2) {
-        return (BoolExpr) getCtx().mkITE(cond, case1, case2);
-    }
-
-    ArithExpr If(BoolExpr cond, ArithExpr case1, ArithExpr case2) {
-        return (ArithExpr) getCtx().mkITE(cond, case1, case2);
+        initSlices(h, graph);
     }
 
     private void initConfigurations() {
         _graph.getConfigurations().forEach((router, conf) -> {
             initOspfInterfaceCosts(conf);
         });
+    }
+
+    private void initFailedLinkVariables() {
+        _graph.getEdgeMap().forEach((router, edges) -> {
+            for (GraphEdge ge : edges) {
+                if (ge.getPeer() == null) {
+                    Interface i = ge.getStart();
+                    String name = "failed-edge_" + ge.getRouter() + "_" + i.getName();
+                    ArithExpr var = getCtx().mkIntConst(name);
+                    _symbolicFailures.getFailedEdgeLinks().put(ge, var);
+                }
+            }
+        });
+        _graph.getNeighbors().forEach((router, peers) -> {
+            for (String peer : peers) {
+                // sort names for unique
+                String pair = (router.compareTo(peer) < 0 ? router + "_" + peer : peer + "_" +
+                        router);
+                String name = "failed-internal_" + pair;
+                ArithExpr var = _ctx.mkIntConst(name);
+                _symbolicFailures.getFailedInternalLinks().put(router, peer, var);
+            }
+        });
+    }
+
+    private void initSlices(HeaderSpace h, Graph g) {
+        if (g.getIbgpNeighbors().isEmpty() || !_modelIgp) {
+            _slices.put(MAIN_SLICE_NAME, new EncoderSlice(this, h, g, ""));
+        } else {
+            _slices.put(MAIN_SLICE_NAME, new EncoderSlice(this, h, g, MAIN_SLICE_NAME));
+        }
+
+        if (_modelIgp) {
+            g.getIbgpNeighbors().forEach((ge, n) -> {
+                HeaderSpace hs = new HeaderSpace();
+                SortedSet<IpWildcard> ips = new TreeSet<>();
+                ips.add(new IpWildcard(n.getLocalIp()));
+                hs.setDstIps(ips);
+
+                String router = ge.getRouter();
+                String sliceName = "slice-" + router + "_";
+
+                EncoderSlice slice = new EncoderSlice(this, hs, g, sliceName);
+                _slices.put(sliceName, slice);
+
+                PropertyAdder pa = new PropertyAdder(slice);
+                Map<String, BoolExpr> reachVars = pa.instrumentReachability(router);
+                _sliceReachability.put(router, reachVars);
+
+                // TODO: set other fields like srcIp icmpCode, etc
+            });
+        }
+
     }
 
     /**
@@ -223,57 +189,84 @@ public class Encoder {
         }
     }
 
-    private void initFailedLinkVariables() {
-        _graph.getEdgeMap().forEach((router, edges) -> {
-            for (GraphEdge ge : edges) {
-                if (ge.getPeer() == null) {
-                    Interface i = ge.getStart();
-                    String name = "failed-edge_" + ge.getRouter() + "_" + i.getName();
-                    ArithExpr var = getCtx().mkIntConst(name);
-                    _symbolicFailures.getFailedEdgeLinks().put(ge, var);
-                }
-            }
-        });
-        _graph.getNeighbors().forEach((router, peers) -> {
-            for (String peer : peers) {
-                // sort names for unique
-                String pair = (router.compareTo(peer) < 0 ? router + "_" + peer : peer + "_" +
-                        router);
-                String name = "failed-internal_" + pair;
-                ArithExpr var = _ctx.mkIntConst(name);
-                _symbolicFailures.getFailedInternalLinks().put(router, peer, var);
-            }
-        });
+    Context getCtx() {
+        return _ctx;
     }
 
-    private void addFailedConstraints(int k) {
-        List<ArithExpr> vars = new ArrayList<>();
-        getSymbolicFailures().getFailedInternalLinks().forEach((router, peer, var) -> {
-            vars.add(var);
-        });
-        getSymbolicFailures().getFailedEdgeLinks().forEach((ge, var) -> {
-            vars.add(var);
-        });
-
-        ArithExpr sum = Int(0);
-        for (ArithExpr var : vars) {
-            sum = Sum(sum, var);
-            add(Ge(var, Int(0)));
-            add(Le(var, Int(1)));
-        }
-        if (k == 0) {
-            for (ArithExpr var : vars) {
-                add(Eq(var, Int(0)));
-            }
-        } else {
-            add(Le(sum, Int(k)));
-        }
+    Encoder(Encoder e, Graph g) {
+        this(e.getMainSlice().getHeaderSpace(), g, e.getCtx(), e.getSolver(), e.getAllVariables()
+                , e.getId() + 1);
     }
 
+    EncoderSlice getMainSlice() {
+        return _slices.get(MAIN_SLICE_NAME);
+    }
+
+    Solver getSolver() {
+        return _solver;
+    }
+
+    List<Expr> getAllVariables() {
+        return _allVariables;
+    }
+
+    int getId() {
+        return _encodingId;
+    }
+
+    BoolExpr Bool(boolean val) {
+        return getCtx().mkBool(val);
+    }
+
+    BoolExpr Not(BoolExpr e) {
+        return getCtx().mkNot(e);
+    }
+
+    BoolExpr Or(BoolExpr... vals) {
+        return getCtx().mkOr(vals);
+    }
+
+    BoolExpr Implies(BoolExpr e1, BoolExpr e2) {
+        return getCtx().mkImplies(e1, e2);
+    }
+
+    BoolExpr And(BoolExpr... vals) {
+        return getCtx().mkAnd(vals);
+    }
+
+    BoolExpr True() {
+        return getCtx().mkBool(true);
+    }
+
+    BoolExpr False() {
+        return getCtx().mkBool(false);
+    }
+
+    BoolExpr Lt(Expr e1, Expr e2) {
+        if (e1 instanceof ArithExpr && e2 instanceof ArithExpr) {
+            return getCtx().mkLt((ArithExpr) e1, (ArithExpr) e2);
+        }
+        if (e1 instanceof BitVecExpr && e2 instanceof BitVecExpr) {
+            return getCtx().mkBVULT((BitVecExpr) e1, (BitVecExpr) e2);
+        }
+        throw new BatfishException("Invalid call the Le while encoding control plane");
+    }
+
+    ArithExpr Sub(ArithExpr e1, ArithExpr e2) {
+        return getCtx().mkSub(e1, e2);
+    }
+
+    BoolExpr If(BoolExpr cond, BoolExpr case1, BoolExpr case2) {
+        return (BoolExpr) getCtx().mkITE(cond, case1, case2);
+    }
+
+    ArithExpr If(BoolExpr cond, ArithExpr case1, ArithExpr case2) {
+        return (ArithExpr) getCtx().mkITE(cond, case1, case2);
+    }
 
     public VerificationResult verify() {
 
-        EncoderSlice slice = _slices.get("main");
+        EncoderSlice slice = _slices.get(MAIN_SLICE_NAME);
 
         int numVariables = _allVariables.size();
         int numConstraints = _solver.getAssertions().length;
@@ -480,32 +473,80 @@ public class Encoder {
         });
     }
 
-    boolean getModelIgp() {
-        return _modelIgp;
-    }
+    private void addFailedConstraints(int k) {
+        List<ArithExpr> vars = new ArrayList<>();
+        getSymbolicFailures().getFailedInternalLinks().forEach((router, peer, var) -> {
+            vars.add(var);
+        });
+        getSymbolicFailures().getFailedEdgeLinks().forEach((ge, var) -> {
+            vars.add(var);
+        });
 
-    EncoderSlice getMainSlice() {
-        return _slices.get("main");
+        ArithExpr sum = Int(0);
+        for (ArithExpr var : vars) {
+            sum = Sum(sum, var);
+            add(Ge(var, Int(0)));
+            add(Le(var, Int(1)));
+        }
+        if (k == 0) {
+            for (ArithExpr var : vars) {
+                add(Eq(var, Int(0)));
+            }
+        } else {
+            add(Le(sum, Int(k)));
+        }
     }
 
     SymbolicFailures getSymbolicFailures() {
         return _symbolicFailures;
     }
 
-    List<Expr> getAllVariables() {
-        return _allVariables;
+    ArithExpr Int(long l) {
+        return getCtx().mkInt(l);
+    }
+
+    ArithExpr Sum(ArithExpr e1, ArithExpr e2) {
+        return getCtx().mkAdd(e1, e2);
+    }
+
+    void add(BoolExpr e) {
+        _unsatCore.track(_solver, _ctx, e);
+    }
+
+    BoolExpr Ge(Expr e1, Expr e2) {
+        if (e1 instanceof ArithExpr && e2 instanceof ArithExpr) {
+            return getCtx().mkGe((ArithExpr) e1, (ArithExpr) e2);
+        }
+        if (e1 instanceof BitVecExpr && e2 instanceof BitVecExpr) {
+            return getCtx().mkBVUGE((BitVecExpr) e1, (BitVecExpr) e2);
+        }
+        throw new BatfishException("Invalid call the Le while encoding control plane");
+    }
+
+    BoolExpr Le(Expr e1, Expr e2) {
+        if (e1 instanceof ArithExpr && e2 instanceof ArithExpr) {
+            return getCtx().mkLe((ArithExpr) e1, (ArithExpr) e2);
+        }
+        if (e1 instanceof BitVecExpr && e2 instanceof BitVecExpr) {
+            return getCtx().mkBVULE((BitVecExpr) e1, (BitVecExpr) e2);
+        }
+        throw new BatfishException("Invalid call the Le while encoding control plane");
+    }
+
+    BoolExpr Eq(Expr e1, Expr e2) {
+        return getCtx().mkEq(e1, e2);
+    }
+
+    boolean getModelIgp() {
+        return _modelIgp;
+    }
+
+    public Map<String, Map<String, BoolExpr>> getSliceReachability() {
+        return _sliceReachability;
     }
 
     List<SymbolicRecord> getAllSymbolicRecords() {
         return _allSymbolicRecords;
-    }
-
-    Context getCtx() {
-        return _ctx;
-    }
-
-    Solver getSolver() {
-        return _solver;
     }
 
     UnsatCore getUnsatCore() {

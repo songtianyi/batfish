@@ -28,13 +28,13 @@
           "control-forwarding_R2_Serial0" : "true",
           "data-forwarding_R1_Serial0" : "true",
           "data-forwarding_R2_Serial0" : "true",
-          "dst-ip1" : "2885681152",
-          "dst-port1" : "0",
-          "icmp-code1" : "0",
-          "icmp-type1" : "0",
-          "ip-protocol1" : "0",
-          "src-ip1" : "0",
-          "src-port1" : "0"
+          "dst-ip0" : "2885681152",
+          "dst-port0" : "0",
+          "icmp-code0" : "0",
+          "icmp-type0" : "0",
+          "ip-protocol0" : "0",
+          "src-ip0" : "0",
+          "src-port0" : "0"
         },
         "packetModel" : {
           "dstIp" : "172.0.0.0"

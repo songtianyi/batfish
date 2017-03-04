@@ -319,7 +319,7 @@ class Optimizations {
                         boolean isNotRoot = !hasRelevantOriginatedRoute(conf, proto);
                         if (isNotRoot) {
                             for (GraphEdge e : _encoderSlice.getGraph().getEdgeMap().get(router)) {
-                                if (_encoderSlice.getGraph().isEdgeUsed(conf, proto, e)) {
+                                if (_encoderSlice.getGraph().isEdgeUsed(conf, proto, e) && !e.isAbstract()) {
                                     if (hasExportVariables(e, proto)) {
                                         edges.add(e);
                                     }

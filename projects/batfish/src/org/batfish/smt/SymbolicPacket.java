@@ -39,23 +39,23 @@ public class SymbolicPacket {
 
     private ArithExpr _ipProtocol;
 
-    public SymbolicPacket(Context ctx, int id) {
+    public SymbolicPacket(Context ctx, int id, String sliceName) {
         _ctx = ctx;
-        _dstIp = ctx.mkIntConst("dst-ip" + id);
-        _srcIp = ctx.mkIntConst("src-ip" + id);
-        _dstPort = ctx.mkIntConst("dst-port" + id);
-        _srcPort = ctx.mkIntConst("src-port" + id);
-        _icmpCode = ctx.mkIntConst("icmp-code" + id);
-        _icmpType = ctx.mkIntConst("icmp-type" + id);
-        _tcpAck = ctx.mkBoolConst("tcp-ack" + id);
-        _tcpCwr = ctx.mkBoolConst("tcp-cwr" + id);
-        _tcpEce = ctx.mkBoolConst("tcp-ece" + id);
-        _tcpFin = ctx.mkBoolConst("tcp-fin" + id);
-        _tcpPsh = ctx.mkBoolConst("tcp-psh" + id);
-        _tcpRst = ctx.mkBoolConst("tcp-rst" + id);
-        _tcpSyn = ctx.mkBoolConst("tcp-syn" + id);
-        _tcpUrg = ctx.mkBoolConst("tcp-urg" + id);
-        _ipProtocol = ctx.mkIntConst("ip-protocol" + id);
+        _dstIp = ctx.mkIntConst(sliceName + "dst-ip" + id);
+        _srcIp = ctx.mkIntConst(sliceName + "src-ip" + id);
+        _dstPort = ctx.mkIntConst(sliceName + "dst-port" + id);
+        _srcPort = ctx.mkIntConst(sliceName + "src-port" + id);
+        _icmpCode = ctx.mkIntConst(sliceName + "icmp-code" + id);
+        _icmpType = ctx.mkIntConst(sliceName + "icmp-type" + id);
+        _tcpAck = ctx.mkBoolConst(sliceName + "tcp-ack" + id);
+        _tcpCwr = ctx.mkBoolConst(sliceName + "tcp-cwr" + id);
+        _tcpEce = ctx.mkBoolConst(sliceName + "tcp-ece" + id);
+        _tcpFin = ctx.mkBoolConst(sliceName + "tcp-fin" + id);
+        _tcpPsh = ctx.mkBoolConst(sliceName + "tcp-psh" + id);
+        _tcpRst = ctx.mkBoolConst(sliceName + "tcp-rst" + id);
+        _tcpSyn = ctx.mkBoolConst(sliceName + "tcp-syn" + id);
+        _tcpUrg = ctx.mkBoolConst(sliceName + "tcp-urg" + id);
+        _ipProtocol = ctx.mkIntConst(sliceName + "ip-protocol" + id);
     }
 
     public BoolExpr mkEqual(SymbolicPacket other) {

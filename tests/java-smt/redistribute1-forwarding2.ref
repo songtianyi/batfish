@@ -72,13 +72,13 @@
           "data-forwarding_R2_Loopback0" : "true",
           "data-forwarding_R2_Serial0" : "false",
           "data-forwarding_R2_Serial1" : "false",
-          "dst-ip1" : "1162167552",
-          "dst-port1" : "0",
-          "icmp-code1" : "0",
-          "icmp-type1" : "0",
-          "ip-protocol1" : "0",
-          "src-ip1" : "0",
-          "src-port1" : "0"
+          "dst-ip0" : "1162167552",
+          "dst-port0" : "0",
+          "icmp-code0" : "0",
+          "icmp-type0" : "0",
+          "ip-protocol0" : "0",
+          "src-ip0" : "0",
+          "src-port0" : "0"
         },
         "packetModel" : {
           "dstIp" : "69.69.69.0"

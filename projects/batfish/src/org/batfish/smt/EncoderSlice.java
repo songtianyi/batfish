@@ -12,12 +12,8 @@ import org.batfish.smt.utils.Table2;
 import java.util.*;
 import java.util.regex.Matcher;
 
-/* TODO List
- *
+/*
  * - Basic iBGP support
- *      * Mark messages as iBGP or eBGP
- *         + Don't update length along iBGP
- *         + Don't re-export iBGP routes
  *      * Optimize for failures=0 case
  *      * Optimize for consistent preferences case
  *
@@ -25,7 +21,6 @@ import java.util.regex.Matcher;
  * - Add check for block-to-internal for internal prefix space
  * - Ensure that loopbacks/next-hops are reachable
  * - Check for BGP route deflection
- *
  */
 
 
@@ -42,6 +37,8 @@ public class EncoderSlice {
     static final String BGP_COMMON_FILTER_LIST_NAME = "BGP_COMMON_EXPORT_POLICY";
 
     private Encoder _encoder;
+
+    private String _sliceName;
 
     private HeaderSpace _headerSpace;
 
@@ -63,17 +60,18 @@ public class EncoderSlice {
 
     private Map<CommunityVar, List<CommunityVar>> _communityDependencies;
 
-    public EncoderSlice(Encoder enc, HeaderSpace h, IBatfish batfish) {
-        this(enc, h, new Graph(batfish));
+    public EncoderSlice(Encoder enc, HeaderSpace h, IBatfish batfish, String sliceName) {
+        this(enc, h, new Graph(batfish), sliceName);
     }
 
-    public EncoderSlice(Encoder enc, HeaderSpace h, Graph graph) {
+    public EncoderSlice(Encoder enc, HeaderSpace h, Graph graph, String sliceName) {
         _encoder = enc;
+        _sliceName = sliceName;
         _headerSpace = h;
         _optimizations = new Optimizations(this);
         _logicalGraph = new LogicalGraph(graph);
         _symbolicDecisions = new SymbolicDecisions();
-        _symbolicPacket = new SymbolicPacket(enc.getCtx(), Encoder.encodingId);
+        _symbolicPacket = new SymbolicPacket(enc.getCtx(), enc.getId(), _sliceName);
 
         enc.getAllVariables().add(_symbolicPacket.getDstIp());
         enc.getAllVariables().add(_symbolicPacket.getSrcIp());
@@ -99,6 +97,8 @@ public class EncoderSlice {
         initOptimizations();
         initRedistributionProtocols();
         initVariables();
+        initAclFunctions();
+        initForwardingAcross();
     }
 
     private void initCommunities() {
@@ -231,6 +231,10 @@ public class EncoderSlice {
 
     HeaderSpace getHeaderSpace() {
         return _headerSpace;
+    }
+
+    String getSliceName() {
+        return _sliceName;
     }
 
     Context getCtx() {
@@ -392,12 +396,12 @@ public class EncoderSlice {
             for (GraphEdge edge : edges) {
                 String iface = edge.getStart().getName();
 
-                String cName = "control-forwarding_" + router + "_" + iface;
+                String cName = _sliceName + "control-forwarding_" + router + "_" + iface;
                 BoolExpr cForward = getCtx().mkBoolConst(cName);
                 getAllVariables().add(cForward);
                 _symbolicDecisions.getControlForwarding().put(router, edge, cForward);
 
-                String dName = "data-forwarding_" + router + "_" + iface;
+                String dName = _sliceName + "data-forwarding_" + router + "_" + iface;
                 BoolExpr dForward = getCtx().mkBoolConst(dName);
                 getAllVariables().add(dForward);
                 _symbolicDecisions.getDataForwarding().put(router, edge, dForward);
@@ -421,7 +425,7 @@ public class EncoderSlice {
 
             // Overall best
             for (int len = 0; len <= BITS; len++) {
-                String name = String.format("%s_%s_%s_%s", router, "OVERALL", "none", "BEST");
+                String name = String.format("%s%s_%s_%s_%s", _sliceName, router, "OVERALL", "none", "BEST");
                 String historyName = name + "_history";
 
                 SymbolicEnum<RoutingProtocol> h = new SymbolicEnum<>(this, allProtos, historyName);
@@ -435,7 +439,7 @@ public class EncoderSlice {
             // Best per protocol
             if (!_optimizations.getSliceHasSingleProtocol().contains(router)) {
                 for (RoutingProtocol proto : getProtocols().get(router)) {
-                    String name = String.format("%s_%s_%s_%s", router, proto.protocolName(),
+                    String name = String.format("%s%s_%s_%s_%s", _sliceName, router, proto.protocolName(),
                             "none", "BEST");
                     String historyName = name + "_history";
 
@@ -506,7 +510,7 @@ public class EncoderSlice {
                                 SymbolicRecord singleVars = singleExportMap.get(router).get(proto);
                                 SymbolicRecord ev1;
                                 if (singleVars == null) {
-                                    String name = String.format("%s_%s_%s_%s", router, proto
+                                    String name = String.format("%s%s_%s_%s_%s", _sliceName, router, proto
                                             .protocolName(), "", "SINGLE-EXPORT");
                                     ev1 = new SymbolicRecord(this, name, router, proto,
                                             _optimizations, getCtx(), null);
@@ -519,7 +523,7 @@ public class EncoderSlice {
                                 exportEdgeList.add(eExport);
 
                             } else {
-                                String name = String.format("%s_%s_%s_%s", router, proto
+                                String name = String.format("%s%s_%s_%s_%s", _sliceName, router, proto
                                         .protocolName(), ifaceName, "EXPORT");
 
                                 SymbolicRecord ev1 = new SymbolicRecord(this, name, router,
@@ -533,14 +537,14 @@ public class EncoderSlice {
                                     ().get(router).get(proto).contains(e);
 
                             if (notNeeded) {
-                                String name = String.format("%s_%s_%s_%s", router, proto
+                                String name = String.format("%s%s_%s_%s_%s", _sliceName, router, proto
                                         .protocolName(), ifaceName, "IMPORT");
                                 SymbolicRecord ev2 = new SymbolicRecord(name, proto);
                                 LogicalEdge eImport = new LogicalEdge(e, EdgeType.IMPORT, ev2);
                                 importEdgeList.add(eImport);
                             } else {
 
-                                String name = String.format("%s_%s_%s_%s", router, proto
+                                String name = String.format("%s%s_%s_%s_%s", _sliceName, router, proto
                                         .protocolName(), ifaceName, "IMPORT");
                                 SymbolicRecord ev2 = new SymbolicRecord(this, name, router,
                                         proto, _optimizations, getCtx(), null);
@@ -619,7 +623,7 @@ public class EncoderSlice {
                                     }
 
                                     String ifaceName = "ENV-" + address;
-                                    String name = String.format("%s_%s_%s_%s", router, proto
+                                    String name = String.format("%s%s_%s_%s_%s", _sliceName, router, proto
                                             .protocolName(), ifaceName, "EXPORT");
                                     SymbolicRecord vars = new SymbolicRecord(this, name, router,
                                             proto, _optimizations, getCtx(), null);
@@ -1112,10 +1116,10 @@ public class EncoderSlice {
     }
 
     private BoolExpr geBetterHelper(
-            Expr best, Expr vars, Expr defaultVal, boolean less, boolean bestCond) {
+            Expr best, Expr vars, Expr defaultVal, boolean less) {
         BoolExpr fal = False();
         if (vars == null) {
-            if (best != null && bestCond) {
+            if (best != null) {
                 if (less) {
                     return Lt(best, defaultVal);
                 } else {
@@ -1134,9 +1138,9 @@ public class EncoderSlice {
     }
 
     private BoolExpr geEqualHelper(
-            Expr best, Expr vars, Expr defaultVal, boolean bestCond) {
+            Expr best, Expr vars, Expr defaultVal) {
         if (vars == null) {
-            if (best != null && bestCond) {
+            if (best != null) {
                 return Eq(best, defaultVal);
             } else {
                 return True();
@@ -1159,36 +1163,29 @@ public class EncoderSlice {
 
 
         BoolExpr betterLen = geBetterHelper(best.getPrefixLength(), vars.getPrefixLength(),
-                defaultLen, false, true);
+                defaultLen, false);
         BoolExpr equalLen = geEqualHelper(best.getPrefixLength(), vars.getPrefixLength(),
-                defaultLen, true);
+                defaultLen);
 
-        boolean keepAd = _optimizations.getKeepAdminDist();
         BoolExpr betterAd = geBetterHelper(best.getAdminDist(), vars.getAdminDist(),
-                defaultAdmin, true, keepAd);
-        BoolExpr equalAd = geEqualHelper(best.getAdminDist(), vars.getAdminDist(), defaultAdmin,
-                keepAd);
+                defaultAdmin, true);
+        BoolExpr equalAd = geEqualHelper(best.getAdminDist(), vars.getAdminDist(), defaultAdmin);
 
-        boolean keepLp = _optimizations.getKeepLocalPref();
         BoolExpr betterLp = geBetterHelper(best.getLocalPref(), vars.getLocalPref(),
-                defaultLocal, false, keepLp);
-        BoolExpr equalLp = geEqualHelper(best.getLocalPref(), vars.getLocalPref(), defaultLocal,
-                keepLp);
+                defaultLocal, false);
+        BoolExpr equalLp = geEqualHelper(best.getLocalPref(), vars.getLocalPref(), defaultLocal);
 
-        BoolExpr betterMet = geBetterHelper(best.getMetric(), vars.getMetric(), defaultMet, true,
-                true);
-        BoolExpr equalMet = geEqualHelper(best.getMetric(), vars.getMetric(), defaultMet, true);
+        BoolExpr betterMet = geBetterHelper(best.getMetric(), vars.getMetric(), defaultMet, true);
+        BoolExpr equalMet = geEqualHelper(best.getMetric(), vars.getMetric(), defaultMet);
 
-        BoolExpr betterMed = geBetterHelper(best.getMed(), vars.getMed(), defaultMed, true, true);
-        BoolExpr equalMed = geEqualHelper(best.getMed(), vars.getMed(), defaultMed, true);
+        BoolExpr betterMed = geBetterHelper(best.getMed(), vars.getMed(), defaultMed, true);
+        BoolExpr equalMed = geEqualHelper(best.getMed(), vars.getMed(), defaultMed);
 
-        boolean keepType = _optimizations.getKeepOspfType();
         BitVecExpr bestType = (best.getOspfType() == null ? null : best.getOspfType().getBitVec());
         BitVecExpr varsType = (vars.getOspfType() == null ? null : vars.getOspfType().getBitVec());
 
-        BoolExpr betterOspfType = geBetterHelper(bestType, varsType, defaultOspfType, true,
-                keepType);
-        BoolExpr equalOspfType = geEqualHelper(bestType, varsType, defaultOspfType, keepType);
+        BoolExpr betterOspfType = geBetterHelper(bestType, varsType, defaultOspfType, true);
+        BoolExpr equalOspfType = geEqualHelper(bestType, varsType, defaultOspfType);
 
         BoolExpr tiebreak;
         if (isMultipath(conf, proto)) {
@@ -1201,21 +1198,6 @@ public class EncoderSlice {
         } else {
             tiebreak = True();
         }
-
-        /* if (vars.getRouterId() == null) {
-            if (best.getRouterId() == null) {
-                tiebreak = True();
-            } else {
-                Long peerId = _logicalGraph.findRouterId(e, proto);
-                if (isMultipath(conf, proto) || peerId == null) {
-                    tiebreak = True();
-                } else {
-                    tiebreak = Le(best.getRouterId(), Int(peerId));
-                }
-            }
-        } else {
-            tiebreak = Le(best.getRouterId(), vars.getRouterId());
-        } */
 
         BoolExpr b = And(equalOspfType, tiebreak);
         BoolExpr b1 = Or(betterOspfType, b);
@@ -1611,7 +1593,7 @@ public class EncoderSlice {
         return acc;
     }
 
-    private void addAclFunctions() {
+    private void initAclFunctions() {
         getGraph().getEdgeMap().forEach((router, edges) -> {
             for (GraphEdge ge : edges) {
                 Interface i = ge.getStart();
@@ -1637,7 +1619,7 @@ public class EncoderSlice {
         });
     }
 
-    private void addForwardingAcross() {
+    private void initForwardingAcross() {
         _symbolicDecisions.getDataForwarding().forEach((router, edge, var) -> {
             BoolExpr inAcl;
             if (edge.getEnd() == null) {
@@ -1748,11 +1730,21 @@ public class EncoderSlice {
 
                 if (varsOther != null) {
 
-                    // TODO: replace varsOther.getPermitted() with the reachability query
-
                     BoolExpr isRoot = relevantOrigination(originations);
                     BoolExpr active = interfaceActive(iface, proto);
-                    BoolExpr usable = And(Not(isRoot), active, varsOther.getPermitted(), notFailed);
+
+                    // Handle iBGP by checking reachability to the next hop to send messages
+                    boolean isIbgp = (proto == RoutingProtocol.BGP) && (getGraph().getIbgpNeighbors().containsKey(ge));
+                    BoolExpr receiveMessage;
+                    if (_encoder.getModelIgp() && isIbgp) {
+                        String currentRouter = ge.getRouter();
+                        String peerRouter = ge.getPeer();
+                        receiveMessage = _encoder.getSliceReachability().get(currentRouter).get(peerRouter);
+                    } else {
+                        receiveMessage = notFailed;
+                    }
+
+                    BoolExpr usable = And(Not(isRoot), active, varsOther.getPermitted(), receiveMessage);
 
                     BoolExpr importFunction;
                     RoutingPolicy pol = getGraph().findImportRoutingPolicy(router, proto, e);
@@ -1874,7 +1866,9 @@ public class EncoderSlice {
                     BoolExpr len = safeEq(vars.getPrefixLength(), Int(prefixLength));
                     BoolExpr type = safeEqEnum(vars.getOspfType(), OspfType.O);
                     BoolExpr area = safeEqEnum(vars.getOspfArea(), iface.getOspfAreaName());
-                    BoolExpr values = And(per, lp, ad, met, med, len, type, area);
+                    // TODO: is this right?
+                    BoolExpr internal = safeEq(vars.getBgpInternal(), False());
+                    BoolExpr values = And(per, lp, ad, met, med, len, type, area, internal);
                     acc = If(relevant, values, acc);
                 }
 
@@ -2200,8 +2194,6 @@ public class EncoderSlice {
         addChoicePerProtocolConstraints();
         addBestOverallConstraints();
         addControlForwardingConstraints();
-        addAclFunctions();
-        addForwardingAcross();
         addDataForwardingConstraints();
         addUnusedDefaultValueConstraints();
         addInactiveLinkConstraints();
