@@ -1,7 +1,7 @@
 package org.batfish.smt;
 
 
-public class LogicalEdge implements Comparable<LogicalEdge> {
+public class LogicalEdge {
 
     private GraphEdge _edge;
 
@@ -55,29 +55,6 @@ public class LogicalEdge implements Comparable<LogicalEdge> {
         result = 31 * result + (_type != null ? _type.hashCode() : 0);
         result = 31 * result + (_symbolicRecord != null ? _symbolicRecord.hashCode() : 0);
         return result;
-    }
-
-
-    @Override
-    public int compareTo(LogicalEdge that) {
-        if (this._edge.compareTo(that._edge) < 0) {
-            return -1;
-        } else if (this._edge.compareTo(that._edge) > 0) {
-            return 1;
-        }
-
-        if (this._type.compareTo(that._type) < 0) {
-            return -1;
-        } else if (this._type.compareTo(that._type) > 0) {
-            return 1;
-        }
-
-        if (this._symbolicRecord.compareTo(that._symbolicRecord) < 0) {
-            return -1;
-        } else if (this._symbolicRecord.compareTo(that._symbolicRecord) > 0) {
-            return 1;
-        }
-        return 0;
     }
 }
 
