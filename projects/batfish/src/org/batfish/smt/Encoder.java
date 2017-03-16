@@ -62,9 +62,6 @@ public class Encoder {
             cfg.put("auto-config", "false");
         }
 
-        // ensure deterministic solution
-        // cfg.put("random_seed", "0");
-
         _ctx = (ctx == null ? new Context(cfg) : ctx);
 
         if (solver == null) {

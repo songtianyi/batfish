@@ -72,8 +72,8 @@ test tests/java-smt/aggregation2-init.ref init-testrig test_rigs/smt-examples/AG
 test tests/java-smt/aggregation2-forwarding.ref get smt-forwarding dstIps=["42.42.42.1"]
 
 # Proper handling of import prefix-list and route-map
-# test tests/java-smt/env3-init.ref init-testrig test_rigs/smt-examples/ENV3
-# test tests/java-smt/env3-local.ref get smt-local-consistency
+test tests/java-smt/env3-init.ref init-testrig test_rigs/smt-examples/ENV3
+test tests/java-smt/env3-local.ref get smt-local-consistency
 
 # Ensure ACLs are applied to data forwarding
 test tests/java-smt/acl1-init.ref init-testrig test_rigs/smt-examples/ACL1
