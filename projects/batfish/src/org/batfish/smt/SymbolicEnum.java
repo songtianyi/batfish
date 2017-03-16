@@ -114,4 +114,25 @@ public class SymbolicEnum<T> {
         return _bitvec;
     }
 
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o)
+            return true;
+        if (o == null || getClass() != o.getClass())
+            return false;
+
+        SymbolicEnum<?> that = (SymbolicEnum<?>) o;
+
+        if (_numBits != that._numBits)
+            return false;
+        return _bitvec != null ? _bitvec.equals(that._bitvec) : that._bitvec == null;
+    }
+
+    @Override
+    public int hashCode() {
+        int result = _bitvec != null ? _bitvec.hashCode() : 0;
+        result = 31 * result + _numBits;
+        return result;
+    }
 }

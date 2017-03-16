@@ -3,7 +3,6 @@ package org.batfish.smt;
 
 import org.batfish.datamodel.BgpNeighbor;
 import org.batfish.datamodel.Configuration;
-import org.batfish.datamodel.RoutingProtocol;
 import org.batfish.smt.utils.Table2;
 
 import java.util.*;
@@ -14,9 +13,9 @@ public class LogicalGraph {
 
     private Map<LogicalEdge, LogicalEdge> _otherEnd;
 
-    private Table2<String, RoutingProtocol, List<ArrayList<LogicalEdge>>> _logicalEdges;
+    private Table2<String, Protocol, List<ArrayList<LogicalEdge>>> _logicalEdges;
 
-    private Table2<String, RoutingProtocol, Set<RoutingProtocol>> _redistributedProtocols;
+    private Table2<String, Protocol, Set<Protocol>> _redistributedProtocols;
 
     private Map<LogicalEdge, SymbolicRecord> _environmentVars;
 
@@ -28,12 +27,12 @@ public class LogicalGraph {
         _environmentVars = new HashMap<>();
     }
 
-    public Table2<String, RoutingProtocol, List<ArrayList<LogicalEdge>>>
+    public Table2<String, Protocol, List<ArrayList<LogicalEdge>>>
     getLogicalEdges() {
         return _logicalEdges;
     }
 
-    public Table2<String, RoutingProtocol, Set<RoutingProtocol>> getRedistributedProtocols() {
+    public Table2<String, Protocol, Set<Protocol>> getRedistributedProtocols() {
         return _redistributedProtocols;
     }
 
@@ -53,7 +52,7 @@ public class LogicalGraph {
         return _environmentVars.get(e);
     }
 
-    public boolean isEdgeUsed(Configuration conf, RoutingProtocol proto, LogicalEdge e) {
+    public boolean isEdgeUsed(Configuration conf, Protocol proto, LogicalEdge e) {
         GraphEdge ge = e.getEdge();
         return _graph.isEdgeUsed(conf, proto, ge);
     }
@@ -62,7 +61,7 @@ public class LogicalGraph {
         return _graph;
     }
 
-    public Long findRouterId(LogicalEdge e, RoutingProtocol proto) {
+    public Long findRouterId(LogicalEdge e, Protocol proto) {
         LogicalEdge eOther = _otherEnd.get(e);
         if (eOther != null) {
             String peer = eOther.getEdge().getRouter();
@@ -76,11 +75,11 @@ public class LogicalGraph {
         return null;
     }
 
-    private long routerId(Configuration conf, RoutingProtocol proto) {
-        if (proto == RoutingProtocol.BGP) {
+    private long routerId(Configuration conf, Protocol proto) {
+        if (proto.isBgp()) {
             return conf.getDefaultVrf().getBgpProcess().getRouterId().asLong();
         }
-        if (proto == RoutingProtocol.OSPF) {
+        if (proto.isOspf()) {
             return conf.getDefaultVrf().getOspfProcess().getRouterId().asLong();
         } else {
             return 0;

@@ -52,7 +52,7 @@ public class LogicalEdge {
     @Override
     public int hashCode() {
         int result = _edge != null ? _edge.hashCode() : 0;
-        result = 31 * result + (_type != null ? _type.hashCode() : 0);
+        result = 31 * result + (_type != null ? (_type == EdgeType.EXPORT ? 2 : 1) : 0);
         result = 31 * result + (_symbolicRecord != null ? _symbolicRecord.hashCode() : 0);
         return result;
     }

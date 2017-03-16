@@ -284,31 +284,31 @@ public class Graph {
 
     }
 
-    boolean isInterfaceActive(RoutingProtocol proto, Interface iface) {
-        if (proto == RoutingProtocol.OSPF) {
+    boolean isInterfaceActive(Protocol proto, Interface iface) {
+        if (proto.isOspf()) {
             return iface.getActive() && iface.getOspfEnabled();
         }
         return iface.getActive();
     }
 
-    boolean isEdgeUsed(Configuration conf, RoutingProtocol proto, GraphEdge ge) {
+    boolean isEdgeUsed(Configuration conf, Protocol proto, GraphEdge ge) {
         Interface iface = ge.getStart();
 
         // Exclude abstract iBGP edges from all protocols except BGP
         if (iface.getName().startsWith("iBGP-")) {
-            return (proto == RoutingProtocol.BGP);
+            return proto.isBgp();
         }
         // Never use Loopbacks for any protocol except connected
         if (ge.getStart().isLoopback(conf.getConfigurationFormat())) {
-            return (proto == RoutingProtocol.CONNECTED);
+            return proto.isConnected();
         }
         // Only use specified edges from static routes
-        if (proto == RoutingProtocol.STATIC) {
+        if (proto.isStatic()) {
             List<StaticRoute> srs = getStaticRoutes().get(conf.getName()).get(iface.getName());
             return iface.getActive() && srs != null && srs.size() > 0;
         }
         // Only use an edge in BGP if there is an explicit peering
-        if (proto == RoutingProtocol.BGP) {
+        if (proto.isBgp()) {
             BgpNeighbor n1 = _ebgpNeighbors.get(ge);
             BgpNeighbor n2 = _ibgpNeighbors.get(ge);
             return (n1 != null || n2 != null);
@@ -321,13 +321,13 @@ public class Graph {
         return _staticRoutes;
     }
 
-    RoutingPolicy findCommonRoutingPolicy(String router, RoutingProtocol proto) {
+    RoutingPolicy findCommonRoutingPolicy(String router, Protocol proto) {
         Configuration conf = _configurations.get(router);
-        if (proto == RoutingProtocol.OSPF) {
+        if (proto.isOspf()) {
             String exp = conf.getDefaultVrf().getOspfProcess().getExportPolicy();
             return conf.getRoutingPolicies().get(exp);
         }
-        if (proto == RoutingProtocol.BGP) {
+        if (proto.isBgp()) {
             for (Map.Entry<String, RoutingPolicy> entry : conf.getRoutingPolicies().entrySet()) {
                 String name = entry.getKey();
                 if (name.contains(EncoderSlice.BGP_COMMON_FILTER_LIST_NAME)) {
@@ -336,13 +336,13 @@ public class Graph {
             }
             return null;
         }
-        if (proto == RoutingProtocol.STATIC) {
+        if (proto.isStatic()) {
             return null;
         }
-        if (proto == RoutingProtocol.CONNECTED) {
+        if (proto.isConnected()) {
             return null;
         }
-        throw new BatfishException("TODO: findCommonRoutingPolicy for " + proto.protocolName());
+        throw new BatfishException("TODO: findCommonRoutingPolicy for " + proto.name());
     }
 
     BgpNeighbor findBgpNeighbor(GraphEdge e) {
@@ -353,19 +353,19 @@ public class Graph {
         }
     }
 
-    RoutingPolicy findImportRoutingPolicy(String router, RoutingProtocol proto,
+    RoutingPolicy findImportRoutingPolicy(String router, Protocol proto,
             LogicalEdge e) {
         Configuration conf = _configurations.get(router);
-        if (proto == RoutingProtocol.CONNECTED) {
+        if (proto.isConnected()) {
             return null;
         }
-        if (proto == RoutingProtocol.STATIC) {
+        if (proto.isStatic()) {
             return null;
         }
-        if (proto == RoutingProtocol.OSPF) {
+        if (proto.isOspf()) {
             return null;
         }
-        if (proto == RoutingProtocol.BGP) {
+        if (proto.isBgp()) {
             GraphEdge ge = e.getEdge();
             BgpNeighbor n = findBgpNeighbor(ge);
             if (n == null || n.getImportPolicy() == null) {
@@ -373,7 +373,7 @@ public class Graph {
             }
             return conf.getRoutingPolicies().get(n.getImportPolicy());
         }
-        throw new BatfishException("TODO: findImportRoutingPolicy: " + proto.protocolName());
+        throw new BatfishException("TODO: findImportRoutingPolicy: " + proto.name());
     }
 
     Map<GraphEdge, BgpNeighbor> getEbgpNeighbors() {
@@ -384,19 +384,19 @@ public class Graph {
         return _ibgpNeighbors;
     }
 
-    RoutingPolicy findExportRoutingPolicy(String router, RoutingProtocol proto, LogicalEdge e) {
+    RoutingPolicy findExportRoutingPolicy(String router, Protocol proto, LogicalEdge e) {
         Configuration conf = _configurations.get(router);
-        if (proto == RoutingProtocol.CONNECTED) {
+        if (proto.isConnected()) {
             return null;
         }
-        if (proto == RoutingProtocol.STATIC) {
+        if (proto.isStatic()) {
             return null;
         }
-        if (proto == RoutingProtocol.OSPF) {
+        if (proto.isOspf()) {
             String exp = conf.getDefaultVrf().getOspfProcess().getExportPolicy();
             return conf.getRoutingPolicies().get(exp);
         }
-        if (proto == RoutingProtocol.BGP) {
+        if (proto.isBgp()) {
             GraphEdge ge = e.getEdge();
             BgpNeighbor n = findBgpNeighbor(ge);
             // if no neighbor (e.g., loopback), or no export policy
@@ -405,7 +405,7 @@ public class Graph {
             }
             return conf.getRoutingPolicies().get(n.getExportPolicy());
         }
-        throw new BatfishException("TODO: findExportRoutingPolicy for " + proto.protocolName());
+        throw new BatfishException("TODO: findExportRoutingPolicy for " + proto.name());
     }
 
     public String toString() {

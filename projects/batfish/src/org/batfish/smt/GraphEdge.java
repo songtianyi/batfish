@@ -87,8 +87,8 @@ public class GraphEdge {
 
     @Override
     public int hashCode() {
-        int result = _start != null ? _start.hashCode() : 0;
-        result = 31 * result + (_end != null ? _end.hashCode() : 0);
+        int result = _start != null ? _start.getName().hashCode() : 0;
+        result = 31 * result + (_end != null ? _end.getName().hashCode() : 0);
         result = 31 * result + (_router != null ? _router.hashCode() : 0);
         result = 31 * result + (_peer != null ? _peer.hashCode() : 0);
         result = 31 * result + (_isAbstract ? 1 : 0);

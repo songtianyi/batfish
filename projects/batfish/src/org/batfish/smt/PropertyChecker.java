@@ -399,9 +399,9 @@ public class PropertyChecker {
 
             // TODO: check running same protocols?
 
-            // Map<String, EnumMap<RoutingProtocol, Map<String, EnumMap<EdgeType, LogicalEdge>>>>
+            // Map<String, Map<Protocol, Map<String, EnumMap<EdgeType, LogicalEdge>>>>
             //        lgeMap1 = logicalEdgeMap(e1);
-            Map<String, EnumMap<RoutingProtocol, Map<String, EnumMap<EdgeType, LogicalEdge>>>>
+            Map<String, Map<Protocol, Map<String, EnumMap<EdgeType, LogicalEdge>>>>
                     lgeMap2 = logicalEdgeMap(slice2);
 
             BoolExpr equalEnvs = ctx.mkBool(true);
@@ -412,7 +412,7 @@ public class PropertyChecker {
             Configuration conf2 = g2.getConfigurations().get(r2);
 
             // Set environments equal
-            for (RoutingProtocol proto1 : slice1.getProtocols().get(r1)) {
+            for (Protocol proto1 : slice1.getProtocols().get(r1)) {
                 for (ArrayList<LogicalEdge> es : slice1.getLogicalGraph().getLogicalEdges().get(r1)
                                                    .get(proto1)) {
                     for (LogicalEdge lge1 : es) {
@@ -429,8 +429,8 @@ public class PropertyChecker {
                             SymbolicRecord vars2 = slice2.getLogicalGraph().getEnvironmentVars().get
                                     (lge2);
 
-                            BoolExpr aclIn1 = slice1.getIncomingAcls().get(lge1.getEdge().getStart());
-                            BoolExpr aclIn2 = slice2.getIncomingAcls().get(lge2.getEdge().getStart());
+                            BoolExpr aclIn1 = slice1.getIncomingAcls().get(lge1.getEdge());
+                            BoolExpr aclIn2 = slice2.getIncomingAcls().get(lge2.getEdge());
 
                             if (aclIn1 == null) {
                                 aclIn1 = ctx.mkBool(true);
@@ -533,14 +533,14 @@ public class PropertyChecker {
         return ifaces;
     }
 
-    private static Map<String, EnumMap<RoutingProtocol, Map<String, EnumMap<EdgeType,
+    private static Map<String, Map<Protocol, Map<String, EnumMap<EdgeType,
             LogicalEdge>>>> logicalEdgeMap(EncoderSlice enc) {
 
-        Map<String, EnumMap<RoutingProtocol, Map<String, EnumMap<EdgeType, LogicalEdge>>>> acc =
+        Map<String, Map<Protocol, Map<String, EnumMap<EdgeType, LogicalEdge>>>> acc =
                 new HashMap<>();
         enc.getLogicalGraph().getLogicalEdges().forEach((router, map) -> {
-            EnumMap<RoutingProtocol, Map<String, EnumMap<EdgeType, LogicalEdge>>> mapAcc = new
-                    EnumMap<>(RoutingProtocol.class);
+            Map<Protocol, Map<String, EnumMap<EdgeType, LogicalEdge>>> mapAcc = new
+                    HashMap<>();
             acc.put(router, mapAcc);
             map.forEach((proto, edges) -> {
                 Map<String, EnumMap<EdgeType, LogicalEdge>> edgesMap = new HashMap<>();
@@ -569,7 +569,7 @@ public class PropertyChecker {
     private static BoolExpr ignoredDestinations(Context ctx, EncoderSlice e1, String r1, Configuration
             conf1) {
         BoolExpr validDest = ctx.mkBool(true);
-        for (RoutingProtocol proto1 : e1.getProtocols().get(r1)) {
+        for (Protocol proto1 : e1.getProtocols().get(r1)) {
             List<Prefix> prefixes = e1.getOriginatedNetworks(conf1, proto1);
             BoolExpr dest = e1.relevantOrigination(prefixes);
             validDest = ctx.mkAnd(validDest, ctx.mkNot(dest));

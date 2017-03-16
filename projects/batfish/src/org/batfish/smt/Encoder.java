@@ -12,7 +12,7 @@ public class Encoder {
 
     private static final boolean ENABLE_DEBUGGING = false;
 
-    private static final String MAIN_SLICE_NAME = "slice-Main_";
+    private static final String MAIN_SLICE_NAME = "SLICE-MAIN_";
 
     static final int DEFAULT_CISCO_VLAN_OSPF_COST = 1;
 
@@ -62,6 +62,9 @@ public class Encoder {
             cfg.put("auto-config", "false");
         }
 
+        // ensure deterministic solution
+        // cfg.put("random_seed", "0");
+
         _ctx = (ctx == null ? new Context(cfg) : ctx);
 
         if (solver == null) {
@@ -77,6 +80,9 @@ public class Encoder {
         } else {
             _solver = solver;
         }
+
+        // System.out.println(_solver.getHelp());
+
 
         _symbolicFailures = new SymbolicFailures();
         _allSymbolicRecords = new ArrayList<>();
@@ -109,7 +115,7 @@ public class Encoder {
             for (GraphEdge ge : edges) {
                 if (ge.getPeer() == null) {
                     Interface i = ge.getStart();
-                    String name = "failed-edge_" + ge.getRouter() + "_" + i.getName();
+                    String name = "FAILED-EDGE_" + ge.getRouter() + "_" + i.getName();
                     ArithExpr var = getCtx().mkIntConst(name);
                     _symbolicFailures.getFailedEdgeLinks().put(ge, var);
                 }
@@ -120,7 +126,7 @@ public class Encoder {
                 // sort names for unique
                 String pair = (router.compareTo(peer) < 0 ? router + "_" + peer : peer + "_" +
                         router);
-                String name = "failed-internal_" + pair;
+                String name = "FAILED-INTERNAL_" + pair;
                 ArithExpr var = _ctx.mkIntConst(name);
                 _symbolicFailures.getFailedInternalLinks().put(router, peer, var);
             }
@@ -142,7 +148,7 @@ public class Encoder {
                 hs.setDstIps(ips);
 
                 String router = ge.getRouter();
-                String sliceName = "slice-" + router + "_";
+                String sliceName = "SLICE-" + router + "_";
 
                 EncoderSlice slice = new EncoderSlice(this, hs, g, sliceName);
                 _slices.put(sliceName, slice);

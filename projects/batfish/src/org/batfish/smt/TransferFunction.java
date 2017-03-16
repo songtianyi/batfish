@@ -23,9 +23,9 @@ public class TransferFunction {
 
     private SymbolicRecord _current;
 
-    private RoutingProtocol _to;
+    private Protocol _to;
 
-    private RoutingProtocol _from;
+    private Protocol _from;
 
     private List<Statement> _statements;
 
@@ -48,7 +48,7 @@ public class TransferFunction {
     private boolean _isExport;
 
     public TransferFunction(EncoderSlice encoderSlice, Configuration conf, SymbolicRecord other,
-            SymbolicRecord current, RoutingProtocol to, RoutingProtocol from, List<Statement>
+            SymbolicRecord current, Protocol to, Protocol from, List<Statement>
             statements, Integer addedCost, GraphEdge ge, boolean isExport) {
         _enc = encoderSlice;
         _conf = conf;
@@ -228,9 +228,14 @@ public class TransferFunction {
 
         if (expr instanceof MatchProtocol) {
             MatchProtocol mp = (MatchProtocol) expr;
-            RoutingProtocol p = mp.getProtocol();
+
+            Protocol p = Protocol.fromRoutingProtocol(mp.getProtocol());
+            if (p == null) {
+                return _enc.False();
+            }
+
             if (_other.getProtocolHistory() == null) {
-                return _enc.Bool(mp.getProtocol() == _from);
+                return _enc.Bool(p.equals(_from));
             }
             return _other.getProtocolHistory().checkIfValue(p);
         }
@@ -303,21 +308,20 @@ public class TransferFunction {
         throw new BatfishException("TODO: int expr transfer function: " + e);
     }
 
-    private BoolExpr noOverflow(ArithExpr metric, RoutingProtocol proto) {
-        if (proto == RoutingProtocol.CONNECTED) {
+    private BoolExpr noOverflow(ArithExpr metric, Protocol proto) {
+        if (proto.isConnected()) {
             return _enc.True();
         }
-        if (proto == RoutingProtocol.STATIC) {
+        if (proto.isStatic()) {
             return _enc.True();
         }
-        if (proto == RoutingProtocol.OSPF) {
+        if (proto.isOspf()) {
             return _enc.Le(metric, _enc.Int(65535));
         }
-        if (proto == RoutingProtocol.BGP) {
+        if (proto.isBgp()) {
             return _enc.Le(metric, _enc.Int(255));
         }
-        throw new BatfishException("Encoding[noOverflow]: unrecognized protocol: " + proto
-                .protocolName());
+        throw new BatfishException("Encoding[noOverflow]: unrecognized protocol: " + proto.name());
     }
 
     private int prependLength(AsPathListExpr expr) {

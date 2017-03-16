@@ -1,7 +1,7 @@
 package org.batfish.smt;
 
 
-public class CommunityVar implements Comparable<CommunityVar> {
+public class CommunityVar {
 
     public enum Type {
         EXACT, REGEX, OTHER
@@ -37,32 +37,10 @@ public class CommunityVar implements Comparable<CommunityVar> {
 
     @Override
     public int hashCode() {
-        int result = _type != null ? _type.hashCode() : 0;
+        int result = _type != null ? _type.ordinal() : 0;
         result = 31 * result + (_value != null ? _value.hashCode() : 0);
         result = 31 * result + (_long != null ? _long.hashCode() : 0);
         return result;
-    }
-
-    @Override
-    public int compareTo(CommunityVar that) {
-        if (this._type.compareTo(that._type) < 0) {
-            return -1;
-        } else if (this._type.compareTo(that._type) > 0) {
-            return 1;
-        }
-
-        if (this._value.compareTo(that._value) < 0) {
-            return -1;
-        } else if (this._value.compareTo(that._value) > 0) {
-            return 1;
-        }
-
-        if (this._long.compareTo(that._long) < 0) {
-            return -1;
-        } else if (this._long.compareTo(that._long) > 0) {
-            return 1;
-        }
-        return 0;
     }
 
     public Type getType() {

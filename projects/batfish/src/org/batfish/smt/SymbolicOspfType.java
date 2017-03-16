@@ -6,7 +6,6 @@ import java.util.List;
 
 public class SymbolicOspfType extends SymbolicEnum<OspfType> {
 
-
     public SymbolicOspfType(EncoderSlice enc, List<OspfType> values, String name) {
         super(enc, values, name);
     }
@@ -23,10 +22,6 @@ public class SymbolicOspfType extends SymbolicEnum<OspfType> {
             return _enc.True();
         }
         return _enc.getCtx().mkBVULE(_bitvec, _enc.getCtx().mkBV(1, 2));
-    }
-
-    public String toString() {
-        return "";
     }
 
 }

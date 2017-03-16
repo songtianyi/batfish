@@ -4,7 +4,6 @@ import com.microsoft.z3.ArithExpr;
 import com.microsoft.z3.BoolExpr;
 import com.microsoft.z3.Context;
 import com.microsoft.z3.Expr;
-import org.batfish.datamodel.RoutingProtocol;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -16,7 +15,7 @@ public class SymbolicRecord {
 
     private String _name;
 
-    private RoutingProtocol _proto;
+    private Protocol _proto;
 
     private boolean _isUsed;
 
@@ -46,12 +45,12 @@ public class SymbolicRecord {
 
     private ArithExpr _routerId;
 
-    private SymbolicEnum<RoutingProtocol> _protocolHistory;
+    private SymbolicEnum<Protocol> _protocolHistory;
 
     private Map<CommunityVar, BoolExpr> _communities;
 
 
-    public SymbolicRecord(String name, RoutingProtocol proto) {
+    public SymbolicRecord(String name, Protocol proto) {
         _name = name;
         _proto = proto;
         _isUsed = false;
@@ -71,8 +70,8 @@ public class SymbolicRecord {
     }
 
     public SymbolicRecord(
-            EncoderSlice enc, String name, String router, RoutingProtocol proto, Optimizations
-            opts, Context ctx, SymbolicEnum<RoutingProtocol> h) {
+            EncoderSlice enc, String name, String router, Protocol proto, Optimizations
+            opts, Context ctx, SymbolicEnum<Protocol> h) {
 
         _name = name;
         _proto = proto;
@@ -81,7 +80,7 @@ public class SymbolicRecord {
         _isBest = _name.contains("_BEST");
         _isBestOverall = (_isBest && _name.contains("_OVERALL"));
 
-        boolean hasOspf = enc.getProtocols().get(router).contains(RoutingProtocol.OSPF);
+        boolean hasOspf = enc.getProtocols().get(router).contains(Protocol.OSPF);
         boolean multipleProtos = enc.getProtocols().get(router).size() > 1;
         boolean modelAd = (_isBestOverall && multipleProtos) || opts.getKeepAdminDist();
         boolean modelIbgp = (opts.getNeedBgpMark().contains(router));
@@ -91,7 +90,7 @@ public class SymbolicRecord {
         _ospfType = null;
 
         // Represent best variables as the aggregate protocol. Total hack.
-        if (proto == RoutingProtocol.AGGREGATE) {
+        if (proto.isBest()) {
             _metric = ctx.mkIntConst(_name + "_metric");
             _localPref = (opts.getKeepLocalPref() ? ctx.mkIntConst(_name + "_localPref") : null);
             _adminDist = (modelAd ? ctx.mkIntConst(_name + "_adminDist") : null);
@@ -115,7 +114,7 @@ public class SymbolicRecord {
             }
 
 
-        } else if (proto == RoutingProtocol.CONNECTED) {
+        } else if (proto.isConnected()) {
             _metric = null;
             _localPref = null;
             _adminDist = null;
@@ -124,7 +123,7 @@ public class SymbolicRecord {
             _ospfArea = null;
             _ospfType = null;
 
-        } else if (proto == RoutingProtocol.STATIC) {
+        } else if (proto.isStatic()) {
             _metric = null;
             _localPref = null;
             _adminDist = null;
@@ -133,7 +132,7 @@ public class SymbolicRecord {
             _ospfArea = null;
             _ospfType = null;
 
-        } else if (proto == RoutingProtocol.BGP) {
+        } else if (proto.isBgp()) {
             _metric = ctx.mkIntConst(_name + "_metric");
             _localPref = (opts.getKeepLocalPref() ? ctx.mkIntConst(_name + "_localPref") : null);
             _adminDist = (opts.getKeepAdminDist() ? ctx.mkIntConst(_name + "_adminDist") : null);
@@ -142,7 +141,7 @@ public class SymbolicRecord {
             _ospfArea = null;
             _ospfType = null;
 
-        } else if (proto == RoutingProtocol.OSPF) {
+        } else if (proto.isOspf()) {
             _metric = ctx.mkIntConst(_name + "_metric");
             _localPref = (opts.getKeepLocalPref() ? ctx.mkIntConst(_name + "_localPref") : null);
             _adminDist = (opts.getKeepAdminDist() ? ctx.mkIntConst(_name + "_adminDist") : null);
@@ -155,7 +154,7 @@ public class SymbolicRecord {
         }
 
         boolean needId;
-        if (proto == RoutingProtocol.AGGREGATE) {
+        if (proto.isBest()) {
             needId = _isBest && opts.getNeedRouterId().contains(router);
         } else {
             needId = _isBest && opts.getNeedRouterIdProto().get(router).get(proto);
@@ -171,7 +170,7 @@ public class SymbolicRecord {
         _permitted = ctx.mkBoolConst(_name + "_permitted");
 
         _communities = new HashMap<>();
-        if (proto == RoutingProtocol.BGP) {
+        if (proto.isBgp()) {
             for (CommunityVar cvar : enc.getAllCommunities()) {
                 String s = cvar.getValue();
                 if (cvar.getType() == CommunityVar.Type.OTHER) {
@@ -213,6 +212,8 @@ public class SymbolicRecord {
             all.add(var);
         });
     }
+
+
 
 
     public boolean getIsUsed() {
@@ -271,7 +272,7 @@ public class SymbolicRecord {
         return _communities;
     }
 
-    public SymbolicEnum<RoutingProtocol> getProtocolHistory() {
+    public SymbolicEnum<Protocol> getProtocolHistory() {
         return _protocolHistory;
     }
 
@@ -279,8 +280,25 @@ public class SymbolicRecord {
         return _bgpInternal;
     }
 
-    public RoutingProtocol getProto() {
+    public Protocol getProto() {
         return _proto;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o)
+            return true;
+        if (o == null || getClass() != o.getClass())
+            return false;
+
+        SymbolicRecord that = (SymbolicRecord) o;
+
+        return (this._name.equals(that._name));
+    }
+
+    @Override
+    public int hashCode() {
+        return _name.hashCode();
     }
 }
 

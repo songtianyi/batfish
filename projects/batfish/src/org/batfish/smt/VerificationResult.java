@@ -143,7 +143,7 @@ public class VerificationResult {
             enc.getSymbolicDecisions().getDataForwarding().forEach((router, map) -> {
                 map.forEach((edge, e) -> {
                     String expr = e.toString();
-                    if (expr.contains("data-")) {
+                    if (expr.contains("DATA-")) {
                         String result = _model.get(expr);
                         if (result.equals("true")) {
                             System.out.println(edge);
