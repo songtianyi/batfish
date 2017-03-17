@@ -85,15 +85,29 @@ public class PropertyAdder {
         BoolExpr baseRouterReachable = reachableVars.get(router);
         _encoderSlice.add(baseRouterReachable);
 
+        /* _encoderSlice.getForwardsAcross().forEach((r, edge, fwd) -> {
+            if (!r.equals(router)) {
+                BoolExpr var = reachableVars.get(r);
+                BoolExpr acc = ctx.mkBool(false);
+                if (edge.getPeer() != null) {
+                    BoolExpr peerReachable = reachableVars.get(edge.getPeer());
+                    acc = ctx.mkOr(acc, ctx.mkAnd(fwd, peerReachable));
+                }
+                solver.add(ctx.mkEq(var, acc));
+            }
+        }); */
+
         _encoderSlice.getGraph().getEdgeMap().forEach((r, edges) -> {
             if (!r.equals(router)) {
                 BoolExpr var = reachableVars.get(r);
                 BoolExpr acc = ctx.mkBool(false);
                 for (GraphEdge edge : edges) {
-                    BoolExpr fwd = _encoderSlice.getForwardsAcross().get(r, edge);
-                    if (edge.getPeer() != null) {
-                        BoolExpr peerReachable = reachableVars.get(edge.getPeer());
-                        acc = ctx.mkOr(acc, ctx.mkAnd(fwd, peerReachable));
+                    if (!edge.isAbstract()) {
+                        BoolExpr fwd = _encoderSlice.getForwardsAcross().get(r, edge);
+                        if (edge.getPeer() != null) {
+                            BoolExpr peerReachable = reachableVars.get(edge.getPeer());
+                            acc = ctx.mkOr(acc, ctx.mkAnd(fwd, peerReachable));
+                        }
                     }
                 }
                 solver.add(ctx.mkEq(var, acc));
@@ -134,16 +148,19 @@ public class PropertyAdder {
             ArithExpr x = lenVars.get(router);
             if (!router.equals(ge.getRouter())) {
                 for (GraphEdge edge : edges) {
-                    if (edge.getPeer() != null) {
-                        BoolExpr dataFwd = _encoderSlice.getForwardsAcross().get(router, edge);
+                    if (!edge.isAbstract()) {
+                        if (edge.getPeer() != null) {
+                            BoolExpr dataFwd = _encoderSlice.getForwardsAcross().get(router, edge);
 
-                        ArithExpr y = lenVars.get(edge.getPeer());
-                        accNone = ctx.mkAnd(accNone, ctx.mkOr(ctx.mkLt(y, zero), ctx.mkNot
-                                (dataFwd)));
+                            ArithExpr y = lenVars.get(edge.getPeer());
+                            accNone = ctx.mkAnd(accNone, ctx.mkOr(ctx.mkLt(y, zero), ctx.mkNot(dataFwd)));
 
-                        ArithExpr newVal = ctx.mkAdd(y, ctx.mkInt(1));
-                        BoolExpr fwd = ctx.mkAnd(ctx.mkGe(y, zero), dataFwd, ctx.mkEq(x, newVal));
-                        accSome = ctx.mkOr(accSome, fwd);
+
+                            ArithExpr newVal = ctx.mkAdd(y, ctx.mkInt(1));
+                            BoolExpr fwd = ctx.mkAnd(ctx.mkGe(y, zero), dataFwd, ctx.mkEq(x,
+                                    newVal));
+                            accSome = ctx.mkOr(accSome, fwd);
+                        }
                     }
                 }
                 solver.add(ctx.mkImplies(accNone, ctx.mkEq(x, ctx.mkInt(-1))));
@@ -183,11 +200,13 @@ public class PropertyAdder {
                 ArithExpr var = loadVars.get(router);
                 ArithExpr acc = ctx.mkInt(0);
                 for (GraphEdge edge : edges) {
-                    BoolExpr fwd = _encoderSlice.getForwardsAcross().get(router, edge);
-                    if (edge.getPeer() != null) {
-                        ArithExpr peerLoad = loadVars.get(edge.getPeer());
-                        ArithExpr x = (ArithExpr) ctx.mkITE(fwd, peerLoad, zero);
-                        acc = ctx.mkAdd(acc, x);
+                    if (!edge.isAbstract()) {
+                        BoolExpr fwd = _encoderSlice.getForwardsAcross().get(router, edge);
+                        if (edge.getPeer() != null) {
+                            ArithExpr peerLoad = loadVars.get(edge.getPeer());
+                            ArithExpr x = (ArithExpr) ctx.mkITE(fwd, peerLoad, zero);
+                            acc = ctx.mkAdd(acc, x);
+                        }
                     }
                 }
                 solver.add(ctx.mkEq(var, acc));
@@ -214,17 +233,19 @@ public class PropertyAdder {
             BoolExpr var = onLoop.get(r);
             BoolExpr acc = ctx.mkBool(false);
             for (GraphEdge edge : edges) {
-                BoolExpr fwd = _encoderSlice.getForwardsAcross().get(r, edge);
-                String peer = edge.getPeer();
-                if (peer != null) {
-                    // If next hop is static route router, then on loop
-                    if (peer.equals(router)) {
-                        acc = ctx.mkOr(acc, fwd);
-                    }
-                    // Otherwise check if next hop also is on the loop
-                    else {
-                        BoolExpr peerOnLoop = onLoop.get(peer);
-                        acc = ctx.mkOr(acc, ctx.mkAnd(fwd, peerOnLoop));
+                if (!edge.isAbstract()) {
+                    BoolExpr fwd = _encoderSlice.getForwardsAcross().get(r, edge);
+                    String peer = edge.getPeer();
+                    if (peer != null) {
+                        // If next hop is static route router, then on loop
+                        if (peer.equals(router)) {
+                            acc = ctx.mkOr(acc, fwd);
+                        }
+                        // Otherwise check if next hop also is on the loop
+                        else {
+                            BoolExpr peerOnLoop = onLoop.get(peer);
+                            acc = ctx.mkOr(acc, ctx.mkAnd(fwd, peerOnLoop));
+                        }
                     }
                 }
             }

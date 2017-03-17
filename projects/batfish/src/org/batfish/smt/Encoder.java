@@ -504,6 +504,11 @@ public class Encoder {
         return _symbolicFailures;
     }
 
+    public EncoderSlice getSlice(String router) {
+        String s = "SLICE-" + router + "_";
+        return _slices.get(s);
+    }
+
     ArithExpr Int(long l) {
         return getCtx().mkInt(l);
     }

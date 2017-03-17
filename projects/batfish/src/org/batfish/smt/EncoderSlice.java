@@ -401,10 +401,13 @@ public class EncoderSlice {
                 getAllVariables().add(cForward);
                 _symbolicDecisions.getControlForwarding().put(router, edge, cForward);
 
-                String dName = _sliceName + "DATA-FORWARDING_" + router + "_" + iface;
-                BoolExpr dForward = getCtx().mkBoolConst(dName);
-                getAllVariables().add(dForward);
-                _symbolicDecisions.getDataForwarding().put(router, edge, dForward);
+                // Don't add data forwarding variable for abstract edge
+                if (!edge.isAbstract()) {
+                    String dName = _sliceName + "DATA-FORWARDING_" + router + "_" + iface;
+                    BoolExpr dForward = getCtx().mkBoolConst(dName);
+                    getAllVariables().add(dForward);
+                    _symbolicDecisions.getDataForwarding().put(router, edge, dForward);
+                }
             }
         });
     }
@@ -1633,16 +1636,41 @@ public class EncoderSlice {
     }
 
     private void addDataForwardingConstraints() {
+        // for each abstract control edge,
+        // if that edge is on and its neighbor slices has next hop forwarding
+        // out the current edge ge, the we use ge.
+
         getGraph().getEdgeMap().forEach((router, edges) -> {
             for (GraphEdge ge : edges) {
-                BoolExpr acl = _outboundAcls.get(ge);
-                if (acl == null) {
-                    acl = True();
+                // setup forwarding for non-abstract edges
+
+                if (!ge.isAbstract()) {
+
+                    BoolExpr fwd = False();
+
+                    for (GraphEdge ge2 : getGraph().getEdgeMap().get(router)) {
+                        if (ge2.isAbstract()) {
+                            EncoderSlice s = _encoder.getSlice(ge2.getPeer());
+                            BoolExpr outEdge = s.getSymbolicDecisions().getDataForwarding().get(router, ge);
+                            BoolExpr ctrlFwd = getSymbolicDecisions().getControlForwarding().get(router, ge2);
+                            fwd = Or(fwd, And(ctrlFwd, outEdge));
+                        }
+                    }
+
+                    BoolExpr cForward = _symbolicDecisions.getControlForwarding().get(router, ge);
+                    BoolExpr dForward = _symbolicDecisions.getDataForwarding().get(router, ge);
+
+                    fwd = Or(fwd, cForward);
+
+                    // System.out.println("fwd: " + router + ": " + fwd.simplify());
+
+                    BoolExpr acl = _outboundAcls.get(ge);
+                    if (acl == null) {
+                        acl = True();
+                    }
+                    BoolExpr notBlocked = And(fwd, acl);
+                    add(Eq(notBlocked, dForward));
                 }
-                BoolExpr cForward = _symbolicDecisions.getControlForwarding().get(router, ge);
-                BoolExpr dForward = _symbolicDecisions.getDataForwarding().get(router, ge);
-                BoolExpr notBlocked = And(cForward, acl);
-                add(Eq(notBlocked, dForward));
             }
         });
     }
@@ -2162,23 +2190,13 @@ public class EncoderSlice {
         // TODO: need to implement fragment offsets, Ecns, states, etc
     }
 
-    private void addFoo() {
-        // System.out.println("ADDING FOO");
+    private void addEnvironmentAreExternalConstraints() {
         getLogicalGraph().getEnvironmentVars().forEach((le, vars) -> {
-            add(vars.getPermitted());
-        });
-
-        /* getLogicalGraph().getLogicalEdges().forEach((router, proto, es) -> {
-            for (ArrayList<LogicalEdge> e : es) {
-                for (LogicalEdge le : e) {
-                    System.out.println("  LOGICAL EDGE: " + le.getSymbolicRecord().getName());
-                    if (le.getSymbolicRecord().isEnv()) {
-                        System.out.println("ADDING  !!!!!!!!!!!!!!!!!!!");
-                        add(le.getSymbolicRecord().getPermitted());
-                    }
-                }
+            BoolExpr x = vars.getBgpInternal();
+            if (x != null) {
+                add(Not(x));
             }
-        }); */
+        });
     }
 
     public void computeEncoding() {
@@ -2194,6 +2212,7 @@ public class EncoderSlice {
         addUnusedDefaultValueConstraints();
         addInactiveLinkConstraints();
         addHeaderSpaceConstraint();
+        addEnvironmentAreExternalConstraints();
         // addFoo();
     }
 }
