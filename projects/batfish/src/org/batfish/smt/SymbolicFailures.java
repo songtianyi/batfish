@@ -7,26 +7,33 @@ import org.batfish.smt.utils.Table2;
 import java.util.HashMap;
 import java.util.Map;
 
-public class SymbolicFailures {
+
+/**
+ * <p>A collection of symbolic variables representing
+ * the possible link failures in the network.</p>
+ *
+ * @author Ryan Beckett
+ */
+class SymbolicFailures {
 
     private Table2<String, String, ArithExpr> _failedInternalLinks;
 
     private Map<GraphEdge, ArithExpr> _failedEdgeLinks;
 
-    public SymbolicFailures() {
+    SymbolicFailures() {
         _failedInternalLinks = new Table2<>();
         _failedEdgeLinks = new HashMap<>();
     }
 
-    public Table2<String, String, ArithExpr> getFailedInternalLinks() {
+    Table2<String, String, ArithExpr> getFailedInternalLinks() {
         return _failedInternalLinks;
     }
 
-    public Map<GraphEdge, ArithExpr> getFailedEdgeLinks() {
+    Map<GraphEdge, ArithExpr> getFailedEdgeLinks() {
         return _failedEdgeLinks;
     }
 
-    public ArithExpr getFailedVariable(GraphEdge ge) {
+    ArithExpr getFailedVariable(GraphEdge ge) {
         if (ge.getPeer() == null) {
             return _failedEdgeLinks.get(ge);
         }

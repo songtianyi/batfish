@@ -8,17 +8,18 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+
 /**
- * Represents which protocol was choosen by the selection process for a given routing
- * process. This is used to accurately apply an export filter, which may match on the
- * protocol used (e.g., as in Juniper).
- *
+ * <p>Represents a symbolic variable for a small, finite number of choices.
  * For optimization purposes, we use a small domain bitvector to represent the possble
  * choices. For most cases where a single protocol is redistributed, this will result
- * in a single new bit added to the record.
+ * in a single new bit added to the record.</p>
  *
+ * @param <T> The underlying domain of values
+ * @author Ryan Beckett
  */
-public class SymbolicEnum<T> {
+
+class SymbolicEnum<T> {
 
     protected EncoderSlice _enc;
 
@@ -30,7 +31,7 @@ public class SymbolicEnum<T> {
 
     protected Map<T, BitVecExpr> _valueMap;
 
-    public SymbolicEnum(EncoderSlice enc, List<T> values, String name) {
+    SymbolicEnum(EncoderSlice enc, List<T> values, String name) {
         _enc = enc;
 
         int size = values.size();
@@ -74,14 +75,14 @@ public class SymbolicEnum<T> {
         return (x & -x) == x;
     }
 
-    public BoolExpr Eq(SymbolicEnum<T> other) {
+    BoolExpr Eq(SymbolicEnum<T> other) {
         if (_bitvec == null || other._bitvec == null) {
             return _enc.True();
         }
         return _enc.Eq(_bitvec, other._bitvec);
     }
 
-    public BoolExpr checkIfValue(T p) {
+    BoolExpr checkIfValue(T p) {
         if (_bitvec == null) {
             T q = _values.get(0);
             return _enc.Bool(p == q);
@@ -95,22 +96,22 @@ public class SymbolicEnum<T> {
         return _enc.Eq(_bitvec, bv);
     }
 
-    public BoolExpr isDefaultValue() {
+    BoolExpr isDefaultValue() {
         if (_bitvec == null) {
             return _enc.True();
         }
         return _enc.Eq(_bitvec, _enc.getCtx().mkBV(0, _numBits));
     }
 
-    public BitVecExpr defaultValue() {
+    BitVecExpr defaultValue() {
         return _enc.getCtx().mkBV(0, _numBits);
     }
 
-    public T value(int i) {
+    T value(int i) {
         return _values.get(i);
     }
 
-    public BitVecExpr getBitVec() {
+    BitVecExpr getBitVec() {
         return _bitvec;
     }
 

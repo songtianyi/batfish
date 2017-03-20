@@ -7,7 +7,13 @@ import org.batfish.datamodel.routing_policy.statement.*;
 import java.util.HashSet;
 import java.util.Set;
 
-public class Modifications {
+/**
+ * <p>A class representing a collection of modifications made to
+ * a protocols message after pasing through an import/export filter</p>
+ *
+ * @author Ryan Beckett
+ */
+class Modifications {
 
     private EncoderSlice _encoderSlice;
 
@@ -35,7 +41,7 @@ public class Modifications {
 
     private Set<CommunityVar> _negativeCommunities;
 
-    public Modifications(EncoderSlice encoderSlice, Configuration conf) {
+    Modifications(EncoderSlice encoderSlice, Configuration conf) {
         _encoderSlice = encoderSlice;
         _conf = conf;
         _defaultPolicy = null;
@@ -51,7 +57,7 @@ public class Modifications {
         _negativeCommunities = new HashSet<>();
     }
 
-    public Modifications(Modifications other) {
+    Modifications(Modifications other) {
         PrependAsPath a = other.getPrependPath();
         SetLocalPreference b = other.getSetLp();
         SetMetric c = other.getSetMetric();
@@ -91,7 +97,7 @@ public class Modifications {
         }
     }
 
-    public void addModification(Statement stmt) {
+    void addModification(Statement stmt) {
 
         if (stmt instanceof Statements.StaticStatement) {
             Statements.StaticStatement ss = (Statements.StaticStatement) stmt;
@@ -154,47 +160,47 @@ public class Modifications {
         }
     }
 
-    public PrependAsPath getPrependPath() {
+    PrependAsPath getPrependPath() {
         return _prependPath;
     }
 
-    public SetLocalPreference getSetLp() {
+    SetLocalPreference getSetLp() {
         return _setLp;
     }
 
-    public SetMetric getSetMetric() {
+    SetMetric getSetMetric() {
         return _setMetric;
     }
 
-    public SetOspfMetricType getSetOspfMetricType() {
+    SetOspfMetricType getSetOspfMetricType() {
         return _setOspfMetricType;
     }
 
-    public SetWeight getSetWeight() {
+    SetWeight getSetWeight() {
         return _setWeight;
     }
 
-    public SetNextHop getSetNextHop() {
+    SetNextHop getSetNextHop() {
         return _setNextHop;
     }
 
-    public Set<CommunityVar> getPositiveCommunities() {
+    Set<CommunityVar> getPositiveCommunities() {
         return _positiveCommunities;
     }
 
-    public Set<CommunityVar> getNegativeCommunities() {
+    Set<CommunityVar> getNegativeCommunities() {
         return _negativeCommunities;
     }
 
-    public boolean getDefaultAccept() {
+    boolean getDefaultAccept() {
         return _defaultAccept;
     }
 
-    public boolean getDefaultAcceptLocal() {
+    boolean getDefaultAcceptLocal() {
         return _defaultAcceptLocal;
     }
 
-    public SetDefaultPolicy getSetDefaultPolicy() {
+    SetDefaultPolicy getSetDefaultPolicy() {
         return _defaultPolicy;
     }
 }

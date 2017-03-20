@@ -8,6 +8,15 @@ import com.microsoft.z3.BoolExpr;
 import java.util.SortedMap;
 import java.util.SortedSet;
 
+/**
+ * <p>The result of trying to verify properties of the
+ * network model built with an encoder. Either the model
+ * is verified, or there is a counter example and the
+ * counter example is provided as a model for each
+ * encoding variable.<p/>
+ *
+ * @author Ryan Beckett
+ */
 public class VerificationResult {
 
     private static final String VERIFIED_VAR = "verified";
@@ -126,7 +135,6 @@ public class VerificationResult {
         }
         return sb.toString();
     }
-
 
     public void debug(EncoderSlice enc, String filter) {
         System.out.println("================= Constraints ==================");

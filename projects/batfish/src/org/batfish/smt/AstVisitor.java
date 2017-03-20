@@ -11,11 +11,22 @@ import org.batfish.datamodel.routing_policy.statement.Statement;
 import java.util.List;
 import java.util.function.Consumer;
 
+
+/**
+ * <p>A helper visitor class for the Batfish datamodel. The AstVisitor
+ * lets users walk over each statement and expression in the Batfish
+ * datamodel and apply callback functions on the element.</p>
+ *
+ * @author Ryan Beckett
+ */
 public class AstVisitor {
 
     public AstVisitor() {
     }
 
+    /*
+     * Walk starting from an AST boolean expression
+     */
     public void visit(Configuration conf, BooleanExpr e, Consumer<Statement> fs, Consumer<BooleanExpr> fe) {
         fe.accept(e);
         if (e instanceof Conjunction) {
@@ -53,6 +64,9 @@ public class AstVisitor {
         }
     }
 
+    /*
+     * Walk starting from an AST statement
+     */
     public void visit(Configuration conf, Statement s, Consumer<Statement> fs, Consumer<BooleanExpr> fe) {
         fs.accept(s);
 
@@ -70,6 +84,9 @@ public class AstVisitor {
 
     }
 
+    /*
+     * Walk over a list of AST statements
+     */
     public void visit(Configuration conf, List<Statement> ss, Consumer<Statement> fs, Consumer<BooleanExpr> fe) {
         for (Statement s : ss) {
             visit(conf, s, fs, fe);

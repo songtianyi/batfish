@@ -11,7 +11,14 @@ import java.util.List;
 import java.util.Map;
 
 
-public class SymbolicRecord {
+/**
+ * <p>A symbolic record of control plane message attributes.
+ * Attributes are specialized based on the protocol, and
+ * which optimizations are applicable to the network. </p>
+ *
+ * @author Ryan Beckett
+ */
+class SymbolicRecord {
 
     private String _name;
 
@@ -50,7 +57,7 @@ public class SymbolicRecord {
     private Map<CommunityVar, BoolExpr> _communities;
 
 
-    public SymbolicRecord(String name, Protocol proto) {
+    SymbolicRecord(String name, Protocol proto) {
         _name = name;
         _proto = proto;
         _isUsed = false;
@@ -69,7 +76,7 @@ public class SymbolicRecord {
         _protocolHistory = null;
     }
 
-    public SymbolicRecord(
+    SymbolicRecord(
             EncoderSlice enc, String name, String router, Protocol proto, Optimizations
             opts, Context ctx, SymbolicEnum<Protocol> h) {
 
@@ -216,71 +223,71 @@ public class SymbolicRecord {
 
 
 
-    public boolean getIsUsed() {
+    boolean getIsUsed() {
         return _isUsed;
     }
 
-    public String getName() {
+    String getName() {
         return _name;
     }
 
-    public boolean isBest() {
+    boolean isBest() {
         return _isBest;
     }
 
-    public boolean isEnv() {
+    boolean isEnv() {
         return _isEnv;
     }
 
-    public BoolExpr getPermitted() {
+    BoolExpr getPermitted() {
         return _permitted;
     }
 
-    public ArithExpr getMetric() {
+    ArithExpr getMetric() {
         return _metric;
     }
 
-    public ArithExpr getLocalPref() {
+    ArithExpr getLocalPref() {
         return _localPref;
     }
 
-    public ArithExpr getAdminDist() {
+    ArithExpr getAdminDist() {
         return _adminDist;
     }
 
-    public ArithExpr getMed() {
+    ArithExpr getMed() {
         return _med;
     }
 
-    public ArithExpr getRouterId() {
+    ArithExpr getRouterId() {
         return _routerId;
     }
 
-    public ArithExpr getPrefixLength() {
+    ArithExpr getPrefixLength() {
         return _prefixLength;
     }
 
-    public SymbolicEnum<Long> getOspfArea() {
+    SymbolicEnum<Long> getOspfArea() {
         return _ospfArea;
     }
 
-    public SymbolicOspfType getOspfType() {
+    SymbolicOspfType getOspfType() {
         return _ospfType;
     }
 
-    public Map<CommunityVar, BoolExpr> getCommunities() {
+    Map<CommunityVar, BoolExpr> getCommunities() {
         return _communities;
     }
 
-    public SymbolicEnum<Protocol> getProtocolHistory() {
+    SymbolicEnum<Protocol> getProtocolHistory() {
         return _protocolHistory;
     }
 
-    public BoolExpr getBgpInternal() {
+    BoolExpr getBgpInternal() {
         return _bgpInternal;
     }
 
-    public Protocol getProto() {
+    Protocol getProto() {
         return _proto;
     }
 

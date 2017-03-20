@@ -1,9 +1,27 @@
 package org.batfish.smt;
 
 
-public class CommunityVar {
+/**
+ * <p>Representation of a community variable for the symbolic encoding.
+ * Configuration languages allow users match community values using
+ * either <b>exact matches</b> or <b>regular expression</b> matches.
+ * For example, a regular expression match such as .*:65001 will
+ * match any community string that ends with 65001.</p>
+ *
+ *><p>To encode community semantics, the model introduces a single
+ * new boolean variable for every exact match, and two new boolean
+ * variables for every regex match. The first variable says whether
+ * there is a community value that matches the regex, but is not
+ * specified in the configuration (e.g., came from a neighbor).
+ * The second variable says if the regex match is successful, which
+ * is based on both the communities in the configuration as well
+ * as other communities possibly sent by neighbors.</p>
+ *
+ * @author Ryan Beckett
+ */
+class CommunityVar {
 
-    public enum Type {
+    enum Type {
         EXACT, REGEX, OTHER
     }
 
@@ -43,15 +61,15 @@ public class CommunityVar {
         return result;
     }
 
-    public Type getType() {
+    Type getType() {
         return _type;
     }
 
-    public String getValue() {
+    String getValue() {
         return _value;
     }
 
-    public Long asLong() {
+    Long asLong() {
         return _long;
     }
 }

@@ -1,7 +1,14 @@
 package org.batfish.smt;
 
 
-public class LogicalEdge {
+/**
+ * <p>A logical edge in the network graph. Wraps a graph edge
+ * with additional information about the type of the edge
+ * (Import/Export) as well as the record of symbolic variables.</p>
+ *
+ * @author Ryan Beckett
+ */
+class LogicalEdge {
 
     private GraphEdge _edge;
 
@@ -9,7 +16,7 @@ public class LogicalEdge {
 
     private SymbolicRecord _symbolicRecord;
 
-    public LogicalEdge(GraphEdge edge, EdgeType type, SymbolicRecord symbolicRecord) {
+    LogicalEdge(GraphEdge edge, EdgeType type, SymbolicRecord symbolicRecord) {
         _edge = edge;
         _type = type;
         _symbolicRecord = symbolicRecord;

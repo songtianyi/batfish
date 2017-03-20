@@ -13,7 +13,28 @@ import java.util.*;
 
 import static org.batfish.datamodel.routing_policy.statement.Statements.*;
 
-public class TransferFunction {
+/**
+ * <p>Class that computes a symbolic transfer function between
+ * two symbolic control plane records. The transfer function
+ * is used to encode both import and export filters.</p>
+ *
+ * <p>Batfish represents the AST much like vendors where there
+ * is a simple imperative language for matching fields and
+ * making modifications to fields. Since this is not a good
+ * fit for a declarative symbolic encoding of the network,
+ * we convert this stateful representation into a stateless
+ * representation using a form of continuation passing style.</p>
+ *
+ * <p>The TransferFunction class makes policies stateless by inlining
+ * the result of function calls. The _contTrue and _contFalse contexts
+ * maintain the "remaining" policy statements that need to be inlined
+ * as the policy is converted to a stateless form. While traversing the
+ * ast, a collection of modifications are accumulated before being applied
+ * when the AST exits successfully.</p>
+ *
+ * @author Ryan Beckett
+ */
+class TransferFunction {
 
     private EncoderSlice _enc;
 
@@ -47,7 +68,7 @@ public class TransferFunction {
 
     private boolean _isExport;
 
-    public TransferFunction(EncoderSlice encoderSlice, Configuration conf, SymbolicRecord other,
+    TransferFunction(EncoderSlice encoderSlice, Configuration conf, SymbolicRecord other,
             SymbolicRecord current, Protocol to, Protocol from, List<Statement>
             statements, Integer addedCost, GraphEdge ge, boolean isExport) {
         _enc = encoderSlice;
@@ -65,12 +86,15 @@ public class TransferFunction {
         _prefixLen = null;
     }
 
+    /*
+     * Determines whether to model each aggregate route as
+     * suppressing a more specific, or including the more specific
+     */
     private Map<Prefix, Boolean> aggregateRoutes() {
         Map<Prefix, Boolean> acc = new HashMap<>();
-        List<GeneratedRoute> aggregates = _enc.getOptimizations().getRelevantAggregates().get
-                (_conf.getName());
-        Set<Prefix> suppressed = _enc.getOptimizations().getSuppressedAggregates().get(_conf
-                .getName());
+        String name = _conf.getName();
+        List<GeneratedRoute> aggregates = _enc.getOptimizations().getRelevantAggregates().get(name);
+        Set<Prefix> suppressed = _enc.getOptimizations().getSuppressedAggregates().get(name);
         for (GeneratedRoute gr : aggregates) {
             Prefix p = gr.getNetwork();
             acc.put(p, suppressed.contains(p));
@@ -78,6 +102,9 @@ public class TransferFunction {
         return acc;
     }
 
+    /*
+     * Converts a route filter list to a boolean expression.
+     */
     private BoolExpr matchFilterList(RouteFilterList x) {
         BoolExpr acc = _enc.False();
 
@@ -95,6 +122,9 @@ public class TransferFunction {
         return acc;
     }
 
+    /*
+     * Converts a prefix set to a boolean expression.
+     */
     private BoolExpr matchPrefixSet(Configuration conf, PrefixSetExpr e) {
         if (e instanceof ExplicitPrefixSet) {
             ExplicitPrefixSet x = (ExplicitPrefixSet) e;
@@ -121,6 +151,9 @@ public class TransferFunction {
         }
     }
 
+    /*
+     * Converts a community list to a boolean expression.
+     */
     private BoolExpr matchCommunityList(CommunityList cl, SymbolicRecord other) {
         List<CommunityListLine> lines = new ArrayList<>(cl.getLines());
         Collections.reverse(lines);
@@ -134,6 +167,9 @@ public class TransferFunction {
         return acc;
     }
 
+    /*
+     * Converts a community set to a boolean expression
+     */
     private BoolExpr matchCommunitySet(Configuration conf, CommunitySetExpr e, SymbolicRecord
             other) {
         if (e instanceof InlineCommunitySet) {
@@ -158,6 +194,10 @@ public class TransferFunction {
         throw new BatfishException("TODO: match community set");
     }
 
+    /*
+     * Wrap a boolean expression as an equivalent If statement
+     * to convert back and forth between these representations.
+     */
     private List<Statement> wrapExpr(BooleanExpr expr) {
         If i = new If();
         List<Statement> tru = new ArrayList<>();
@@ -170,6 +210,10 @@ public class TransferFunction {
         return Collections.singletonList(i);
     }
 
+    /*
+     * Convert a Batfish AST boolean expression to a symbolic Z3 boolean expression
+     * by performing inlining of stateful side effects.
+     */
     private BoolExpr compute(BooleanExpr expr, Modifications mods, boolean pure, boolean
             inExprCall, boolean inStmtCall) {
 
@@ -277,6 +321,9 @@ public class TransferFunction {
         throw new BatfishException("TODO: compute expr transfer function: " + expr);
     }
 
+    /*
+     * Deal with the possibility of null variables due to optimizations
+     */
     private ArithExpr getOrDefault(ArithExpr x, ArithExpr d) {
         if (x != null) {
             return x;
@@ -284,6 +331,9 @@ public class TransferFunction {
         return d;
     }
 
+    /*
+     * Apply the effect of modifying an integer value (e.g., to set the local pref)
+     */
     private ArithExpr applyIntExprModification(ArithExpr x, IntExpr e) {
         if (e instanceof LiteralInt) {
             LiteralInt z = (LiteralInt) e;
@@ -308,6 +358,10 @@ public class TransferFunction {
         throw new BatfishException("TODO: int expr transfer function: " + e);
     }
 
+    /*
+     * Create a constraint that the metric field does not overflow
+     * for a given routing protocol.
+     */
     private BoolExpr noOverflow(ArithExpr metric, Protocol proto) {
         if (proto.isConnected()) {
             return _enc.True();
@@ -324,6 +378,9 @@ public class TransferFunction {
         throw new BatfishException("Encoding[noOverflow]: unrecognized protocol: " + proto.name());
     }
 
+    /*
+     * Compute how many times to prepend to a path from the AST
+     */
     private int prependLength(AsPathListExpr expr) {
         if (expr instanceof MultipliedAs) {
             MultipliedAs x = (MultipliedAs) expr;
@@ -338,6 +395,9 @@ public class TransferFunction {
         throw new BatfishException("Error[prependLength]: unreachable");
     }
 
+    /*
+     * Apply the effect of the accumulated modifications
+     */
     private BoolExpr applyModifications(Modifications mods) {
         ArithExpr defaultLen = _enc.Int(_enc.defaultLength());
         ArithExpr defaultAd = _enc.Int(_enc.defaultAdminDistance(_conf, _from));
@@ -350,6 +410,7 @@ public class TransferFunction {
         ArithExpr metValue;
         ArithExpr otherMet = getOrDefault(_other.getMetric(), defaultMet);
 
+        // Update the path metric
         if (mods.getSetMetric() == null) {
             Integer addedCost;
 
@@ -470,7 +531,10 @@ public class TransferFunction {
         return _enc.If(noOverflow, updates, _enc.Not(_current.getPermitted()));
     }
 
-    private boolean hasStatement(BooleanExpr be) {
+    /*
+     * Determine if a boolean expression has side effects
+     */
+    private boolean isNotPure(BooleanExpr be) {
         AstVisitor v = new AstVisitor();
         Boolean[] val = new Boolean[1];
         val[0] = false;
@@ -484,6 +548,9 @@ public class TransferFunction {
         return val[0];
     }
 
+    /*
+     * Handle a return true statement
+     */
     private BoolExpr returnTrue(Modifications mods, boolean inExprCall, boolean inStmtCall) {
         if (!_operands.isEmpty() && !_operands.peek().isEmpty()) {
             Queue<BooleanExpr> queue = _operands.peek();
@@ -501,6 +568,9 @@ public class TransferFunction {
         }
     }
 
+    /*
+     * Handle a return false statement
+     */
     private BoolExpr returnFalse(Modifications mods, boolean inExprCall, boolean inStmtCall) {
         if (!_operands.isEmpty() && !_operands.peek().isEmpty()) {
             return compute(_contFalse.peek(), mods, inExprCall, inStmtCall);
@@ -516,7 +586,11 @@ public class TransferFunction {
         }
     }
 
+
     // TODO: make fewer copies of mods
+    /*
+     * Convert a list of statements into a Z3 boolean expression for the transfer function.
+     */
     private BoolExpr compute(List<Statement> statements, Modifications mods, boolean inExprCall,
             boolean inStmtCall) {
         Modifications freshMods = new Modifications(mods);
@@ -567,7 +641,7 @@ public class TransferFunction {
                     }
                 }
 
-                if (hasStatement(i.getGuard())) {
+                if (isNotPure(i.getGuard())) {
                     _contTrue.push(remainingx);
                     _contFalse.push(remainingy);
                     BoolExpr ret = compute(i.getGuard(), freshMods, false, inExprCall, inStmtCall);
@@ -619,6 +693,10 @@ public class TransferFunction {
         }
     }
 
+    /*
+     * Create a new variable representing the new prefix length after
+     * applying the effect of aggregation.
+     */
     private void computeIntermediatePrefixLen() {
         _prefixLen = _other.getPrefixLength();
 
@@ -645,7 +723,7 @@ public class TransferFunction {
         }
     }
 
-    public BoolExpr compute() {
+    BoolExpr compute() {
         computeIntermediatePrefixLen();
         Modifications mods = new Modifications(_enc, _conf);
         _operands = new Stack<>();

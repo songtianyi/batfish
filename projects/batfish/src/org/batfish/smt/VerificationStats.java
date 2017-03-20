@@ -4,6 +4,13 @@ package org.batfish.smt;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+/**
+ * <p>A simple class to record a few statistics
+ * about the network encoding and how long it
+ * spends in Z3 to solve the instance.<p/>
+ *
+ * @author Ryan Beckett
+ */
 public class VerificationStats {
 
     private static final String NUM_NODES_VAR = "numNodes";

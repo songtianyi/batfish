@@ -11,6 +11,13 @@ import org.batfish.smt.utils.Table2;
 
 import java.util.*;
 
+
+/**
+ * <p>A class containing all the information pertinent for
+ * optimizations of the network encoding.</p>
+ *
+ * @author Ryan Beckett
+ */
 class Optimizations {
 
     private static final boolean ENABLE_IMPORT_EXPORT_MERGE_OPTIMIZATION = true;
@@ -85,6 +92,9 @@ class Optimizations {
         computeSuppressedAggregates();
     }
 
+    /*
+     * Check if there is any environmental variable
+     */
     private boolean computeHasEnvironment() {
         Boolean[] val = new Boolean[1];
         val[0] = false;
@@ -99,6 +109,10 @@ class Optimizations {
         return val[0];
     }
 
+    /*
+     * Check if the BGP local preference is needed. If it is never set,
+     * then the variable can be removed from the encoding.
+     */
     private boolean computeKeepLocalPref() {
         if (!Optimizations.ENABLE_SLICING_OPTIMIZATION) {
             return true;
@@ -118,6 +132,12 @@ class Optimizations {
         return val[0];
     }
 
+    /*
+     * Check if administrative distance needs to be kept for
+     * every single message. If it is never set with a custom
+     * value, then it can be inferred for the best choice based
+     * on the default protocol value.
+     */
     private boolean computeKeepAdminDistance() {
         if (!Optimizations.ENABLE_SLICING_OPTIMIZATION) {
             return true;
@@ -139,6 +159,9 @@ class Optimizations {
     }
 
     // TODO: also check if med never set
+    /*
+     * Check if we need to keep around the BGP Med attribute.
+     */
     private boolean computeKeepMed() {
         return !Optimizations.ENABLE_SLICING_OPTIMIZATION;
         /* if (!Optimizations.ENABLE_SLICING_OPTIMIZATION) {
@@ -147,6 +170,11 @@ class Optimizations {
         return _hasEnvironment; */
     }
 
+    /*
+     * Check if we need to keep around the OSPF type. If the type
+     * is never set via redistribution, and there is a single area,
+     * then it is unnecessary.
+     */
     private boolean computeKeepOspfType() {
         if (!Optimizations.ENABLE_SLICING_OPTIMIZATION) {
             return true;
@@ -178,6 +206,10 @@ class Optimizations {
         return areaIds.size() > 1;
     }
 
+    /*
+     * Determine which protocols need to be modeled given the range of
+     * destination IPs specified by the encoder.
+     */
     private void initProtocols() {
         Graph g = _encoderSlice.getGraph();
         g.getConfigurations().forEach((router, conf) -> {
@@ -200,7 +232,33 @@ class Optimizations {
         });
     }
 
-    // Check if we need the routerID for each router/protocol pair
+    /*
+     * We need to model the connected protocol if its interface Ip
+     * overlaps with the destination IP of interest in the packet.
+     */
+    private boolean needToModelConnected(Configuration conf) {
+        if (Optimizations.ENABLE_SLICING_OPTIMIZATION) {
+            return hasRelevantOriginatedRoute(conf, Protocol.CONNECTED);
+        } else {
+            return true;
+        }
+    }
+
+    /*
+     * We need to model the static protocol if its interface Ip
+     * overlaps with the destination IP of interest in the packet.
+     */
+    private boolean needToModelStatic(Configuration conf) {
+        if (Optimizations.ENABLE_SLICING_OPTIMIZATION) {
+            return hasRelevantOriginatedRoute(conf, Protocol.STATIC);
+        } else {
+            return conf.getDefaultVrf().getStaticRoutes().size() > 0;
+        }
+    }
+
+    /*
+     * Check if we need to model the router ID
+     */
     private void computeRouterIdNeeded() {
         _encoderSlice.getGraph().getConfigurations().forEach((router, conf) -> {
             Map<Protocol, Boolean> map = new HashMap<>();
@@ -217,7 +275,10 @@ class Optimizations {
         });
     }
 
-    // Check if we need to remember if a route was learned in iBGP or eBGP
+    /*
+     * Check if we need to remember if a route was learned via iBGP or eBGP.
+     * Any router than only has iBGP or eBGP connections will not need the mark.
+     */
     private void computeBgpMarkNeeded() {
         Set<String> ebgp = new HashSet<>();
         Set<String> ibgp = new HashSet<>();
@@ -232,7 +293,11 @@ class Optimizations {
         _needBgpMark = ebgp;
     }
 
-    // Check if we can avoid keeping both a best and overall best copy?
+    /*
+     * If there is only a single protocol running on a router, then
+     * there is no need to keep both per-protocol and overall best
+     * copies of the final choice.
+     */
     private void computeCanUseSingleBest() {
         _encoderSlice.getGraph().getConfigurations().forEach((router, conf) -> {
             if (getProtocols().get(router).size() == 1) {
@@ -241,7 +306,10 @@ class Optimizations {
         });
     }
 
-    // Merge export variables into a single copy when no peer-specific export
+    /*
+     * Determines when we can merge export variables into a single copy.
+     * This will be safe when there is no peer-specific export filter.
+     */
     private void computeCanMergeExportVars() {
         Graph g = _encoderSlice.getGraph();
 
@@ -300,7 +368,10 @@ class Optimizations {
         });
     }
 
-    // Merge import and export variables when there is no peer-specific import
+    /*
+     * Determine when import and export variables can be merged along an edge.
+     * This will be safe when there is no peer-specific import filter
+     */
     private void computeCanMergeImportExportVars() {
 
         _encoderSlice.getGraph().getConfigurations().forEach((router, conf) -> {
@@ -329,6 +400,9 @@ class Optimizations {
         });
     }
 
+    /*
+     * Computes aggregates that are applicable to the encoding.
+     */
     private void computeRelevantAggregates() {
         _encoderSlice.getGraph().getConfigurations().forEach((router, conf) -> {
             List<GeneratedRoute> routes = new ArrayList<>();
@@ -342,6 +416,10 @@ class Optimizations {
         });
     }
 
+    /*
+     * Computes whether each aggregate will suppress more specific routes
+     * or if it will advertise both.
+     */
     private void computeSuppressedAggregates() {
         _encoderSlice.getGraph().getConfigurations().forEach((router, conf) -> {
             Set<Prefix> prefixes = new HashSet<>();
@@ -356,26 +434,9 @@ class Optimizations {
         });
     }
 
-    Map<String, List<Protocol>> getProtocols() {
-        return _protocols;
-    }
-
-    private boolean needToModelConnected(Configuration conf) {
-        if (Optimizations.ENABLE_SLICING_OPTIMIZATION) {
-            return hasRelevantOriginatedRoute(conf, Protocol.CONNECTED);
-        } else {
-            return true;
-        }
-    }
-
-    private boolean needToModelStatic(Configuration conf) {
-        if (Optimizations.ENABLE_SLICING_OPTIMIZATION) {
-            return hasRelevantOriginatedRoute(conf, Protocol.STATIC);
-        } else {
-            return conf.getDefaultVrf().getStaticRoutes().size() > 0;
-        }
-    }
-
+    /*
+     * Determine if a BGP neighbor uses the default export policy
+     */
     private boolean isDefaultBgpExport(Configuration conf, BgpNeighbor n) {
 
         // Check if valid neighbor
@@ -425,6 +486,10 @@ class Optimizations {
         return ce.getCalledPolicyName().contains(EncoderSlice.BGP_COMMON_FILTER_LIST_NAME);
     }
 
+    /*
+     * Check if a particular protocol has an originated route that is
+     * possibly relevant for symbolic the destination Ip packet.
+     */
     private boolean hasRelevantOriginatedRoute(Configuration conf, Protocol proto) {
         List<Prefix> prefixes = _encoderSlice.getOriginatedNetworks(conf, proto);
         for (Prefix p1 : prefixes) {
@@ -435,9 +500,11 @@ class Optimizations {
         return false;
     }
 
-    // Make sure the neighbor uses the same protocol
-    // and is configured to use the corresponding interface.
-    // This makes sure that the export variables will exist.
+    /*
+     * Check if a graph edge will have export variables for a given protocol.
+     * This will happen when the edge's interface is used in the protocol
+     * and the other end of the interface is internal.
+     */
     private boolean hasExportVariables(GraphEdge e, Protocol proto) {
         if (e.getEnd() != null) {
             String peer = e.getPeer();
@@ -451,6 +518,14 @@ class Optimizations {
             }
         }
         return false;
+    }
+
+    /*
+     * Getters and Setters
+     */
+
+    Map<String, List<Protocol>> getProtocols() {
+        return _protocols;
     }
 
     Map<String, List<GeneratedRoute>> getRelevantAggregates() {

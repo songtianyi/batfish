@@ -7,7 +7,14 @@ import org.batfish.smt.utils.Table2;
 
 import java.util.*;
 
-public class LogicalGraph {
+/**
+ * <p>A logical graph that wraps the network graph and adds
+ * additional information about the routing protocols actually
+ * using the underlying network graph.</p>
+ *
+ * @author Ryan Beckett
+ */
+class LogicalGraph {
 
     private Graph _graph;
 
@@ -19,7 +26,7 @@ public class LogicalGraph {
 
     private Map<LogicalEdge, SymbolicRecord> _environmentVars;
 
-    public LogicalGraph(Graph g) {
+    LogicalGraph(Graph g) {
         _graph = g;
         _logicalEdges = new Table2<>();
         _redistributedProtocols = new Table2<>();
@@ -27,24 +34,11 @@ public class LogicalGraph {
         _environmentVars = new HashMap<>();
     }
 
-    public Table2<String, Protocol, List<ArrayList<LogicalEdge>>>
-    getLogicalEdges() {
-        return _logicalEdges;
-    }
-
-    public Table2<String, Protocol, Set<Protocol>> getRedistributedProtocols() {
-        return _redistributedProtocols;
-    }
-
-    public Map<LogicalEdge, LogicalEdge> getOtherEnd() {
-        return _otherEnd;
-    }
-
-    public Map<LogicalEdge, SymbolicRecord> getEnvironmentVars() {
-        return _environmentVars;
-    }
-
-    public SymbolicRecord findOtherVars(LogicalEdge e) {
+    /*
+     * Find the variables for the opposite edge of a
+     * logical edge.
+     */
+    SymbolicRecord findOtherVars(LogicalEdge e) {
         LogicalEdge other = _otherEnd.get(e);
         if (other != null) {
             return other.getSymbolicRecord();
@@ -52,16 +46,18 @@ public class LogicalGraph {
         return _environmentVars.get(e);
     }
 
-    public boolean isEdgeUsed(Configuration conf, Protocol proto, LogicalEdge e) {
+    /*
+     * Check if a logical edge is used for a particular protocol.
+     */
+    boolean isEdgeUsed(Configuration conf, Protocol proto, LogicalEdge e) {
         GraphEdge ge = e.getEdge();
         return _graph.isEdgeUsed(conf, proto, ge);
     }
 
-    public Graph getGraph() {
-        return _graph;
-    }
-
-    public Long findRouterId(LogicalEdge e, Protocol proto) {
+    /*
+     * Find the router Id for the neighbor corresponding to a logical edge.
+     */
+    Long findRouterId(LogicalEdge e, Protocol proto) {
         LogicalEdge eOther = _otherEnd.get(e);
         if (eOther != null) {
             String peer = eOther.getEdge().getRouter();
@@ -75,6 +71,9 @@ public class LogicalGraph {
         return null;
     }
 
+    /*
+     * Find the router Id for a router and a protocol.
+     */
     private long routerId(Configuration conf, Protocol proto) {
         if (proto.isBgp()) {
             return conf.getDefaultVrf().getBgpProcess().getRouterId().asLong();
@@ -84,6 +83,30 @@ public class LogicalGraph {
         } else {
             return 0;
         }
+    }
+
+    /*
+     * Getters and setters
+     */
+
+    Graph getGraph() {
+        return _graph;
+    }
+
+    Map<LogicalEdge, LogicalEdge> getOtherEnd() {
+        return _otherEnd;
+    }
+
+    Map<LogicalEdge, SymbolicRecord> getEnvironmentVars() {
+        return _environmentVars;
+    }
+
+    Table2<String, Protocol, List<ArrayList<LogicalEdge>>> getLogicalEdges() {
+        return _logicalEdges;
+    }
+
+    Table2<String, Protocol, Set<Protocol>> getRedistributedProtocols() {
+        return _redistributedProtocols;
     }
 
 }

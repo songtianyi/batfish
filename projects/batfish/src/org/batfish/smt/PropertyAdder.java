@@ -7,6 +7,14 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+
+/**
+ * <p>Instruments the network model with additional information
+ * that is useful for checking other properties. This information
+ * can be things like reachability, path length, load, etc.</p>
+ *
+ * @author Ryan Beckett
+ */
 public class PropertyAdder {
 
     private EncoderSlice _encoderSlice;
@@ -15,6 +23,9 @@ public class PropertyAdder {
         _encoderSlice = encoderSlice;
     }
 
+    /*
+     * Ensure that all expressions in a list are equal
+     */
     public static BoolExpr allEqual(Context ctx, List<Expr> exprs) {
         BoolExpr acc = ctx.mkBool(true);
         if (exprs.size() > 1) {
@@ -27,6 +38,12 @@ public class PropertyAdder {
         return acc;
     }
 
+    /*
+     * Add reachability information to the network for a destination edge.
+     * Each router will have a boolean variable determining if it can reach
+     * the destination. A router is reachable if it has some neighbor that
+     * is also reachable.
+     */
     public Map<String, BoolExpr> instrumentReachability(GraphEdge ge) {
         Context ctx = _encoderSlice.getCtx();
         Solver solver = _encoderSlice.getSolver();
@@ -41,7 +58,6 @@ public class PropertyAdder {
             _encoderSlice.getAllVariables().add(var);
         });
 
-
         BoolExpr baseRouterReachable = reachableVars.get(ge.getRouter());
         solver.add(ctx.mkEq(fwdIface, baseRouterReachable));
 
@@ -50,10 +66,12 @@ public class PropertyAdder {
                 BoolExpr var = reachableVars.get(router);
                 BoolExpr acc = ctx.mkBool(false);
                 for (GraphEdge edge : edges) {
-                    BoolExpr fwd = _encoderSlice.getForwardsAcross().get(router, edge);
-                    if (edge.getPeer() != null) {
-                        BoolExpr peerReachable = reachableVars.get(edge.getPeer());
-                        acc = ctx.mkOr(acc, ctx.mkAnd(fwd, peerReachable));
+                    if (!edge.isAbstract()) {
+                        BoolExpr fwd = _encoderSlice.getForwardsAcross().get(router, edge);
+                        if (edge.getPeer() != null) {
+                            BoolExpr peerReachable = reachableVars.get(edge.getPeer());
+                            acc = ctx.mkOr(acc, ctx.mkAnd(fwd, peerReachable));
+                        }
                     }
                 }
                 solver.add(ctx.mkEq(var, acc));
@@ -70,6 +88,10 @@ public class PropertyAdder {
         return reachableVars;
     }
 
+    /*
+     * Also instruments reachability, but to a destination router
+     * rather than a destination port.
+     */
     public Map<String, BoolExpr> instrumentReachability(String router) {
         Context ctx = _encoderSlice.getCtx();
         Solver solver = _encoderSlice.getSolver();
@@ -84,18 +106,6 @@ public class PropertyAdder {
 
         BoolExpr baseRouterReachable = reachableVars.get(router);
         _encoderSlice.add(baseRouterReachable);
-
-        /* _encoderSlice.getForwardsAcross().forEach((r, edge, fwd) -> {
-            if (!r.equals(router)) {
-                BoolExpr var = reachableVars.get(r);
-                BoolExpr acc = ctx.mkBool(false);
-                if (edge.getPeer() != null) {
-                    BoolExpr peerReachable = reachableVars.get(edge.getPeer());
-                    acc = ctx.mkOr(acc, ctx.mkAnd(fwd, peerReachable));
-                }
-                solver.add(ctx.mkEq(var, acc));
-            }
-        }); */
 
         _encoderSlice.getGraph().getEdgeMap().forEach((r, edges) -> {
             if (!r.equals(router)) {
@@ -117,6 +127,12 @@ public class PropertyAdder {
         return reachableVars;
     }
 
+    /*
+     * Instruments the network with path length information to a
+     * destination port corresponding to a graph edge ge.
+     * A router has a path of length n if some neighbor has a path
+     * with length n-1.
+     */
     public Map<String, ArithExpr> instrumentPathLength(GraphEdge ge) {
         Context ctx = _encoderSlice.getCtx();
         Solver solver = _encoderSlice.getSolver();
@@ -171,6 +187,11 @@ public class PropertyAdder {
         return lenVars;
     }
 
+    /*
+     * Instruments the network with load balancing information to destination
+     * port for graph edge ge. Each router will split load according to the
+     * number of neighbors it actively uses to get to ge.
+     */
     public Map<String, ArithExpr> instrumentLoad(GraphEdge ge) {
         Context ctx = _encoderSlice.getCtx();
         Solver solver = _encoderSlice.getSolver();
@@ -216,6 +237,10 @@ public class PropertyAdder {
         return loadVars;
     }
 
+    /*
+     * Instruments the network to check if a router will be part
+     * of a routing loop.
+     */
     public BoolExpr instrumentLoop(String router) {
         Context ctx = _encoderSlice.getCtx();
         Solver solver = _encoderSlice.getSolver();

@@ -12,10 +12,9 @@ import org.batfish.smt.utils.Table2;
 import java.util.*;
 import java.util.regex.Matcher;
 
-/*
- * - Basic iBGP support
- *      * Optimize for failures=0 case
- *      * Optimize for consistent preferences case
+/* TODO:
+ *      * Optimize iBGP for failures=0 case
+ *      * Optimize iBGP for consistent preferences case
  *
  * - Add check for block-to-external for internal prefix space
  * - Add check for block-to-internal for internal prefix space
@@ -25,10 +24,14 @@ import java.util.regex.Matcher;
 
 
 /**
- * An object that is responsible for creating a symbolic representation
- * of both the network control and data planes.
+ * <p>A class responsible for building a symbolic encoding of
+ * the network for a particular packet. The encoding is
+ * heavily specialized based on the Optimizations class,
+ * and what optimizations it indicates are possible.</p>
+ *
+ * @author Ryan Beckett
  */
-public class EncoderSlice {
+class EncoderSlice {
 
     static final int BITS = 0;
 
@@ -60,11 +63,25 @@ public class EncoderSlice {
 
     private Map<CommunityVar, List<CommunityVar>> _communityDependencies;
 
-    public EncoderSlice(Encoder enc, HeaderSpace h, IBatfish batfish, String sliceName) {
+    /**
+     * Create a new encoding slice
+     * @param enc  The parent encoder object
+     * @param h  The packet headerspace of interest
+     * @param batfish  The batfish object
+     * @param sliceName  The name of this slice
+     */
+    EncoderSlice(Encoder enc, HeaderSpace h, IBatfish batfish, String sliceName) {
         this(enc, h, new Graph(batfish), sliceName);
     }
 
-    public EncoderSlice(Encoder enc, HeaderSpace h, Graph graph, String sliceName) {
+    /**
+     * Create a new encoding slice
+     * @param enc  The parent encoder object
+     * @param h  The packet headerspace of interest
+     * @param graph  The network graph
+     * @param sliceName  The name of this slice
+     */
+    EncoderSlice(Encoder enc, HeaderSpace h, Graph graph, String sliceName) {
         _encoder = enc;
         _sliceName = sliceName;
         _headerSpace = h;
@@ -101,6 +118,191 @@ public class EncoderSlice {
         initForwardingAcross();
     }
 
+    // Add a variable to the encoding
+    void add(BoolExpr e) {
+        _encoder.add(e);
+    }
+
+    // Symbolic False value
+    BoolExpr False() {
+        return _encoder.False();
+    }
+
+    // Symbolic true value
+    public BoolExpr True() {
+        return _encoder.True();
+    }
+
+    // Create a symbolic boolean
+    BoolExpr Bool(boolean val) {
+        return _encoder.Bool(val);
+    }
+
+    // Symbolic boolean negation
+    BoolExpr Not(BoolExpr e) {
+        return _encoder.Not(e);
+    }
+
+    // Symbolic boolean disjunction
+    BoolExpr Or(BoolExpr... vals) {
+        return _encoder.Or(vals);
+    }
+
+    // Symbolic boolean implication
+    BoolExpr Implies(BoolExpr e1, BoolExpr e2) {
+        return getCtx().mkImplies(e1, e2);
+    }
+
+    // Symbolic greater than
+    BoolExpr Gt(Expr e1, Expr e2) {
+        if (e1 instanceof ArithExpr && e2 instanceof ArithExpr) {
+            return getCtx().mkGt((ArithExpr) e1, (ArithExpr) e2);
+        }
+        if (e1 instanceof BitVecExpr && e2 instanceof BitVecExpr) {
+            return getCtx().mkBVUGT((BitVecExpr) e1, (BitVecExpr) e2);
+        }
+        throw new BatfishException("Invalid call the Le while encoding control plane");
+    }
+
+    // Symbolic arithmetic subtraction
+    ArithExpr Sub(ArithExpr e1, ArithExpr e2) {
+        return _encoder.Sub(e1, e2);
+    }
+
+    // Symbolic if-then-else for booleans
+    BoolExpr If(BoolExpr cond, BoolExpr case1, BoolExpr case2) {
+        return _encoder.If(cond, case1, case2);
+    }
+
+    // Symbolic if-then-else for arithmetic
+    ArithExpr If(BoolExpr cond, ArithExpr case1, ArithExpr case2) {
+        return _encoder.If(cond, case1, case2);
+    }
+
+    // Symbolic equality
+    BoolExpr Eq(Expr e1, Expr e2) {
+        return getCtx().mkEq(e1, e2);
+    }
+
+    // Create a symbolic integer
+    ArithExpr Int(long l) {
+        return _encoder.Int(l);
+    }
+
+    // Symbolic boolean conjunction
+    BoolExpr And(BoolExpr... vals) {
+        return _encoder.And(vals);
+    }
+
+    // Symbolic greater than or equal
+    BoolExpr Ge(Expr e1, Expr e2) {
+        return _encoder.Ge(e1, e2);
+    }
+
+    // Symbolic less than or equal
+    BoolExpr Le(Expr e1, Expr e2) {
+        return _encoder.Le(e1, e2);
+    }
+
+    // Symbolic less than
+    BoolExpr Lt(Expr e1, Expr e2) {
+        return _encoder.Lt(e1, e2);
+    }
+
+    // Symbolic arithmetic addition
+    ArithExpr Sum(ArithExpr e1, ArithExpr e2) {
+        return _encoder.Sum(e1, e2);
+    }
+
+    // Check equality of expressions with null checking
+    BoolExpr safeEq(Expr x, Expr value) {
+        if (x == null) {
+            return True();
+        }
+        return Eq(x, value);
+    }
+
+    // Check for equality of arithmetic expressions after adding cost, and accounting for null
+    BoolExpr safeEqAdd(ArithExpr x, ArithExpr value, Integer cost) {
+        if (x == null) {
+            return True();
+        }
+        if (cost == null) {
+            return Eq(x, value);
+        }
+        return Eq(x, Sum(value, Int(cost)));
+    }
+
+    // Check for equality of symbolic enums after accounting for null
+    <T> BoolExpr safeEqEnum(SymbolicEnum<T> x, T value) {
+        if (x == null) {
+            return True();
+        }
+        return x.checkIfValue(value);
+    }
+
+    // Check for equality of symbolic enums after accounting for null
+    <T> BoolExpr safeEqEnum(SymbolicEnum<T> x, SymbolicEnum<T> y) {
+        if (x == null) {
+            return True();
+        }
+        return x.Eq(y);
+    }
+
+    /*
+     * Initialize boolean expressions to represent ACLs on each interface.
+     */
+    private void initAclFunctions() {
+        getGraph().getEdgeMap().forEach((router, edges) -> {
+            for (GraphEdge ge : edges) {
+                Interface i = ge.getStart();
+
+                IpAccessList outbound = i.getOutgoingFilter();
+                if (outbound != null) {
+                    String outName = router + "_" + i.getName() + "_OUTBOUND_" + outbound.getName();
+                    BoolExpr outAcl = getCtx().mkBoolConst(outName);
+                    BoolExpr outAclFunc = computeACL(outbound);
+                    add(Eq(outAcl, outAclFunc));
+                    _outboundAcls.put(ge, outAcl);
+                }
+
+                IpAccessList inbound = i.getIncomingFilter();
+                if (inbound != null) {
+                    String inName = router + "_" + i.getName() + "_INBOUND_" + inbound.getName();
+                    BoolExpr inAcl = getCtx().mkBoolConst(inName);
+                    BoolExpr inAclFunc = computeACL(inbound);
+                    add(Eq(inAcl, inAclFunc));
+                    _inboundAcls.put(ge, inAcl);
+                }
+            }
+        });
+    }
+
+    /*
+     * Initialize boolean expressions to represent that traffic sent along
+     * and edge will reach the other side of the edge.
+     */
+    private void initForwardingAcross() {
+        _symbolicDecisions.getDataForwarding().forEach((router, edge, var) -> {
+            BoolExpr inAcl;
+            if (edge.getEnd() == null) {
+                inAcl = True();
+            } else {
+                inAcl =  _inboundAcls.get(edge);
+                if (inAcl == null) {
+                    inAcl = True();
+                }
+            }
+            _forwardsAcross.put(router, edge, And(var, inAcl));
+        });
+    }
+
+
+    /*
+     * Initializes a dependency graph of community values and
+     * community regex matches. Each community regex is mapped
+     * to the collection of exact matches that it subsumes
+     */
     private void initCommunities() {
         _allCommunities = findAllCommunities();
 
@@ -152,7 +354,11 @@ public class EncoderSlice {
         }
     }
 
-    public Set<CommunityVar> findAllCommunities() {
+    /*
+     * Finds all uniquely mentioned community matches
+     * in the network by walking over every configuration.
+     */
+    Set<CommunityVar> findAllCommunities() {
         Set<CommunityVar> comms = new HashSet<>();
         getGraph().getConfigurations().forEach((router, conf) -> {
             conf.getRoutingPolicies().forEach((name, pol) -> {
@@ -186,14 +392,10 @@ public class EncoderSlice {
         return comms;
     }
 
-    Graph getGraph() {
-        return _logicalGraph.getGraph();
-    }
-
-    Map<String, List<Protocol>> getProtocols() {
-        return _optimizations.getProtocols();
-    }
-
+    /*
+     * Final all uniquely mentioned community values for a particular
+     * router configuration and community set expression.
+     */
     Set<CommunityVar> findAllCommunities(Configuration conf, CommunitySetExpr ce) {
         Set<CommunityVar> comms = new HashSet<>();
         if (ce instanceof InlineCommunitySet) {
@@ -229,116 +431,133 @@ public class EncoderSlice {
         return comms;
     }
 
-    HeaderSpace getHeaderSpace() {
-        return _headerSpace;
+    /*
+     * Find the set of all protocols that might be redistributed into
+     * protocol p given the current configuration and routing policy.
+     * This is based on structure of the AST.
+     */
+    public Set<Protocol> findRedistributedProtocols(Configuration conf, RoutingPolicy pol, Protocol p) {
+        Set<Protocol> protos = new HashSet<>();
+        AstVisitor v = new AstVisitor();
+        v.visit(conf, pol.getStatements(), stmt -> {}, expr -> {
+            if (expr instanceof MatchProtocol) {
+                MatchProtocol mp = (MatchProtocol) expr;
+                RoutingProtocol other = mp.getProtocol();
+                Protocol otherP = Protocol.fromRoutingProtocol(other);
+                if (otherP != null && otherP != p) {
+                    switch (other) {
+                        case BGP:
+                            protos.add(otherP);
+                            break;
+                        case OSPF:
+                            protos.add(otherP);
+                            break;
+                        case STATIC:
+                            protos.add(otherP);
+                            break;
+                        case CONNECTED:
+                            protos.add(otherP);
+                            break;
+                        default:
+                            throw new BatfishException("Unrecognized protocol: " + other
+                                    .protocolName());
+                    }
+                }
+            }
+        });
+        return protos;
     }
 
-    String getSliceName() {
-        return _sliceName;
+    /*
+     * Initialize the map of redistributed protocols.
+     */
+    private void initRedistributionProtocols() {
+        getGraph().getConfigurations().forEach((router, conf) -> {
+
+            for (Protocol proto : getProtocols().get(router)) {
+
+                Set<Protocol> redistributed = new HashSet<>();
+                redistributed.add(proto);
+
+                _logicalGraph.getRedistributedProtocols().put(router, proto, redistributed);
+
+                RoutingPolicy pol = getGraph().findCommonRoutingPolicy(router, proto);
+                if (pol != null) {
+                    Set<Protocol> ps = findRedistributedProtocols(conf, pol, proto);
+                    for (Protocol p : ps) {
+                        // Make sure there is actually a routing process for the other protocol
+                        // For example, it might get sliced away if not relevant
+                        boolean isProto = getProtocols().get(router).contains(p);
+                        if (isProto) {
+                            redistributed.add(p);
+                        }
+                    }
+                }
+
+            }
+        });
     }
 
-    Context getCtx() {
-        return _encoder.getCtx();
-    }
-
-    Solver getSolver() {
-        return _encoder.getSolver();
-    }
-
-    List<Expr> getAllVariables() {
-        return _encoder.getAllVariables();
-    }
-
-    Optimizations getOptimizations() {
-        return _optimizations;
-    }
-
-    LogicalGraph getLogicalGraph() {
-        return _logicalGraph;
-    }
-
-    SymbolicDecisions getSymbolicDecisions() {
-        return _symbolicDecisions;
-    }
-
-    SymbolicPacket getSymbolicPacket() {
-        return _symbolicPacket;
-    }
-
-    Map<GraphEdge, BoolExpr> getIncomingAcls() {
-        return _inboundAcls;
-    }
-
-    Map<GraphEdge, BoolExpr> getOutgoingAcls() {
-        return _outboundAcls;
-    }
-
-    Table2<String, GraphEdge, BoolExpr> getForwardsAcross() {
-        return _forwardsAcross;
-    }
-
-    Set<CommunityVar> getAllCommunities() {
-        return _allCommunities;
-    }
-
-    Map<CommunityVar, List<CommunityVar>> getCommunityDependencies() {
-        return _communityDependencies;
-    }
-
-    UnsatCore getUnsatCore() {
-        return _encoder.getUnsatCore();
-    }
-
-    void add(BoolExpr e) {
-        _encoder.add(e);
-    }
-
-    BoolExpr False() {
-        return _encoder.False();
-    }
-
-    BoolExpr Bool(boolean val) {
-        return _encoder.Bool(val);
-    }
-
-    BoolExpr Not(BoolExpr e) {
-        return _encoder.Not(e);
-    }
-
-    BoolExpr Or(BoolExpr... vals) {
-        return _encoder.Or(vals);
-    }
-
-    BoolExpr Implies(BoolExpr e1, BoolExpr e2) {
-        return getCtx().mkImplies(e1, e2);
-    }
-
-    BoolExpr Gt(Expr e1, Expr e2) {
-        if (e1 instanceof ArithExpr && e2 instanceof ArithExpr) {
-            return getCtx().mkGt((ArithExpr) e1, (ArithExpr) e2);
+    /*
+     * Returns are relevant logical edges for a given router and protocol.
+     */
+    private Set<LogicalEdge> collectAllImportLogicalEdges(String router, Configuration conf, Protocol proto) {
+        Set<LogicalEdge> eList = new HashSet<>();
+        for (ArrayList<LogicalEdge> es : _logicalGraph.getLogicalEdges().get(router, proto)) {
+            for (LogicalEdge le : es) {
+                if (_logicalGraph.isEdgeUsed(conf, proto, le) && le.getEdgeType() == EdgeType
+                        .IMPORT) {
+                    eList.add(le);
+                }
+            }
         }
-        if (e1 instanceof BitVecExpr && e2 instanceof BitVecExpr) {
-            return getCtx().mkBVUGT((BitVecExpr) e1, (BitVecExpr) e2);
+        return eList;
+    }
+
+    /*
+     * Converts a list of prefixes into a boolean expression that determines
+     * if they are relevant for the symbolic packet.
+     */
+    public BoolExpr relevantOrigination(List<Prefix> prefixes) {
+        BoolExpr acc = False();
+        for (Prefix p : prefixes) {
+            acc = Or(acc, isRelevantFor(p, _symbolicPacket.getDstIp()));
         }
-        throw new BatfishException("Invalid call the Le while encoding control plane");
+        return acc;
     }
 
-    ArithExpr Sub(ArithExpr e1, ArithExpr e2) {
-        return _encoder.Sub(e1, e2);
+    /*
+     * Get the added cost out an interface for a given routing protocol.
+     */
+    private Integer addedCost(Protocol proto, Interface iface) {
+        if (proto.isOspf()) {
+            return iface.getOspfCost();
+        }
+        return 1;
     }
 
-    BoolExpr If(BoolExpr cond, BoolExpr case1, BoolExpr case2) {
-        return _encoder.If(cond, case1, case2);
+    /*
+     * Determine if an interface is active for a particular protocol.
+     */
+    private BoolExpr interfaceActive(Interface iface, Protocol proto) {
+        BoolExpr active = Bool(iface.getActive());
+        if (proto.isOspf()) {
+            active = And(active, Bool(iface.getOspfEnabled()));
+        }
+        return active;
     }
 
-    ArithExpr If(BoolExpr cond, ArithExpr case1, ArithExpr case2) {
-        return _encoder.If(cond, case1, case2);
-    }
 
+    /*
+     * Checks if a prefix could possible be relevant for encoding
+     */
     boolean relevantPrefix(Prefix p) {
         return overlaps(_headerSpace, p);
     }
 
+    /*
+     * Checks if a prefix overlaps with the destination in a headerspace
+     */
     private boolean overlaps(HeaderSpace h, Prefix p) {
         if (h.getDstIps().isEmpty()) {
             return true;
@@ -352,6 +571,9 @@ public class EncoderSlice {
         return false;
     }
 
+    /*
+     * Checks if two prefixes ever overlap
+     */
     private boolean overlaps(Prefix p1, Prefix p2) {
         long l1 = p1.getNetworkPrefix().getAddress().asLong();
         long l2 = p2.getNetworkPrefix().getAddress().asLong();
@@ -361,6 +583,124 @@ public class EncoderSlice {
                 >= l1 && l2 <= u1);
     }
 
+    /*
+     * Check if a prefix range match is applicable for the packet destination
+     * Ip address, given the prefix length variable.
+     */
+    public BoolExpr isRelevantFor(ArithExpr prefixLen, PrefixRange range) {
+        Prefix p = range.getPrefix();
+        SubRange r = range.getLengthRange();
+        long pfx = p.getNetworkAddress().asLong();
+        int len = p.getPrefixLength();
+        int lower = r.getStart();
+        int upper = r.getEnd();
+
+        // well formed prefix
+        assert (p.getPrefixLength() < lower && lower <= upper);
+
+        BoolExpr lowerBitsMatch = firstBitsEqual(_symbolicPacket.getDstIp(), pfx, len);
+        if (lower == upper) {
+            BoolExpr equalLen = Eq(prefixLen, Int(lower));
+            return And(equalLen, lowerBitsMatch);
+        } else {
+            BoolExpr lengthLowerBound = Ge(prefixLen, Int(lower));
+            BoolExpr lengthUpperBound = Le(prefixLen, Int(upper));
+            return And(lengthLowerBound, lengthUpperBound, lowerBitsMatch);
+        }
+    }
+
+    /*
+     * Check if the first n bits of symbolic variable x
+     * and concrete value y are equal. For example,
+     * 192.0.1.0/24 would have y=int(192.0.1.0), n=24.
+     */
+    private BoolExpr firstBitsEqual(ArithExpr x, long y, int n) {
+        assert (n >= 0 && n <= 32);
+        if (n == 0) {
+            return True();
+        }
+        long bound = (long) Math.pow(2, 32 - n);
+        ArithExpr upperBound = Int(y + bound);
+        return And(Ge(x, Int(y)), Lt(x, upperBound));
+    }
+
+    /*
+     * Creates a symbolic expression representing that prefix p
+     * is relevant (the first bits match) with arithmetic expression ae
+     */
+    public BoolExpr isRelevantFor(Prefix p, ArithExpr ae) {
+        long pfx = p.getNetworkAddress().asLong();
+        return firstBitsEqual(ae, pfx, p.getPrefixLength());
+    }
+
+    /*
+     * Collects and returns all originated prefixes for the given
+     * router as well as the protocol. Static routes and connected
+     * routes are treated as originating the prefix.
+     */
+    public List<Prefix> getOriginatedNetworks(Configuration conf, Protocol proto) {
+        List<Prefix> acc = new ArrayList<>();
+
+        if (proto.isOspf()) {
+            conf.getDefaultVrf().getOspfProcess().getAreas().forEach((areaID, area) -> {
+                for (Interface iface : area.getInterfaces()) {
+                    if (iface.getActive() && iface.getOspfEnabled()) {
+                        acc.add(iface.getPrefix());
+                    }
+                }
+            });
+            return acc;
+        }
+
+        if (proto.isBgp()) {
+            conf.getRouteFilterLists().forEach((name, list) -> {
+                for (RouteFilterLine line : list.getLines()) {
+                    if (name.contains(BGP_NETWORK_FILTER_LIST_NAME)) {
+                        acc.add(line.getPrefix());
+                    }
+                }
+            });
+            return acc;
+        }
+
+        if (proto.isConnected()) {
+            conf.getInterfaces().forEach((name, iface) -> {
+                Prefix p = iface.getPrefix();
+                if (p != null) {
+                    acc.add(p);
+                }
+            });
+            return acc;
+        }
+
+        if (proto.isStatic()) {
+            for (StaticRoute sr : conf.getDefaultVrf().getStaticRoutes()) {
+                if (sr.getNetwork() != null) {
+                    acc.add(sr.getNetwork());
+                }
+            }
+            return acc;
+        }
+
+        throw new BatfishException("ERROR: getOriginatedNetworks: " + proto.name());
+    }
+
+
+    /*
+     * Initializes the logical graph edges for the protocol-centric view
+     */
+    private void buildEdgeMap() {
+        getGraph().getEdgeMap().forEach((router, edges) -> {
+            for (Protocol p : getProtocols().get(router)) {
+                _logicalGraph.getLogicalEdges().put(router, p, new ArrayList<>());
+            }
+        });
+    }
+
+    /*
+     * Initialize variables representing if a router chooses
+     * to use a particular interface for control-plane forwarding
+     */
     private void addChoiceVariables() {
         getGraph().getEdgeMap().forEach((router, edges) -> {
             Configuration conf = getGraph().getConfigurations().get(router);
@@ -383,14 +723,10 @@ public class EncoderSlice {
         });
     }
 
-    private void buildEdgeMap() {
-        getGraph().getEdgeMap().forEach((router, edges) -> {
-            for (Protocol p : getProtocols().get(router)) {
-                _logicalGraph.getLogicalEdges().put(router, p, new ArrayList<>());
-            }
-        });
-    }
-
+    /*
+     * Initalizes variables representing the control plane and
+     * data plane final forwarding decisions
+     */
     private void addForwardingVariables() {
         getGraph().getEdgeMap().forEach((router, edges) -> {
             for (GraphEdge edge : edges) {
@@ -412,15 +748,11 @@ public class EncoderSlice {
         });
     }
 
-    List<SymbolicRecord> getAllSymbolicRecords() {
-        return _encoder.getAllSymbolicRecords();
-    }
 
-    SymbolicFailures getSymbolicFailures() {
-        return _encoder.getSymbolicFailures();
-    }
-
-
+    /*
+     * Initialize variables representing the best choice both for
+     * each protocol as well as for the router as a whole
+     */
     private void addBestVariables() {
 
         getGraph().getEdgeMap().forEach((router, edges) -> {
@@ -461,6 +793,10 @@ public class EncoderSlice {
         });
     }
 
+    /*
+     * Initialize all control-plane message symbolic records.
+     * Also maps each logical graph edge to its opposite edge.
+     */
     private void addSymbolicRecords() {
         Map<String, Map<Protocol, Map<GraphEdge, ArrayList<LogicalEdge>>>>
                 importInverseMap = new HashMap<>();
@@ -606,10 +942,17 @@ public class EncoderSlice {
         });
     }
 
+    /*
+     * Initialize the optimizations object, which computes all
+     * applicable optimizations for the current encoding slice.
+     */
     private void initOptimizations() {
         _optimizations.computeOptimizations();
     }
 
+    /*
+     * Initialize all environment symbolic records for BGP.
+     */
     private void addEnvironmentVariables() {
         getGraph().getConfigurations().forEach((router, conf) -> {
             for (Protocol proto : getProtocols().get(router)) {
@@ -643,6 +986,9 @@ public class EncoderSlice {
         });
     }
 
+    /*
+     * Initialize all symbolic variables for the encoding slice
+     */
     private void initVariables() {
         buildEdgeMap();
         addForwardingVariables();
@@ -652,6 +998,22 @@ public class EncoderSlice {
         addEnvironmentVariables();
     }
 
+    /*
+     * Constraint each variable to fall within a valid range.
+     * Metric cost is protocol dependent and need not have an
+     * upper bound, since overflow is modeled.
+     *
+     * dstIp, srcIp:        [0,2^32)
+     * dstPort, srcPort:    [0,2^16)
+     * icmpType, protocol:  [0,2^8)
+     * icmpCode:            [0,2^4)
+     *
+     * prefix length:       [0,2^32)
+     * admin distance:      [0,2^8)
+     * BGP med, local-pref: [0,2^32)
+     * metric cost:         [0,2^8) if environment
+     * metric cost:         [0,2^16) otherwise
+     */
     private void addBoundConstraints() {
 
         ArithExpr upperBound4 = Int((long) Math.pow(2, 4));
@@ -709,6 +1071,17 @@ public class EncoderSlice {
         }
     }
 
+    /*
+     * Constraints each community regex match. A regex match
+     * will be true, if either one of its subsumed exact values is
+     * attached to the message, or some other community that matches
+     * the regex is instead:
+     *
+     * c_regex = (c_1 or ... or c_n) or c_other
+     *
+     * where the regex matches c_i. The regex match is determined
+     * ahead of time based on the configuration.
+     */
     private void addCommunityConstraints() {
         for (SymbolicRecord r : getAllSymbolicRecords()) {
             r.getCommunities().forEach((cvar, e) -> {
@@ -725,214 +1098,15 @@ public class EncoderSlice {
         }
     }
 
-    public BoolExpr isRelevantFor(ArithExpr prefixLen, PrefixRange range) {
-        Prefix p = range.getPrefix();
-        SubRange r = range.getLengthRange();
-        long pfx = p.getNetworkAddress().asLong();
-        int len = p.getPrefixLength();
-        int lower = r.getStart();
-        int upper = r.getEnd();
+    /*
+     * A collection of default values to fill in missing values for
+     * comparison. These are needed because the optimizations might
+     * remove various attributes from messages when unnecessary.
+     */
 
-        // well formed prefix
-        assert (p.getPrefixLength() < lower && lower <= upper);
-
-        BoolExpr lowerBitsMatch = firstBitsEqual(_symbolicPacket.getDstIp(), pfx, len);
-        if (lower == upper) {
-            BoolExpr equalLen = Eq(prefixLen, Int(lower));
-            return And(equalLen, lowerBitsMatch);
-        } else {
-            BoolExpr lengthLowerBound = Ge(prefixLen, Int(lower));
-            BoolExpr lengthUpperBound = Le(prefixLen, Int(upper));
-            return And(lengthLowerBound, lengthUpperBound, lowerBitsMatch);
-        }
-    }
-
-    private BoolExpr firstBitsEqual(ArithExpr x, long y, int n) {
-        assert (n >= 0 && n <= 32);
-        if (n == 0) {
-            return True();
-        }
-        long bound = (long) Math.pow(2, 32 - n);
-        ArithExpr upperBound = Int(y + bound);
-        return And(Ge(x, Int(y)), Lt(x, upperBound));
-    }
-
-    public BoolExpr Eq(Expr e1, Expr e2) {
-        return getCtx().mkEq(e1, e2);
-    }
-
-    public ArithExpr Int(long l) {
-        return _encoder.Int(l);
-    }
-
-    public BoolExpr And(BoolExpr... vals) {
-        return _encoder.And(vals);
-    }
-
-    public BoolExpr Ge(Expr e1, Expr e2) {
-        return _encoder.Ge(e1, e2);
-    }
-
-    public BoolExpr Le(Expr e1, Expr e2) {
-        return _encoder.Le(e1, e2);
-    }
-
-    public BoolExpr True() {
-        return _encoder.True();
-    }
-
-    public BoolExpr Lt(Expr e1, Expr e2) {
-        return _encoder.Lt(e1, e2);
-    }
-
-    public Set<Protocol> findRedistributedProtocols(Configuration conf, RoutingPolicy pol, Protocol p) {
-        Set<Protocol> protos = new HashSet<>();
-        AstVisitor v = new AstVisitor();
-        v.visit(conf, pol.getStatements(), stmt -> {}, expr -> {
-            if (expr instanceof MatchProtocol) {
-                MatchProtocol mp = (MatchProtocol) expr;
-                RoutingProtocol other = mp.getProtocol();
-                Protocol otherP = Protocol.fromRoutingProtocol(other);
-                if (otherP != null && otherP != p) {
-                    switch (other) {
-                        case BGP:
-                            protos.add(otherP);
-                            break;
-                        case OSPF:
-                            protos.add(otherP);
-                            break;
-                        case STATIC:
-                            protos.add(otherP);
-                            break;
-                        case CONNECTED:
-                            protos.add(otherP);
-                            break;
-                        default:
-                            throw new BatfishException("Unrecognized protocol: " + other
-                                    .protocolName());
-                    }
-                }
-            }
-        });
-        return protos;
-    }
-
-    private void initRedistributionProtocols() {
-        getGraph().getConfigurations().forEach((router, conf) -> {
-
-            for (Protocol proto : getProtocols().get(router)) {
-
-                Set<Protocol> redistributed = new HashSet<>();
-                redistributed.add(proto);
-
-                _logicalGraph.getRedistributedProtocols().put(router, proto, redistributed);
-
-                RoutingPolicy pol = getGraph().findCommonRoutingPolicy(router, proto);
-                if (pol != null) {
-                    Set<Protocol> ps = findRedistributedProtocols(conf, pol, proto);
-                    for (Protocol p : ps) {
-                        // Make sure there is actually a routing process for the other protocol
-                        // For example, it might get sliced away if not relevant
-                        boolean isProto = getProtocols().get(router).contains(p);
-                        if (isProto) {
-                            redistributed.add(p);
-                        }
-                    }
-                }
-
-            }
-        });
-    }
-
-    public BoolExpr isRelevantFor(Prefix p, ArithExpr ae) {
-        long pfx = p.getNetworkAddress().asLong();
-        return firstBitsEqual(ae, pfx, p.getPrefixLength());
-    }
-
-    public List<Prefix> getOriginatedNetworks(Configuration conf, Protocol proto) {
-        List<Prefix> acc = new ArrayList<>();
-
-        if (proto.isOspf()) {
-            conf.getDefaultVrf().getOspfProcess().getAreas().forEach((areaID, area) -> {
-                // if (areaID == 0) {
-                for (Interface iface : area.getInterfaces()) {
-                    if (iface.getActive() && iface.getOspfEnabled()) {
-                        acc.add(iface.getPrefix());
-                    }
-                }
-                // } else {
-                //     throw new BatfishException("Error: only support area 0 at the moment");
-                // }
-            });
-            return acc;
-        }
-
-        if (proto.isBgp()) {
-            conf.getRouteFilterLists().forEach((name, list) -> {
-                for (RouteFilterLine line : list.getLines()) {
-                    if (name.contains(BGP_NETWORK_FILTER_LIST_NAME)) {
-                        acc.add(line.getPrefix());
-                    }
-                }
-            });
-            return acc;
-        }
-
-        if (proto.isConnected()) {
-            conf.getInterfaces().forEach((name, iface) -> {
-                Prefix p = iface.getPrefix();
-                if (p != null) {
-                    acc.add(p);
-                }
-            });
-            return acc;
-        }
-
-        if (proto.isStatic()) {
-            for (StaticRoute sr : conf.getDefaultVrf().getStaticRoutes()) {
-                if (sr.getNetwork() != null) {
-                    acc.add(sr.getNetwork());
-                }
-            }
-            return acc;
-        }
-
-        throw new BatfishException("ERROR: getOriginatedNetworks: " + proto.name());
-    }
-
-    public BoolExpr safeEq(Expr x, Expr value) {
-        if (x == null) {
-            return True();
-        }
-        return Eq(x, value);
-    }
-
-    public BoolExpr safeEqAdd(ArithExpr x, ArithExpr value, Integer cost) {
-        if (x == null) {
-            return True();
-        }
-        if (cost == null) {
-            return Eq(x, value);
-        }
-        return Eq(x, Sum(value, Int(cost)));
-    }
-
-    public ArithExpr Sum(ArithExpr e1, ArithExpr e2) {
-        return _encoder.Sum(e1, e2);
-    }
-
-    public <T> BoolExpr safeEqEnum(SymbolicEnum<T> x, T value) {
-        if (x == null) {
-            return True();
-        }
-        return x.checkIfValue(value);
-    }
-
-    public <T> BoolExpr safeEqEnum(SymbolicEnum<T> x, SymbolicEnum<T> y) {
-        if (x == null) {
-            return True();
-        }
-        return x.Eq(y);
+    public int defaultAdminDistance(Configuration conf, Protocol proto) {
+        RoutingProtocol rp = Protocol.toRoutingProtocol(proto);
+        return rp.getDefaultAdministrativeCost(conf.getConfigurationFormat());
     }
 
     public int defaultId() {
@@ -964,12 +1138,16 @@ public class EncoderSlice {
         return 0;
     }
 
+
     public BitVecExpr defaultOspfType() {
-        // Return intra-area ospf type
-        return getCtx().mkBV(0, 2);
+        return getCtx().mkBV(0, 2); // OIA
     }
 
     // TODO: depends on configuration
+    /*
+     * Check if a particular protocol on a router is configured
+     * to use multipath routing or not.
+     */
     public boolean isMultipath(Configuration conf, Protocol proto) {
         if (proto.isConnected()) {
             return true;
@@ -982,6 +1160,11 @@ public class EncoderSlice {
         }
     }
 
+    /*
+     * Returns the symbolic record for logical edge e.
+     * This method is necessary, because optimizations might
+     * decide that certain records can be merged together.
+     */
     private SymbolicRecord correctVars(LogicalEdge e) {
         SymbolicRecord vars = e.getSymbolicRecord();
         if (!vars.getIsUsed()) {
@@ -990,6 +1173,13 @@ public class EncoderSlice {
         return vars;
     }
 
+    /*
+     * Creates a symbolic test between a record representing the best
+     * field and another field (vars). If the vars field is missing,
+     * then the value is filled in with the default value.
+     *
+     * An assumption is that if best != null, then vars != null
+     */
     private BoolExpr equalHelper(Expr best, Expr vars, Expr defaultVal) {
         BoolExpr tru = True();
         if (vars == null) {
@@ -1003,6 +1193,10 @@ public class EncoderSlice {
         }
     }
 
+    /*
+     * Creates a symbolic test to check for equal protocol histories
+     * after accounting for null values introduced by optimizations
+     */
     public BoolExpr equalHistories(Protocol proto, SymbolicRecord best, SymbolicRecord
             vars) {
         BoolExpr history;
@@ -1014,6 +1208,10 @@ public class EncoderSlice {
         return history;
     }
 
+    /*
+     * Creates a symbolic test to check for equal bgp internal
+     * tags after accounting for null values introduced by optimizations
+     */
     public BoolExpr equalBgpInternal(Protocol proto, SymbolicRecord best, SymbolicRecord vars) {
         if (best.getBgpInternal() == null || vars.getBgpInternal() == null) {
             return True();
@@ -1022,6 +1220,10 @@ public class EncoderSlice {
         }
     }
 
+    /*
+     * Creates a symbolic test to check for equal ospf areas
+     * tags after accounting for null values introduced by optimizations
+     */
     private BoolExpr equalAreas(SymbolicRecord best, SymbolicRecord vars, LogicalEdge e) {
         BoolExpr equalOspfArea;
         boolean hasBestArea = (best.getOspfArea() != null && best.getOspfArea().getBitVec() !=
@@ -1043,6 +1245,10 @@ public class EncoderSlice {
         return equalOspfArea;
     }
 
+    /*
+     * Creates a symbolic test to check for equal ospf types (OI, OIA, E1, E2)
+     * after accounting for null values introduced by optimizations
+     */
     private BoolExpr equalTypes(SymbolicRecord best, SymbolicRecord vars) {
         BoolExpr equalOspfType;
         boolean hasBestType = (best.getOspfType() != null && best.getOspfType().getBitVec() !=
@@ -1059,6 +1265,10 @@ public class EncoderSlice {
         return equalOspfType;
     }
 
+    /*
+     * Creates a symbolic test to check for equal router IDs
+     * after accounting for null values introduced by optimizations
+     */
     private BoolExpr equalIds(SymbolicRecord best, SymbolicRecord vars, Configuration conf,
             Protocol proto, LogicalEdge e) {
         BoolExpr equalId;
@@ -1079,6 +1289,12 @@ public class EncoderSlice {
         return equalId;
     }
 
+    /*
+     * Check for equality of a (best) symbolic record and another
+     * symbolic record (vars). It checks pairwise that all fields
+     * are equal, while filling in values missing due to optimizations
+     * with default values based on the protocol.
+     */
     public BoolExpr equal(
             Configuration conf, Protocol proto, SymbolicRecord best, SymbolicRecord vars,
             LogicalEdge e) {
@@ -1117,6 +1333,10 @@ public class EncoderSlice {
                 equalId, equalHistory, equalBgpInternal);
     }
 
+    /*
+     * Helper function to check if one expression is greater than
+     * another accounting for null values introduced by optimizations.
+     */
     private BoolExpr geBetterHelper(
             Expr best, Expr vars, Expr defaultVal, boolean less) {
         BoolExpr fal = False();
@@ -1139,6 +1359,10 @@ public class EncoderSlice {
         }
     }
 
+    /*
+     * Helper function to check if one expression is equal to
+     * another accounting for null values introduced by optimizations.
+     */
     private BoolExpr geEqualHelper(
             Expr best, Expr vars, Expr defaultVal) {
         if (vars == null) {
@@ -1152,6 +1376,22 @@ public class EncoderSlice {
         }
     }
 
+    /*
+     * Check if a (best) symbolic record is better than another
+     * symbolic record (vars). This is done using a recursive lexicographic
+     * encoding. The encoding is as follows:
+     *
+     * (best.length > vars.length) or
+     * (best.length = vars.length) and (
+     *    (best.adminDist < vars.adminDist) or
+     *    (best.adminDist = vars.adminDist) and (
+     *     ...
+     *    )
+     * )
+     *
+     * This recursive encoding introduces a new variable for each subexpressions,
+     * which ends up being much more efficient than expanding out options.
+     */
     private BoolExpr greaterOrEqual(
             Configuration conf, Protocol proto, SymbolicRecord best, SymbolicRecord vars,
             LogicalEdge e) {
@@ -1215,6 +1455,16 @@ public class EncoderSlice {
         return Or(betterLen, b10);
     }
 
+    /*
+     * Constraints that specify that the best choice is
+     * better than all alternatives, and is at least one of the choices:
+     *
+     * (1) if no options are valid, then best is not valid
+     * (2) if some option is valid, then we have the following:
+     *
+     * (best <= best_prot1) and ... and (best <= best_protn)
+     * (best =  best_prot1) or  ... or  (best =  best_protn)
+     */
     private void addBestOverallConstraints() {
         getGraph().getConfigurations().forEach((router, conf) -> {
 
@@ -1262,19 +1512,11 @@ public class EncoderSlice {
         });
     }
 
-    private Set<LogicalEdge> collectAllImportLogicalEdges(String router, Configuration conf, Protocol proto) {
-        Set<LogicalEdge> eList = new HashSet<>();
-        for (ArrayList<LogicalEdge> es : _logicalGraph.getLogicalEdges().get(router, proto)) {
-            for (LogicalEdge le : es) {
-                if (_logicalGraph.isEdgeUsed(conf, proto, le) && le.getEdgeType() == EdgeType
-                        .IMPORT) {
-                    eList.add(le);
-                }
-            }
-        }
-        return eList;
-    }
-
+    /*
+     * Constraints each protocol-best record similarly to the overall
+     * best record. It will be better than all choices and equal to
+     * at least one of them.
+     */
     private void addBestPerProtocolConstraints() {
         getGraph().getConfigurations().forEach((router, conf) -> {
 
@@ -1308,7 +1550,6 @@ public class EncoderSlice {
 
                 if (acc != null) {
                     add(Eq(somePermitted, bestVars.getPermitted()));
-                    // best is one of the allowed ones
                     add(Implies(somePermitted, acc));
                 }
             }
@@ -1316,6 +1557,13 @@ public class EncoderSlice {
         });
     }
 
+    /*
+     * Constraints that define a choice for a given protocol
+     * to be when a particular import is equal to the best choice.
+     * For example:
+     *
+     * choice_bgp_Serial0 = (import_Serial0 = best_bgp)
+     */
     private void addChoicePerProtocolConstraints() {
         getGraph().getConfigurations().forEach((router, conf) -> {
             for (Protocol proto : getProtocols().get(router)) {
@@ -1331,6 +1579,12 @@ public class EncoderSlice {
         });
     }
 
+    /*
+     * Constraints that define control-plane forwarding.
+     * If there is some valid import, then control plane forwarding
+     * will occur out an interface when this is the best choice.
+     * Otherwise, it will not occur.
+     */
     private void addControlForwardingConstraints() {
         getGraph().getConfigurations().forEach((router, conf) -> {
 
@@ -1391,6 +1645,9 @@ public class EncoderSlice {
 
     }
 
+    /*
+     * Convert a set of wildcards and a packet field to a symbolic boolean expression
+     */
     private BoolExpr computeWildcardMatch(Set<IpWildcard> wcs, ArithExpr field) {
         BoolExpr acc = False();
         for (IpWildcard wc : wcs) {
@@ -1403,6 +1660,9 @@ public class EncoderSlice {
         return (BoolExpr) acc.simplify();
     }
 
+    /*
+     * Convert a set of ranges and a packet field to a symbolic boolean expression
+     */
     private BoolExpr computeValidRange(Set<SubRange> ranges, ArithExpr field) {
         BoolExpr acc = False();
         for (SubRange range : ranges) {
@@ -1420,6 +1680,9 @@ public class EncoderSlice {
         return (BoolExpr) acc.simplify();
     }
 
+    /*
+     * Convert a Tcp flag to a boolean expression on the symbolic packet
+     */
     private BoolExpr computeTcpFlags(TcpFlags flags) {
         BoolExpr acc = True();
         if (flags.getUseAck()) {
@@ -1449,6 +1712,9 @@ public class EncoderSlice {
         return (BoolExpr) acc.simplify();
     }
 
+    /*
+     * Convert Tcp flags to a boolean expression on the symbolic packet
+     */
     private BoolExpr computeTcpFlags(List<TcpFlags> flags) {
         BoolExpr acc = False();
         for (TcpFlags fs : flags) {
@@ -1457,6 +1723,9 @@ public class EncoderSlice {
         return (BoolExpr) acc.simplify();
     }
 
+    /*
+     * Convert a set of ip protocols to a boolean expression on the symbolic packet
+     */
     private BoolExpr computeIpProtocols(Set<IpProtocol> ipProtos) {
         BoolExpr acc = False();
         for (IpProtocol proto : ipProtos) {
@@ -1466,6 +1735,10 @@ public class EncoderSlice {
         return (BoolExpr) acc.simplify();
     }
 
+    /*
+     * Convert an Access Control List (ACL) to a symbolic boolean expression.
+     * The default action in an ACL is to deny all traffic.
+     */
     private BoolExpr computeACL(IpAccessList acl) {
         // Check if there is an ACL first
         if (acl == null) {
@@ -1594,60 +1867,26 @@ public class EncoderSlice {
         return acc;
     }
 
-    private void initAclFunctions() {
-        getGraph().getEdgeMap().forEach((router, edges) -> {
-            for (GraphEdge ge : edges) {
-                Interface i = ge.getStart();
-
-                IpAccessList outbound = i.getOutgoingFilter();
-                if (outbound != null) {
-                    String outName = router + "_" + i.getName() + "_OUTBOUND_" + outbound.getName();
-                    BoolExpr outAcl = getCtx().mkBoolConst(outName);
-                    BoolExpr outAclFunc = computeACL(outbound);
-                    add(Eq(outAcl, outAclFunc));
-                    _outboundAcls.put(ge, outAcl);
-                }
-
-                IpAccessList inbound = i.getIncomingFilter();
-                if (inbound != null) {
-                    String inName = router + "_" + i.getName() + "_INBOUND_" + inbound.getName();
-                    BoolExpr inAcl = getCtx().mkBoolConst(inName);
-                    BoolExpr inAclFunc = computeACL(inbound);
-                    add(Eq(inAcl, inAclFunc));
-                    _inboundAcls.put(ge, inAcl);
-                }
-            }
-        });
-    }
-
-    private void initForwardingAcross() {
-        _symbolicDecisions.getDataForwarding().forEach((router, edge, var) -> {
-            BoolExpr inAcl;
-            if (edge.getEnd() == null) {
-                inAcl = True();
-            } else {
-                inAcl =  _inboundAcls.get(edge);
-                if (inAcl == null) {
-                    inAcl = True();
-                }
-            }
-            _forwardsAcross.put(router, edge, And(var, inAcl));
-        });
-    }
-
+    /*
+     * Constraints for the final data plane forwarding behavior.
+     * Forwarding occurs in the data plane if the control plane decides
+     * to use an interface, and no ACL blocks the packet:
+     *
+     * data_fwd(iface) = control_fwd(iface) and not acl(iface)
+     */
     private void addDataForwardingConstraints() {
-        // for each abstract control edge,
-        // if that edge is on and its neighbor slices has next hop forwarding
-        // out the current edge ge, the we use ge.
 
         getGraph().getEdgeMap().forEach((router, edges) -> {
             for (GraphEdge ge : edges) {
-                // setup forwarding for non-abstract edges
 
+                // setup forwarding for non-abstract edges
                 if (!ge.isAbstract()) {
 
                     BoolExpr fwd = False();
 
+                    // for each abstract control edge,
+                    // if that edge is on and its neighbor slices has next hop forwarding
+                    // out the current edge ge, the we use ge.
                     for (GraphEdge ge2 : getGraph().getEdgeMap().get(router)) {
                         if (ge2.isAbstract()) {
                             EncoderSlice s = _encoder.getSlice(ge2.getPeer());
@@ -1662,8 +1901,6 @@ public class EncoderSlice {
 
                     fwd = Or(fwd, cForward);
 
-                    // System.out.println("fwd: " + router + ": " + fwd.simplify());
-
                     BoolExpr acl = _outboundAcls.get(ge);
                     if (acl == null) {
                         acl = True();
@@ -1675,34 +1912,11 @@ public class EncoderSlice {
         });
     }
 
-    public BoolExpr relevantOrigination(List<Prefix> prefixes) {
-        BoolExpr acc = False();
-        for (Prefix p : prefixes) {
-            acc = Or(acc, isRelevantFor(p, _symbolicPacket.getDstIp()));
-        }
-        return acc;
-    }
-
-    private Integer addedCost(Protocol proto, Interface iface) {
-        if (proto.isOspf()) {
-            return iface.getOspfCost();
-        }
-        return 1;
-    }
-
-    public int defaultAdminDistance(Configuration conf, Protocol proto) {
-        RoutingProtocol rp = Protocol.toRoutingProtocol(proto);
-        return rp.getDefaultAdministrativeCost(conf.getConfigurationFormat());
-    }
-
-    private BoolExpr interfaceActive(Interface iface, Protocol proto) {
-        BoolExpr active = Bool(iface.getActive());
-        if (proto.isOspf()) {
-            active = And(active, Bool(iface.getOspfEnabled()));
-        }
-        return active;
-    }
-
+    /*
+     * Creates the transfer function to represent import filters
+     * between two symbolic records. The import filter depends
+     * heavily on the protocol.
+     */
     private void addImportConstraint(
             LogicalEdge e, SymbolicRecord varsOther, Configuration conf, Protocol proto,
             GraphEdge ge, String router, List<Prefix> originations) {
@@ -1801,6 +2015,11 @@ public class EncoderSlice {
         }
     }
 
+    /*
+     * Creates the transfer function to represent export filters
+     * between two symbolic records. The import filter depends
+     * heavily on the protocol.
+     */
     private boolean addExportConstraint(
             LogicalEdge e, SymbolicRecord varsOther, Configuration conf, Protocol proto,
             GraphEdge ge, String router, boolean usedExport, List<Prefix> originations) {
@@ -1903,6 +2122,12 @@ public class EncoderSlice {
         return false;
     }
 
+    /*
+     * Constraints that define relationships between various messages
+     * in the network. The same transfer function abstraction is used
+     * for both import and export constraints by relating different collections
+     * of variables.
+     */
     private void addTransferFunction() {
         getGraph().getConfigurations().forEach((router, conf) -> {
             for (Protocol proto : getProtocols().get(router)) {
@@ -1935,6 +2160,11 @@ public class EncoderSlice {
         });
     }
 
+    /*
+     * Constraints that ensure the protocol choosen by the best choice is accurate.
+     * This is important because redistribution depends on the protocol used
+     * in the actual FIB.
+     */
     private void addHistoryConstraints() {
         _symbolicDecisions.getBestNeighborPerProtocol().forEach((router, proto, vars) -> {
             add(Implies(vars.getPermitted(), vars.getProtocolHistory().checkIfValue(proto)));
@@ -1948,6 +2178,11 @@ public class EncoderSlice {
         });
     }
 
+    /*
+     * For performance reasons, we add constraints that if a message is not
+     * valid, then the other variables will use default values. This speeds
+     * up the solver significantly.
+     */
     private void addUnusedDefaultValueConstraints() {
         for (SymbolicRecord vars : getAllSymbolicRecords()) {
 
@@ -1987,6 +2222,10 @@ public class EncoderSlice {
         }
     }
 
+    /*
+     * Constraints that ensure when a link is not active, that messages
+     * can not flow across the link.
+     */
     private void addInactiveLinkConstraints() {
         _logicalGraph.getLogicalEdges().forEach((router, proto, edges) -> {
             for (ArrayList<LogicalEdge> es : edges) {
@@ -2003,6 +2242,9 @@ public class EncoderSlice {
         });
     }
 
+    /*
+     * Create boolean expression for a variable being within a bound.
+     */
     private BoolExpr boundConstraint(ArithExpr e, long lower, long upper) {
         if (lower > upper) {
             throw new BatfishException("Invalid range: " + lower + "-" + upper);
@@ -2015,6 +2257,9 @@ public class EncoderSlice {
         }
     }
 
+    /*
+     * Create a boolean expression for a variable being within a prefix bound.
+     */
     private BoolExpr boundConstraint(ArithExpr e, Prefix p) {
         Prefix n = p.getNetworkPrefix();
         long lower = n.getAddress().asLong();
@@ -2022,6 +2267,9 @@ public class EncoderSlice {
         return boundConstraint(e, lower, upper);
     }
 
+    /*
+     * Create a boolean expression for a variable being withing an IpWildCard bound
+     */
     private BoolExpr ipWildCardBound(ArithExpr e, IpWildcard ipWildcard) {
         if (!ipWildcard.isPrefix()) {
             throw new BatfishException("Unsupported IP wildcard: " + ipWildcard);
@@ -2030,13 +2278,19 @@ public class EncoderSlice {
         return boundConstraint(e, p);
     }
 
+    /*
+     * Create a boolean expression for a variable being within a particular subrange.
+     */
     private BoolExpr subRangeBound(ArithExpr e, SubRange r) {
         long lower = r.getStart();
         long upper = r.getEnd();
         return boundConstraint(e, lower, upper);
     }
 
-
+    /*
+     * Add constraints for the type of packets we will consider in the model.
+     * This can include restrictions on any packet field such as dstIp, protocol etc.
+     */
     private void addHeaderSpaceConstraint() {
 
         BoolExpr acc;
@@ -2199,7 +2453,12 @@ public class EncoderSlice {
         });
     }
 
-    public void computeEncoding() {
+
+    /*
+     * Compute the network encoding by adding all the
+     * relevant constraints.
+     */
+    void computeEncoding() {
         addBoundConstraints();
         addCommunityConstraints();
         addTransferFunction();
@@ -2213,6 +2472,87 @@ public class EncoderSlice {
         addInactiveLinkConstraints();
         addHeaderSpaceConstraint();
         addEnvironmentAreExternalConstraints();
-        // addFoo();
     }
+
+    /*
+     * Getters and Setters
+     */
+
+    Graph getGraph() {
+        return _logicalGraph.getGraph();
+    }
+
+    Map<String, List<Protocol>> getProtocols() {
+        return _optimizations.getProtocols();
+    }
+
+    HeaderSpace getHeaderSpace() {
+        return _headerSpace;
+    }
+
+    String getSliceName() {
+        return _sliceName;
+    }
+
+    Context getCtx() {
+        return _encoder.getCtx();
+    }
+
+    Solver getSolver() {
+        return _encoder.getSolver();
+    }
+
+    List<Expr> getAllVariables() {
+        return _encoder.getAllVariables();
+    }
+
+    Optimizations getOptimizations() {
+        return _optimizations;
+    }
+
+    LogicalGraph getLogicalGraph() {
+        return _logicalGraph;
+    }
+
+    SymbolicDecisions getSymbolicDecisions() {
+        return _symbolicDecisions;
+    }
+
+    SymbolicPacket getSymbolicPacket() {
+        return _symbolicPacket;
+    }
+
+    Map<GraphEdge, BoolExpr> getIncomingAcls() {
+        return _inboundAcls;
+    }
+
+    Map<GraphEdge, BoolExpr> getOutgoingAcls() {
+        return _outboundAcls;
+    }
+
+    Table2<String, GraphEdge, BoolExpr> getForwardsAcross() {
+        return _forwardsAcross;
+    }
+
+    Set<CommunityVar> getAllCommunities() {
+        return _allCommunities;
+    }
+
+    Map<CommunityVar, List<CommunityVar>> getCommunityDependencies() {
+        return _communityDependencies;
+    }
+
+    UnsatCore getUnsatCore() {
+        return _encoder.getUnsatCore();
+    }
+
+    List<SymbolicRecord> getAllSymbolicRecords() {
+        return _encoder.getAllSymbolicRecords();
+    }
+
+    SymbolicFailures getSymbolicFailures() {
+        return _encoder.getSymbolicFailures();
+    }
+
+
 }

@@ -5,7 +5,16 @@ import com.microsoft.z3.ArithExpr;
 import com.microsoft.z3.BoolExpr;
 import com.microsoft.z3.Context;
 
-public class SymbolicPacket {
+
+/**
+ * <p>A symbolic data plane packet. Includes the
+ * source and destination Ip address, source and destination
+ * port, the icmp code and icmp type, the ip protocol, and
+ * all tcp flags</p>
+ *
+ * @author Ryan Beckett
+ */
+class SymbolicPacket {
 
     private Context _ctx;
 
@@ -39,7 +48,7 @@ public class SymbolicPacket {
 
     private ArithExpr _ipProtocol;
 
-    public SymbolicPacket(Context ctx, int id, String sliceName) {
+    SymbolicPacket(Context ctx, int id, String sliceName) {
         _ctx = ctx;
         _dstIp = ctx.mkIntConst(sliceName + "dst-ip" + id);
         _srcIp = ctx.mkIntConst(sliceName + "src-ip" + id);
@@ -58,7 +67,7 @@ public class SymbolicPacket {
         _ipProtocol = ctx.mkIntConst(sliceName + "ip-protocol" + id);
     }
 
-    public BoolExpr mkEqual(SymbolicPacket other) {
+    BoolExpr mkEqual(SymbolicPacket other) {
         return _ctx.mkAnd(
                     _ctx.mkEq(this.getDstIp(), other.getDstIp()),
                     _ctx.mkEq(this.getSrcIp(), other.getSrcIp()),
@@ -77,63 +86,63 @@ public class SymbolicPacket {
                     _ctx.mkEq(this.getTcpUrg(), other.getTcpUrg()));
     }
 
-    public ArithExpr getDstIp() {
+    ArithExpr getDstIp() {
         return _dstIp;
     }
 
-    public ArithExpr getSrcIp() {
+    ArithExpr getSrcIp() {
         return _srcIp;
     }
 
-    public ArithExpr getDstPort() {
+    ArithExpr getDstPort() {
         return _dstPort;
     }
 
-    public ArithExpr getSrcPort() {
+    ArithExpr getSrcPort() {
         return _srcPort;
     }
 
-    public ArithExpr getIcmpCode() {
+    ArithExpr getIcmpCode() {
         return _icmpCode;
     }
 
-    public ArithExpr getIcmpType() {
+    ArithExpr getIcmpType() {
         return _icmpType;
     }
 
-    public BoolExpr getTcpAck() {
+    BoolExpr getTcpAck() {
         return _tcpAck;
     }
 
-    public BoolExpr getTcpCwr() {
+    BoolExpr getTcpCwr() {
         return _tcpCwr;
     }
 
-    public BoolExpr getTcpEce() {
+    BoolExpr getTcpEce() {
         return _tcpEce;
     }
 
-    public BoolExpr getTcpFin() {
+    BoolExpr getTcpFin() {
         return _tcpFin;
     }
 
-    public BoolExpr getTcpPsh() {
+    BoolExpr getTcpPsh() {
         return _tcpPsh;
     }
 
-    public BoolExpr getTcpRst() {
+    BoolExpr getTcpRst() {
         return _tcpRst;
     }
 
-    public BoolExpr getTcpSyn() {
+    BoolExpr getTcpSyn() {
         return _tcpSyn;
     }
 
-    public BoolExpr getTcpUrg() {
+    BoolExpr getTcpUrg() {
         return _tcpUrg;
     }
 
-    public ArithExpr getIpProtocol() {
+    ArithExpr getIpProtocol() {
         return _ipProtocol;
     }
 

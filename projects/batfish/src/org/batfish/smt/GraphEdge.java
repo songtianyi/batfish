@@ -4,7 +4,14 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import org.batfish.datamodel.Interface;
 
-
+/**
+ * <p>An edge in the network graph. Contains the router and interface
+ * as well as the peer router and interface. Each edge can also be
+ * abstract, as in the case of iBGP, or concrete where it corresponds
+ * to a particular edge in the topology.</p>
+ *
+ * @author Ryan Beckett
+ */
 public class GraphEdge {
 
     private static final String START_VAR = "start";

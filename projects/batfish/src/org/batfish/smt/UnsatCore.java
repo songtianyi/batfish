@@ -8,7 +8,16 @@ import com.microsoft.z3.Solver;
 import java.util.HashMap;
 import java.util.Map;
 
-public class UnsatCore {
+/**
+ * <p>A wrapper class that simplifies adding variables to
+ * the network model. If debugging is enabled, then it creates
+ * new variables to track the state of the other variables in
+ * the model. This allows the solver to create a minimal unsat
+ * core, which is useful for debugging.<p/>
+ *
+ * @author Ryan Beckett
+ */
+class UnsatCore {
 
     private boolean _doTrack;
 
@@ -16,13 +25,13 @@ public class UnsatCore {
 
     private int _trackingNum;
 
-    public UnsatCore(boolean doTrack) {
+    UnsatCore(boolean doTrack) {
         _doTrack = doTrack;
         _trackingVars = new HashMap<>();
         _trackingNum = 0;
     }
 
-    public void track(Solver solver, Context ctx, BoolExpr be) {
+    void track(Solver solver, Context ctx, BoolExpr be) {
         String name = "Pred" + _trackingNum;
         _trackingNum = _trackingNum + 1;
         _trackingVars.put(name, be);
@@ -33,11 +42,11 @@ public class UnsatCore {
         }
     }
 
-    public boolean getDoTrack() {
+    boolean getDoTrack() {
         return _doTrack;
     }
 
-    public Map<String, BoolExpr> getTrackingVars() {
+    Map<String, BoolExpr> getTrackingVars() {
         return _trackingVars;
     }
 }

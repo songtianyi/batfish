@@ -9,15 +9,15 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * Class representing the routing protocols supported.
- *
+ * <p>Class representing the routing protocols supported.
  * The Protocol wraps the type enum in order to allow
- * us to define a deterministic hashcode() for testing
+ * us to define a deterministic hashcode() for testing purposes.</p>
  *
+ * @author Ryan Beckett
  */
-public class Protocol {
+class Protocol {
 
-    public enum Type {
+    enum Type {
         BEST, OSPF, BGP, CONNECTED, STATIC
     }
 
@@ -27,20 +27,20 @@ public class Protocol {
         _type = t;
     }
 
-    public final static Protocol BGP = new Protocol(Type.BGP);
+    final static Protocol BGP = new Protocol(Type.BGP);
 
-    public final static Protocol OSPF = new Protocol(Type.OSPF);
+    final static Protocol OSPF = new Protocol(Type.OSPF);
 
-    public final static Protocol STATIC = new Protocol(Type.STATIC);
+    final static Protocol STATIC = new Protocol(Type.STATIC);
 
-    public final static Protocol CONNECTED = new Protocol(Type.CONNECTED);
+    final static Protocol CONNECTED = new Protocol(Type.CONNECTED);
 
-    public final static Protocol BEST = new Protocol(Type.BEST);
+    final static Protocol BEST = new Protocol(Type.BEST);
 
-    public static final List<Protocol.Type> values =
+    static final List<Protocol.Type> values =
             Collections.unmodifiableList(Arrays.asList(Type.BEST, Type.OSPF, Type.BGP, Type.CONNECTED, Type.STATIC));
 
-    public static Protocol fromRoutingProtocol(RoutingProtocol p) {
+    static Protocol fromRoutingProtocol(RoutingProtocol p) {
         switch (p) {
             case CONNECTED:
                 return Protocol.CONNECTED;
@@ -55,7 +55,7 @@ public class Protocol {
         }
     }
 
-    public static RoutingProtocol toRoutingProtocol(Protocol p) {
+    static RoutingProtocol toRoutingProtocol(Protocol p) {
         switch(p._type) {
             case BGP:
                 return RoutingProtocol.BGP;
@@ -70,27 +70,27 @@ public class Protocol {
         }
     }
 
-    public boolean isBgp() {
+    boolean isBgp() {
         return _type == Type.BGP;
     }
 
-    public boolean isOspf() {
+    boolean isOspf() {
         return _type == Type.OSPF;
     }
 
-    public boolean isConnected() {
+    boolean isConnected() {
         return _type == Type.CONNECTED;
     }
 
-    public boolean isStatic() {
+    boolean isStatic() {
         return _type == Type.STATIC;
     }
 
-    public boolean isBest() {
+    boolean isBest() {
         return _type == Type.BEST;
     }
 
-    public String name() {
+    String name() {
         return _type.toString();
     }
 

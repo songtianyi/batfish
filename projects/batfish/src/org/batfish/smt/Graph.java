@@ -10,7 +10,19 @@ import org.batfish.smt.utils.Table2;
 
 import java.util.*;
 
-
+/**
+ * <p>A graph object representing the structure of the network.
+ * The graph is built potentially by inferring the link connectivity
+ * of the network based on interface ip addresses. Interfaces are
+ * abstracted into graph edges, which include a direction.
+ * Each graph edge can be mapped to its opposite edge, which
+ * may be null, if there is no such edge (e.g., for loopbacks)</p>
+ *
+ * <p>iBGP is modeled as additional "abstract" edges that do not
+ * correspond to any concrete edge in the topology.</p>
+ *
+ * @author Ryan Beckett
+ */
 public class Graph {
 
     private IBatfish _batfish;
@@ -31,10 +43,16 @@ public class Graph {
 
     private Map<GraphEdge, BgpNeighbor> _ibgpNeighbors;
 
+    /*
+     * Create a graph from a Batfish object
+     */
     public Graph(IBatfish batfish) {
         this(batfish, null);
     }
 
+    /*
+     * Create a graph, while selecting the subset of routers to use.
+     */
     public Graph(IBatfish batfish, Set<String> routers) {
         _batfish = batfish;
         _configurations = new HashMap<>(_batfish.loadConfigurations());
@@ -66,6 +84,10 @@ public class Graph {
         initAreaIds();
     }
 
+    /*
+     * Initialize the topology by inferring interface pairs and
+     * create the opposite edge mapping.
+     */
     private void initGraph() {
         Topology topology = _batfish.computeTopology(_configurations);
         Map<NodeInterfacePair, Interface> ifaceMap = new HashMap<>();
@@ -104,7 +126,6 @@ public class Graph {
                         graphEdges.add(ge);
                     } else {
                         for (Edge e : es) {
-                            // System.out.println("  edge: " + e.toString());
                             if (!router.equals(e.getNode2())) {
                                 Interface i2 = ifaceMap.get(e.getInterface2());
                                 String neighbor = e.getNode2();
@@ -124,6 +145,10 @@ public class Graph {
         });
     }
 
+    /*
+     * Collect all static routes after inferring which interface they indicate
+     * should be used for the next-hop.
+     */
     private void initStaticRoutes() {
         _configurations.forEach((router, conf) -> {
             Map<String, List<StaticRoute>> map = new HashMap<>();
@@ -157,6 +182,10 @@ public class Graph {
         });
     }
 
+    /*
+     * Initialize external eBGP neighbors by looking for BGP neighbors
+     * where their is no neighbor in the configurations, and the IPs align.
+     */
     private void initEbgpNeighbors() {
         Map<String, List<Ip>> ips = new HashMap<>();
         Map<String, List<BgpNeighbor>> neighbors = new HashMap<>();
@@ -192,6 +221,10 @@ public class Graph {
         });
     }
 
+    /*
+     * Create a new "fake" interface to correspond to an abstract
+     * iBGP control plane edge in the network.
+     */
     private Interface createIbgpInterface(BgpNeighbor n) {
         Interface iface = new Interface("iBGP-" + n.getLocalIp());
         iface.setActive(true);
@@ -200,6 +233,10 @@ public class Graph {
     }
 
     // TODO: very inefficient
+    /*
+     * Initialize iBGP neighbors by looking for nieghbors
+     * with the same AS number.
+     */
     private void initIbgpNeighbors() {
         Map<String, Ip> ips = new HashMap<>();
 
@@ -270,6 +307,9 @@ public class Graph {
         });
     }
 
+    /*
+     * Initialize each routers set of area IDs for OSPF
+     */
     private void initAreaIds() {
         _configurations.forEach((router, conf) -> {
             Set<Long> areaIds = new HashSet<>();
@@ -284,14 +324,20 @@ public class Graph {
 
     }
 
-    boolean isInterfaceActive(Protocol proto, Interface iface) {
+    /*
+     * Check if an interface is active for a particular protocol.
+     */
+    public boolean isInterfaceActive(Protocol proto, Interface iface) {
         if (proto.isOspf()) {
             return iface.getActive() && iface.getOspfEnabled();
         }
         return iface.getActive();
     }
 
-    boolean isEdgeUsed(Configuration conf, Protocol proto, GraphEdge ge) {
+    /*
+     * Check if an topology edge is used in a particular protocol.
+     */
+    public boolean isEdgeUsed(Configuration conf, Protocol proto, GraphEdge ge) {
         Interface iface = ge.getStart();
 
         // Exclude abstract iBGP edges from all protocols except BGP
@@ -317,11 +363,10 @@ public class Graph {
         return true;
     }
 
-    Map<String, Map<String, List<StaticRoute>>> getStaticRoutes() {
-        return _staticRoutes;
-    }
-
-    RoutingPolicy findCommonRoutingPolicy(String router, Protocol proto) {
+    /*
+     * Find the common (default) routing policy for the protol.
+     */
+    public RoutingPolicy findCommonRoutingPolicy(String router, Protocol proto) {
         Configuration conf = _configurations.get(router);
         if (proto.isOspf()) {
             String exp = conf.getDefaultVrf().getOspfProcess().getExportPolicy();
@@ -345,7 +390,10 @@ public class Graph {
         throw new BatfishException("TODO: findCommonRoutingPolicy for " + proto.name());
     }
 
-    BgpNeighbor findBgpNeighbor(GraphEdge e) {
+    /*
+     * Find the BGP neighbor of a particular edge
+     */
+    public BgpNeighbor findBgpNeighbor(GraphEdge e) {
         if (e.isAbstract()) {
             return _ibgpNeighbors.get(e);
         } else {
@@ -353,7 +401,10 @@ public class Graph {
         }
     }
 
-    RoutingPolicy findImportRoutingPolicy(String router, Protocol proto,
+    /* TODO: move this to Logical Graph
+     * Find the import routing policy for a given edge
+     */
+    public RoutingPolicy findImportRoutingPolicy(String router, Protocol proto,
             LogicalEdge e) {
         Configuration conf = _configurations.get(router);
         if (proto.isConnected()) {
@@ -376,15 +427,10 @@ public class Graph {
         throw new BatfishException("TODO: findImportRoutingPolicy: " + proto.name());
     }
 
-    Map<GraphEdge, BgpNeighbor> getEbgpNeighbors() {
-        return _ebgpNeighbors;
-    }
-
-    Map<GraphEdge, BgpNeighbor> getIbgpNeighbors() {
-        return _ibgpNeighbors;
-    }
-
-    RoutingPolicy findExportRoutingPolicy(String router, Protocol proto, LogicalEdge e) {
+    /* TODO: move this to logical graph
+     * Find the export routing policy for a given edge
+     */
+    public RoutingPolicy findExportRoutingPolicy(String router, Protocol proto, LogicalEdge e) {
         Configuration conf = _configurations.get(router);
         if (proto.isConnected()) {
             return null;
@@ -407,6 +453,7 @@ public class Graph {
         }
         throw new BatfishException("TODO: findExportRoutingPolicy for " + proto.name());
     }
+
 
     public String toString() {
         StringBuilder sb = new StringBuilder();
@@ -454,6 +501,22 @@ public class Graph {
 
         sb.append("=======================================================\n");
         return sb.toString();
+    }
+
+    /*
+     * Getters and setters
+     */
+
+    public Map<GraphEdge, BgpNeighbor> getEbgpNeighbors() {
+        return _ebgpNeighbors;
+    }
+
+    public Map<GraphEdge, BgpNeighbor> getIbgpNeighbors() {
+        return _ibgpNeighbors;
+    }
+
+    public Map<String, Map<String, List<StaticRoute>>> getStaticRoutes() {
+        return _staticRoutes;
     }
 
     public Map<String, Set<Long>> getAreaIds() {

@@ -8,6 +8,24 @@ import org.batfish.datamodel.*;
 
 import java.util.*;
 
+
+/**
+ * <p>A class responsible for building a symbolic encoding of the
+ * entire network. The encoder does this by maintaining a
+ * collection of encoding <b>slices<b/>, where each slice
+ * encodes the forwarding behavior for a particular packet.</p>
+ *
+ *><p>The encoder object is architected this way to allow for
+ * modeling of features such as iBGP or non-local next-hop ip
+ * addresses in static routes, where the forwarding behavior
+ * of one packet depends on that of other packets.</p>
+ *
+ * <p>Symbolic variables that are common to all slices
+ * are maintained in this class. That includes, for example,
+ * the collection of variables representing topology failures.</p>
+ *
+ * @author Ryan Beckett
+ */
 public class Encoder {
 
     private static final boolean ENABLE_DEBUGGING = false;
@@ -38,15 +56,39 @@ public class Encoder {
 
     private UnsatCore _unsatCore;
 
-
+    /**
+     * Create an encoder object that will consider all packets in the provided headerspace.
+     * @param h  The packet headerspace of interest
+     * @param batfish  The Batfish object
+     */
     public Encoder(HeaderSpace h, IBatfish batfish) {
         this(h, new Graph(batfish));
     }
 
+    /**
+     * Create an encoder object that will consider all packets in the provided headerspace.
+     * @param h  The packet headerspace of interest
+     * @param graph  The network graph
+     */
     public Encoder(HeaderSpace h, Graph graph) {
         this(h, graph, null, null, null, 0);
     }
 
+    /**
+     * Create an encoder object from an existing encoder.
+     * @param e An existing encoder object
+     * @param g An existing network graph
+     */
+    Encoder(Encoder e, Graph g) {
+        this(e.getMainSlice().getHeaderSpace(), g, e.getCtx(), e.getSolver(), e.getAllVariables()
+                , e.getId() + 1);
+    }
+
+    /**
+     * Create an encoder object while possibly reusing the partial encoding
+     * of another encoder. If the context and solver are null, then a new
+     * encoder is created. Otherwise the old encoder is used.
+     */
     private Encoder(HeaderSpace h, Graph graph, Context ctx, Solver solver, List<Expr> vars, int id) {
         _graph = graph;
         _modelIgp = true;
@@ -78,9 +120,6 @@ public class Encoder {
             _solver = solver;
         }
 
-        // System.out.println(_solver.getHelp());
-
-
         _symbolicFailures = new SymbolicFailures();
         _allSymbolicRecords = new ArrayList<>();
 
@@ -101,12 +140,50 @@ public class Encoder {
         initSlices(h, graph);
     }
 
+    /*
+     * Initialize any interface costs in OSPF
+     */
     private void initConfigurations() {
         _graph.getConfigurations().forEach((router, conf) -> {
             initOspfInterfaceCosts(conf);
         });
     }
 
+    /**
+     * TODO:
+     * This was copied from BdpDataPlanePlugin.java
+     * to initialize the OSPF inteface costs
+     */
+    private void initOspfInterfaceCosts(Configuration conf) {
+        if (conf.getDefaultVrf().getOspfProcess() != null) {
+            conf.getInterfaces().forEach((interfaceName, i) -> {
+                if (i.getActive()) {
+                    Integer ospfCost = i.getOspfCost();
+                    if (ospfCost == null) {
+                        if (interfaceName.startsWith("Vlan")) {
+                            // TODO: fix for non-cisco
+                            ospfCost = DEFAULT_CISCO_VLAN_OSPF_COST;
+                        } else {
+                            if (i.getBandwidth() != null) {
+                                ospfCost = Math.max((int) (conf.getDefaultVrf().getOspfProcess()
+                                                               .getReferenceBandwidth() / i
+                                        .getBandwidth()), 1);
+                            } else {
+                                throw new BatfishException("Expected non-null interface " +
+                                        "bandwidth" + " for \"" + conf.getHostname() + "\":\"" +
+                                        interfaceName + "\"");
+                            }
+                        }
+                    }
+                    i.setOspfCost(ospfCost);
+                }
+            });
+        }
+    }
+
+    /*
+     * Initialize symbolic variables to represent link failures.
+     */
     private void initFailedLinkVariables() {
         _graph.getEdgeMap().forEach((router, edges) -> {
             for (GraphEdge ge : edges) {
@@ -130,6 +207,11 @@ public class Encoder {
         });
     }
 
+    /*
+     * Initialize each encoding slice.
+     * For iBGP, we also add reachability information for each pair of neighbors,
+     * to determine if messages sent to/from a neighbor will arrive.
+     */
     private void initSlices(HeaderSpace h, Graph g) {
         if (g.getIbgpNeighbors().isEmpty() || !_modelIgp) {
             _slices.put(MAIN_SLICE_NAME, new EncoderSlice(this, h, g, ""));
@@ -160,91 +242,42 @@ public class Encoder {
 
     }
 
-    /**
-     * TODO:
-     * This was copied from BdpDataPlanePlugin.java
-     * to make things easier for now.
-     */
-    private void initOspfInterfaceCosts(Configuration conf) {
-        if (conf.getDefaultVrf().getOspfProcess() != null) {
-            conf.getInterfaces().forEach((interfaceName, i) -> {
-                if (i.getActive()) {
-                    Integer ospfCost = i.getOspfCost();
-                    if (ospfCost == null) {
-                        if (interfaceName.startsWith("Vlan")) {
-                            // TODO: fix for non-cisco
-                            ospfCost = DEFAULT_CISCO_VLAN_OSPF_COST;
-                        } else {
-                            if (i.getBandwidth() != null) {
-                                ospfCost = Math.max((int) (conf.getDefaultVrf().getOspfProcess()
-                                                               .getReferenceBandwidth() / i
-                                        .getBandwidth()), 1);
-                            } else {
-                                throw new BatfishException("Expected non-null interface " +
-                                        "bandwidth" + " for \"" + conf.getHostname() + "\":\"" +
-                                        interfaceName + "\"");
-                            }
-                        }
-                    }
-                    i.setOspfCost(ospfCost);
-                }
-            });
-        }
-    }
-
-    Context getCtx() {
-        return _ctx;
-    }
-
-    Encoder(Encoder e, Graph g) {
-        this(e.getMainSlice().getHeaderSpace(), g, e.getCtx(), e.getSolver(), e.getAllVariables()
-                , e.getId() + 1);
-    }
-
-    EncoderSlice getMainSlice() {
-        return _slices.get(MAIN_SLICE_NAME);
-    }
-
-    Solver getSolver() {
-        return _solver;
-    }
-
-    List<Expr> getAllVariables() {
-        return _allVariables;
-    }
-
-    int getId() {
-        return _encodingId;
-    }
-
+    // Create a symbolic boolean
     BoolExpr Bool(boolean val) {
         return getCtx().mkBool(val);
     }
 
+    // Symbolic boolean negation
     BoolExpr Not(BoolExpr e) {
         return getCtx().mkNot(e);
     }
 
+    // Symbolic boolean disjunction
     BoolExpr Or(BoolExpr... vals) {
         return getCtx().mkOr(vals);
     }
 
+    // Symbolic boolean implication
     BoolExpr Implies(BoolExpr e1, BoolExpr e2) {
         return getCtx().mkImplies(e1, e2);
     }
 
+    // Symbolic boolean conjunction
     BoolExpr And(BoolExpr... vals) {
         return getCtx().mkAnd(vals);
     }
 
+    // Symbolic true value
     BoolExpr True() {
         return getCtx().mkBool(true);
     }
 
+    // Symbolic false value
     BoolExpr False() {
         return getCtx().mkBool(false);
     }
 
+    // Symbolic arithmetic less than
     BoolExpr Lt(Expr e1, Expr e2) {
         if (e1 instanceof ArithExpr && e2 instanceof ArithExpr) {
             return getCtx().mkLt((ArithExpr) e1, (ArithExpr) e2);
@@ -255,18 +288,70 @@ public class Encoder {
         throw new BatfishException("Invalid call the Le while encoding control plane");
     }
 
+    // Symbolic arithmetic subtraction
     ArithExpr Sub(ArithExpr e1, ArithExpr e2) {
         return getCtx().mkSub(e1, e2);
     }
 
+    // Symbolic if-then-else for booleans
     BoolExpr If(BoolExpr cond, BoolExpr case1, BoolExpr case2) {
         return (BoolExpr) getCtx().mkITE(cond, case1, case2);
     }
 
+    // Symbolic if-then-else for arithmetic
     ArithExpr If(BoolExpr cond, ArithExpr case1, ArithExpr case2) {
         return (ArithExpr) getCtx().mkITE(cond, case1, case2);
     }
 
+    // Create a symbolic integer
+    ArithExpr Int(long l) {
+        return getCtx().mkInt(l);
+    }
+
+    // Symbolic arithmetic addition
+    ArithExpr Sum(ArithExpr e1, ArithExpr e2) {
+        return getCtx().mkAdd(e1, e2);
+    }
+
+    // Symbolic greater than or equal to
+    BoolExpr Ge(Expr e1, Expr e2) {
+        if (e1 instanceof ArithExpr && e2 instanceof ArithExpr) {
+            return getCtx().mkGe((ArithExpr) e1, (ArithExpr) e2);
+        }
+        if (e1 instanceof BitVecExpr && e2 instanceof BitVecExpr) {
+            return getCtx().mkBVUGE((BitVecExpr) e1, (BitVecExpr) e2);
+        }
+        throw new BatfishException("Invalid call the Le while encoding control plane");
+    }
+
+    // Symbolic less than or equal to
+    BoolExpr Le(Expr e1, Expr e2) {
+        if (e1 instanceof ArithExpr && e2 instanceof ArithExpr) {
+            return getCtx().mkLe((ArithExpr) e1, (ArithExpr) e2);
+        }
+        if (e1 instanceof BitVecExpr && e2 instanceof BitVecExpr) {
+            return getCtx().mkBVULE((BitVecExpr) e1, (BitVecExpr) e2);
+        }
+        throw new BatfishException("Invalid call the Le while encoding control plane");
+    }
+
+    // Symblic equality of expressions
+    BoolExpr Eq(Expr e1, Expr e2) {
+        return getCtx().mkEq(e1, e2);
+    }
+
+    // Add a boolean variable to the model
+    void add(BoolExpr e) {
+        _unsatCore.track(_solver, _ctx, e);
+    }
+
+    /**
+     * <p>Checks that a property is always true by seeing if the encoding
+     * is unsatisfiable. If the model is satisfiable, then there is a
+     * counter example to the property.</p>
+     *
+     * @return A VerificationResult indicating the status of the check.
+     */
     public VerificationResult verify() {
 
         EncoderSlice slice = _slices.get(MAIN_SLICE_NAME);
@@ -469,6 +554,11 @@ public class Encoder {
         }
     }
 
+    /**
+     * <p>Adds all the constraints to capture the interactions of messages
+     * among all protocols in the network. This should be called prior
+     * to calling the <b>verify method</b></p>
+     */
     public void computeEncoding() {
         addFailedConstraints(0);
         _slices.forEach((name, slice) -> {
@@ -476,6 +566,17 @@ public class Encoder {
         });
     }
 
+    /*
+     * Adds the constraint that at most k links have failed.
+     * This is done in two steps. First we ensure that each link
+     * variable is constrained to take on a value between 0 and 1:
+     *
+     * 0 <= link_i <= 1
+     *
+     * Then we ensure that the sum of all links is never more than k:
+     *
+     * link_1 + link_2 + ... + link_n <= k
+     */
     private void addFailedConstraints(int k) {
         List<ArithExpr> vars = new ArrayList<>();
         getSymbolicFailures().getFailedInternalLinks().forEach((router, peer, var) -> {
@@ -500,6 +601,10 @@ public class Encoder {
         }
     }
 
+    /*
+     * Getters and setters
+     */
+
     SymbolicFailures getSymbolicFailures() {
         return _symbolicFailures;
     }
@@ -509,40 +614,24 @@ public class Encoder {
         return _slices.get(s);
     }
 
-    ArithExpr Int(long l) {
-        return getCtx().mkInt(l);
+    Context getCtx() {
+        return _ctx;
     }
 
-    ArithExpr Sum(ArithExpr e1, ArithExpr e2) {
-        return getCtx().mkAdd(e1, e2);
+    EncoderSlice getMainSlice() {
+        return _slices.get(MAIN_SLICE_NAME);
     }
 
-    void add(BoolExpr e) {
-        _unsatCore.track(_solver, _ctx, e);
+    Solver getSolver() {
+        return _solver;
     }
 
-    BoolExpr Ge(Expr e1, Expr e2) {
-        if (e1 instanceof ArithExpr && e2 instanceof ArithExpr) {
-            return getCtx().mkGe((ArithExpr) e1, (ArithExpr) e2);
-        }
-        if (e1 instanceof BitVecExpr && e2 instanceof BitVecExpr) {
-            return getCtx().mkBVUGE((BitVecExpr) e1, (BitVecExpr) e2);
-        }
-        throw new BatfishException("Invalid call the Le while encoding control plane");
+    List<Expr> getAllVariables() {
+        return _allVariables;
     }
 
-    BoolExpr Le(Expr e1, Expr e2) {
-        if (e1 instanceof ArithExpr && e2 instanceof ArithExpr) {
-            return getCtx().mkLe((ArithExpr) e1, (ArithExpr) e2);
-        }
-        if (e1 instanceof BitVecExpr && e2 instanceof BitVecExpr) {
-            return getCtx().mkBVULE((BitVecExpr) e1, (BitVecExpr) e2);
-        }
-        throw new BatfishException("Invalid call the Le while encoding control plane");
-    }
-
-    BoolExpr Eq(Expr e1, Expr e2) {
-        return getCtx().mkEq(e1, e2);
+    int getId() {
+        return _encodingId;
     }
 
     boolean getModelIgp() {

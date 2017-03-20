@@ -8,7 +8,15 @@ import org.batfish.smt.utils.Table3;
 import java.util.HashMap;
 import java.util.Map;
 
-public class SymbolicDecisions {
+/**
+ * <p>Class for the symbolic variables used to represent
+ * the final forwarding decision in the network. This
+ * includes both the control plane and data plane forwading
+ * decisions, as well as the per-protocol and overall best choices.</p>
+ *
+ * @author Ryan Beckett
+ */
+class SymbolicDecisions {
 
     private Table2<String, Protocol, SymbolicRecord> _bestNeighborPerProtocol;
 
@@ -20,7 +28,7 @@ public class SymbolicDecisions {
 
     private Table2<String, GraphEdge, BoolExpr> _dataForwarding;
 
-    public SymbolicDecisions() {
+    SymbolicDecisions() {
         _bestNeighbor = new HashMap<>();
         _bestNeighborPerProtocol = new Table2<>();
         _choiceVariables = new Table3<>();
@@ -28,27 +36,27 @@ public class SymbolicDecisions {
         _dataForwarding = new Table2<>();
     }
 
-    public Table2<String, Protocol, SymbolicRecord> getBestNeighborPerProtocol() {
+    Table2<String, Protocol, SymbolicRecord> getBestNeighborPerProtocol() {
         return _bestNeighborPerProtocol;
     }
 
-    public Map<String, SymbolicRecord> getBestNeighbor() {
+    Map<String, SymbolicRecord> getBestNeighbor() {
         return _bestNeighbor;
     }
 
-    public Table3<String, Protocol, LogicalEdge, BoolExpr> getChoiceVariables() {
+    Table3<String, Protocol, LogicalEdge, BoolExpr> getChoiceVariables() {
         return _choiceVariables;
     }
 
-    public Table2<String, GraphEdge, BoolExpr> getControlForwarding() {
+    Table2<String, GraphEdge, BoolExpr> getControlForwarding() {
         return _controlForwarding;
     }
 
-    public Table2<String, GraphEdge, BoolExpr> getDataForwarding() {
+    Table2<String, GraphEdge, BoolExpr> getDataForwarding() {
         return _dataForwarding;
     }
 
-    public SymbolicRecord getBestVars(Optimizations opts, String router, Protocol proto) {
+    SymbolicRecord getBestVars(Optimizations opts, String router, Protocol proto) {
         if (opts.getSliceHasSingleProtocol().contains(router)) {
             return _bestNeighbor.get(router);
         } else {

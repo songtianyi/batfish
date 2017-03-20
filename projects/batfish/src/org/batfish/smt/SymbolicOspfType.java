@@ -4,20 +4,27 @@ import com.microsoft.z3.BoolExpr;
 
 import java.util.List;
 
-public class SymbolicOspfType extends SymbolicEnum<OspfType> {
 
-    public SymbolicOspfType(EncoderSlice enc, List<OspfType> values, String name) {
+/**
+ * <p>A symbolic enum representing the OSPF type,
+ * which is either O, OIA, E1, E2. </p>
+ *
+ * @author Ryan Beckett
+ */
+class SymbolicOspfType extends SymbolicEnum<OspfType> {
+
+    SymbolicOspfType(EncoderSlice enc, List<OspfType> values, String name) {
         super(enc, values, name);
     }
 
-    public BoolExpr isExternal() {
+    BoolExpr isExternal() {
         if (this._bitvec == null) {
             return _enc.False();
         }
         return _enc.getCtx().mkBVUGE(_bitvec, _enc.getCtx().mkBV(2, 2));
     }
 
-    public BoolExpr isInternal() {
+    BoolExpr isInternal() {
         if (this._bitvec == null) {
             return _enc.True();
         }
