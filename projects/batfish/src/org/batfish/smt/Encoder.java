@@ -520,8 +520,10 @@ public class Encoder {
                     r.getCommunities().forEach((cvar, e) -> {
                         String c = valuation.get(e);
                         // TODO: what about OTHER type?
-                        if (c.equals("true") && cvar.getType() == CommunityVar.Type.EXACT) {
-                            recordMap.put("community (" + cvar.getValue() + ")", "set");
+                        if (c.equals("true")) {
+                            if (cvar.getType() == CommunityVar.Type.EXACT) {
+                                recordMap.put("community", "(" + cvar.getValue() + ")");
+                            }
                         }
                     });
                 }

@@ -1092,7 +1092,8 @@ class EncoderSlice {
                         BoolExpr depExpr = r.getCommunities().get(dep);
                         acc = Or(acc, depExpr);
                     }
-                    add(acc);
+                    BoolExpr regex = Eq(acc, e);
+                    add(regex);
                 }
             });
         }
@@ -1289,6 +1290,21 @@ class EncoderSlice {
         return equalId;
     }
 
+    private BoolExpr equalCommunities(SymbolicRecord best, SymbolicRecord vars) {
+        BoolExpr acc = True();
+        for (Map.Entry<CommunityVar, BoolExpr> entry : best.getCommunities().entrySet()) {
+            CommunityVar cvar = entry.getKey();
+            BoolExpr var = entry.getValue();
+            BoolExpr other = vars.getCommunities().get(cvar);
+            if (other == null) {
+                acc = And(acc, Not(var));
+            } else {
+                acc = And(acc, Eq(var, other));
+            }
+        }
+        return acc;
+    }
+
     /*
      * Check for equality of a (best) symbolic record and another
      * symbolic record (vars). It checks pairwise that all fields
@@ -1315,6 +1331,7 @@ class EncoderSlice {
         BoolExpr equalId;
         BoolExpr equalHistory;
         BoolExpr equalBgpInternal;
+        BoolExpr equalCommunities;
 
         equalLen = equalHelper(best.getPrefixLength(), vars.getPrefixLength(), defaultLen);
         equalAd = equalHelper(best.getAdminDist(), vars.getAdminDist(), defaultAdmin);
@@ -1328,9 +1345,10 @@ class EncoderSlice {
         equalId = equalIds(best, vars, conf, proto, e);
         equalHistory = equalHistories(proto, best, vars);
         equalBgpInternal = equalBgpInternal(proto, best, vars);
+        equalCommunities = equalCommunities(best, vars);
 
         return And(equalLen, equalAd, equalLp, equalMet, equalMed, equalOspfArea, equalOspfType,
-                equalId, equalHistory, equalBgpInternal);
+                equalId, equalHistory, equalBgpInternal, equalCommunities);
     }
 
     /*

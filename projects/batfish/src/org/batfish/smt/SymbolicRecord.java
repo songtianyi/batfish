@@ -88,6 +88,7 @@ class SymbolicRecord {
         _isBestOverall = (_isBest && _name.contains("_OVERALL"));
 
         boolean hasOspf = enc.getProtocols().get(router).contains(Protocol.OSPF);
+        boolean hasBgp = enc.getProtocols().get(router).contains(Protocol.BGP);
         boolean multipleProtos = enc.getProtocols().get(router).size() > 1;
         boolean modelAd = (_isBestOverall && multipleProtos) || opts.getKeepAdminDist();
         boolean modelIbgp = (opts.getNeedBgpMark().contains(router));
@@ -177,7 +178,7 @@ class SymbolicRecord {
         _permitted = ctx.mkBoolConst(_name + "_permitted");
 
         _communities = new HashMap<>();
-        if (proto.isBgp()) {
+        if (proto.isBgp() || (hasBgp && proto.isBest())) {
             for (CommunityVar cvar : enc.getAllCommunities()) {
                 String s = cvar.getValue();
                 if (cvar.getType() == CommunityVar.Type.OTHER) {

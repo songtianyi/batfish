@@ -5,4 +5,3 @@ interface Serial1
 !
 router bgp 400
  neighbor 10.10.10.2 remote-as 400
- 

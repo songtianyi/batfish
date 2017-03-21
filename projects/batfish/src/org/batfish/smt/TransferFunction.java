@@ -396,6 +396,40 @@ class TransferFunction {
     }
 
     /*
+     * Get the BgpNeighbor object given the current
+     * graph edge and protocol information
+     */
+    private BgpNeighbor getBgpNeighbor() {
+        Graph g = _enc.getGraph();
+        if (_graphEdge.isAbstract()) {
+            return g.getIbgpNeighbors().get(_graphEdge);
+        } else {
+            return g.getEbgpNeighbors().get(_graphEdge);
+        }
+    }
+
+    /*
+     * Determine if BGP communities should be
+     * sent to/from the neighboring BGP peer.
+     */
+    private boolean sendCommunity() {
+        if (_to.isBgp()) {
+            BgpNeighbor n = getBgpNeighbor();
+            return n.getSendCommunity();
+        } else {
+            return false;
+        }
+    }
+
+    /*
+     * Determine if BGP should transmit the
+     * local preference attribute to the neighboring peer.
+     */
+    private boolean sendLocalPref() {
+        return !_to.isBgp() || _graphEdge.isAbstract();
+    }
+
+    /*
      * Apply the effect of the accumulated modifications
      */
     private BoolExpr applyModifications(Modifications mods) {
@@ -438,7 +472,15 @@ class TransferFunction {
         BoolExpr lp;
         ArithExpr otherLp = getOrDefault(_other.getLocalPref(), defaultLp);
         if (mods.getSetLp() == null) {
-            lp = _enc.safeEq(_current.getLocalPref(), otherLp);
+            // If it is an ibgp edge, then copy local preference
+            if (_graphEdge.isAbstract() && _to.isBgp()) {
+                lp = _enc.safeEq(_current.getLocalPref(), otherLp);
+            }
+            // Otherwise, we use the default local preference value
+            else {
+                long value = (_isExport ? 0 : 100);
+                lp = _enc.safeEq(_current.getLocalPref(), _enc.Int(value));
+            }
         } else {
             IntExpr ie = mods.getSetLp().getLocalPreference();
             lp = _enc.safeEq(_current.getLocalPref(), applyIntExprModification(otherLp, ie));
@@ -503,15 +545,18 @@ class TransferFunction {
             CommunityVar cvar = entry.getKey();
             BoolExpr e = entry.getValue();
             BoolExpr eOther = _other.getCommunities().get(cvar);
-
-            if (mods.getPositiveCommunities().contains(cvar)) {
-                comms = _enc.And(comms, e);
-            } else if (mods.getNegativeCommunities().contains(cvar)) {
+            // Update the communities if they should be sent
+            if (sendCommunity()) {
+                if (mods.getPositiveCommunities().contains(cvar)) {
+                    comms = _enc.And(comms, e);
+                } else if (mods.getNegativeCommunities().contains(cvar)) {
+                    comms = _enc.And(comms, _enc.Not(e));
+                } else if (cvar.getType() != CommunityVar.Type.REGEX) {
+                    comms = _enc.And(comms, _enc.Eq(e, eOther));
+                }
+            } else {
                 comms = _enc.And(comms, _enc.Not(e));
-            } else if (cvar.getType() != CommunityVar.Type.REGEX) {
-                comms = _enc.And(comms, _enc.Eq(e, eOther));
             }
-            // Note: regexes are defined implicitly in terms of OTHER/EXACT
         }
 
         // TODO: handle AD correctly
@@ -524,6 +569,7 @@ class TransferFunction {
         BoolExpr history = _enc.equalHistories(_from, _current, _other);
         BoolExpr ad = _enc.safeEq(_current.getAdminDist(), otherAd);
         BoolExpr med = _enc.safeEq(_current.getMed(), otherMed);
+
 
         BoolExpr updates = _enc.And(per, len, ad, med, lp, met, id, type, area, comms, history, isInternal);
         BoolExpr noOverflow = noOverflow(metValue, _to);
@@ -573,7 +619,9 @@ class TransferFunction {
      */
     private BoolExpr returnFalse(Modifications mods, boolean inExprCall, boolean inStmtCall) {
         if (!_operands.isEmpty() && !_operands.peek().isEmpty()) {
-            return compute(_contFalse.peek(), mods, inExprCall, inStmtCall);
+            Queue<BooleanExpr> queue = _operands.peek();
+            BooleanExpr x = queue.poll();
+            return compute(wrapExpr(x), mods, inExprCall, inStmtCall);
         } else if (!_contFalse.isEmpty()) {
             List<Statement> t = _contTrue.pop();
             List<Statement> f = _contFalse.pop();

@@ -9,7 +9,7 @@ import java.util.Set;
 
 /**
  * <p>A class representing a collection of modifications made to
- * a protocols message after pasing through an import/export filter</p>
+ * a protocols message after passing through an import/export filter</p>
  *
  * @author Ryan Beckett
  */
