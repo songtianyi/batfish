@@ -30,7 +30,7 @@ public class Encoder {
 
     private static final boolean ENABLE_DEBUGGING = false;
 
-    private static final String MAIN_SLICE_NAME = "SLICE-MAIN_";
+    public static final String MAIN_SLICE_NAME = "SLICE-MAIN_";
 
     static final int DEFAULT_CISCO_VLAN_OSPF_COST = 1;
 
@@ -354,13 +354,13 @@ public class Encoder {
      */
     public VerificationResult verify() {
 
-        EncoderSlice slice = _slices.get(MAIN_SLICE_NAME);
+        EncoderSlice mainSlice = _slices.get(MAIN_SLICE_NAME);
 
         int numVariables = _allVariables.size();
         int numConstraints = _solver.getAssertions().length;
-        int numNodes = slice.getGraph().getConfigurations().size();
+        int numNodes = mainSlice.getGraph().getConfigurations().size();
         int numEdges = 0;
-        for (Map.Entry<String, Set<String>> e : slice.getGraph().getNeighbors().entrySet()) {
+        for (Map.Entry<String, Set<String>> e : mainSlice.getGraph().getNeighbors().entrySet()) {
             numEdges += e.getValue().size();
         }
         long start = System.currentTimeMillis();
@@ -391,7 +391,7 @@ public class Encoder {
             }
 
             // Packet model
-            SymbolicPacket p = slice.getSymbolicPacket();
+            SymbolicPacket p = mainSlice.getSymbolicPacket();
             String dstIp = valuation.get(p.getDstIp());
             String srcIp = valuation.get(p.getSrcIp());
             String dstPt = valuation.get(p.getDstPort());
@@ -460,78 +460,83 @@ public class Encoder {
 
             // Environment model
             SortedMap<String, SortedMap<String, String>> envModel = new TreeMap<>();
-            slice.getLogicalGraph().getEnvironmentVars().forEach((lge, r) -> {
 
-                if (valuation.get(r.getPermitted()).equals("true")) {
-                    SortedMap<String, String> recordMap = new TreeMap<>();
-                    GraphEdge ge = lge.getEdge();
-                    String nodeIface = ge.getRouter() + "," + ge.getStart().getName() + " (BGP)";
-                    envModel.put(nodeIface, recordMap);
-                    if (r.getPrefixLength() != null) {
-                        String x = valuation.get(r.getPrefixLength());
-                        if (x != null) {
-                            int len = Integer.parseInt(x);
-                            Prefix p1 = new Prefix(dip, len);
-                            Prefix p2 = p1.getNetworkPrefix();
-                            recordMap.put("prefix", p2.toString());
-                        }
-                    }
-                    if (r.getAdminDist() != null) {
-                        String x = valuation.get(r.getAdminDist());
-                        if (x != null) {
-                            recordMap.put("admin distance", x);
-                        }
-                    }
-                    if (r.getLocalPref() != null) {
-                        String x = valuation.get(r.getLocalPref());
-                        if (x != null) {
-                            recordMap.put("local preference", x);
-                        }
-                    }
-                    if (r.getMetric() != null) {
-                        String x = valuation.get(r.getMetric());
-                        if (x != null) {
-                            recordMap.put("protocol metric", x);
-                        }
-                    }
-                    if (r.getMed() != null) {
-                        String x = valuation.get(r.getMed());
-                        if (x != null) {
-                            recordMap.put("multi-exit disc.", valuation.get(r.getMed()));
-                        }
-                    }
-                    if (r.getOspfArea() != null && r.getOspfArea().getBitVec() != null) {
-                        String x = valuation.get(r.getOspfArea().getBitVec());
-                        if (x != null) {
-                            Integer i = Integer.parseInt(x);
-                            Long area = r.getOspfArea().value(i);
-                            recordMap.put("OSPF Area", area.toString());
-                        }
-                    }
-                    if (r.getOspfType() != null && r.getOspfType().getBitVec() != null) {
-                        String x = valuation.get(r.getOspfType().getBitVec());
-                        if (x != null) {
-                            Integer i = Integer.parseInt(x);
-                            OspfType type = r.getOspfType().value(i);
-                            recordMap.put("OSPF Type", type.toString());
-                        }
-                    }
+            _slices.forEach((name, slice) -> {
 
-                    r.getCommunities().forEach((cvar, e) -> {
-                        String c = valuation.get(e);
-                        // TODO: what about OTHER type?
-                        if (c.equals("true")) {
-                            if (cvar.getType() == CommunityVar.Type.EXACT) {
-                                recordMap.put("community", "(" + cvar.getValue() + ")");
+                slice.getLogicalGraph().getEnvironmentVars().forEach((lge, r) -> {
+
+                    if (valuation.get(r.getPermitted()).equals("true")) {
+                        SortedMap<String, String> recordMap = new TreeMap<>();
+                        GraphEdge ge = lge.getEdge();
+                        String nodeIface = ge.getRouter() + "," + ge.getStart().getName() + " (BGP)";
+                        envModel.put(nodeIface, recordMap);
+                        if (r.getPrefixLength() != null) {
+                            String x = valuation.get(r.getPrefixLength());
+                            if (x != null) {
+                                int len = Integer.parseInt(x);
+                                Prefix p1 = new Prefix(dip, len);
+                                Prefix p2 = p1.getNetworkPrefix();
+                                recordMap.put("prefix", p2.toString());
                             }
                         }
-                    });
-                }
+                        if (r.getAdminDist() != null) {
+                            String x = valuation.get(r.getAdminDist());
+                            if (x != null) {
+                                recordMap.put("admin distance", x);
+                            }
+                        }
+                        if (r.getLocalPref() != null) {
+                            String x = valuation.get(r.getLocalPref());
+                            if (x != null) {
+                                recordMap.put("local preference", x);
+                            }
+                        }
+                        if (r.getMetric() != null) {
+                            String x = valuation.get(r.getMetric());
+                            if (x != null) {
+                                recordMap.put("protocol metric", x);
+                            }
+                        }
+                        if (r.getMed() != null) {
+                            String x = valuation.get(r.getMed());
+                            if (x != null) {
+                                recordMap.put("multi-exit disc.", valuation.get(r.getMed()));
+                            }
+                        }
+                        if (r.getOspfArea() != null && r.getOspfArea().getBitVec() != null) {
+                            String x = valuation.get(r.getOspfArea().getBitVec());
+                            if (x != null) {
+                                Integer i = Integer.parseInt(x);
+                                Long area = r.getOspfArea().value(i);
+                                recordMap.put("OSPF Area", area.toString());
+                            }
+                        }
+                        if (r.getOspfType() != null && r.getOspfType().getBitVec() != null) {
+                            String x = valuation.get(r.getOspfType().getBitVec());
+                            if (x != null) {
+                                Integer i = Integer.parseInt(x);
+                                OspfType type = r.getOspfType().value(i);
+                                recordMap.put("OSPF Type", type.toString());
+                            }
+                        }
+
+                        r.getCommunities().forEach((cvar, e) -> {
+                            String c = valuation.get(e);
+                            // TODO: what about OTHER type?
+                            if (c.equals("true")) {
+                                if (cvar.getType() == CommunityVar.Type.EXACT) {
+                                    recordMap.put("community", "(" + cvar.getValue() + ")");
+                                }
+                            }
+                        });
+                    }
+                });
+
             });
 
             // Forwarding Model
             SortedSet<String> fwdModel = new TreeSet<>();
-            slice.getSymbolicDecisions().getDataForwarding().forEach((router, edge, e) -> {
+            mainSlice.getSymbolicDecisions().getDataForwarding().forEach((router, edge, e) -> {
                 String s = valuation.get(e);
                 if (s != null && s.equals("true")) {
                     fwdModel.add(edge.toString());
@@ -563,8 +568,11 @@ public class Encoder {
      */
     public void computeEncoding() {
         addFailedConstraints(0);
+        getMainSlice().computeEncoding();
         _slices.forEach((name, slice) -> {
-            slice.computeEncoding();
+            if (!name.equals(MAIN_SLICE_NAME)) {
+                slice.computeEncoding();
+            }
         });
     }
 

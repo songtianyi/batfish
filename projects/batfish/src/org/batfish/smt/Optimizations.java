@@ -32,6 +32,8 @@ class Optimizations {
 
     private boolean _hasEnvironment;
 
+    private boolean _hasExternalCommunity;
+
     private Map<String, List<Protocol>> _protocols;
 
     private Map<String, Set<Prefix>> _suppressedAggregates;
@@ -46,7 +48,7 @@ class Optimizations {
 
     private Table2<String, Protocol, Boolean> _needRouterIdProto;
 
-    private Set<String> _needBgpMark;
+    private Set<String> _needBgpInternal;
 
     private Set<String> _needRouterId;
 
@@ -61,6 +63,7 @@ class Optimizations {
     Optimizations(EncoderSlice encoderSlice) {
         _encoderSlice = encoderSlice;
         _hasEnvironment = false;
+        _hasExternalCommunity = true;
         _protocols = new HashMap<>();
         _relevantAggregates = new HashMap<>();
         _suppressedAggregates = new HashMap<>();
@@ -69,7 +72,7 @@ class Optimizations {
         _sliceCanKeepSingleExportVar = new Table2<>();
         _needRouterIdProto = new Table2<>();
         _needRouterId = new HashSet<>();
-        _needBgpMark = new HashSet<>();
+        _needBgpInternal = new HashSet<>();
         _keepLocalPref = true;
         _keepAdminDist = true;
         _keepMed = true;
@@ -78,18 +81,36 @@ class Optimizations {
 
     void computeOptimizations() {
         _hasEnvironment = computeHasEnvironment();
+        _hasExternalCommunity = computeHasExternalCommunity();
         _keepLocalPref = computeKeepLocalPref();
         _keepAdminDist = computeKeepAdminDistance();
         _keepMed = computeKeepMed();
         _keepOspfType = computeKeepOspfType();
         initProtocols();
         computeRouterIdNeeded();
-        computeBgpMarkNeeded();
+        computeBgpInternalNeeded();
         computeCanUseSingleBest();
         computeCanMergeExportVars();
         computeCanMergeImportExportVars();
         computeRelevantAggregates();
         computeSuppressedAggregates();
+    }
+
+    /*
+     * Check if communities can be received from the external environment.
+     */
+    private boolean computeHasExternalCommunity() {
+        Boolean[] val = new Boolean[1];
+        val[0] = false;
+        _encoderSlice.getGraph().getEdgeMap().forEach((router, edges) -> {
+            for (GraphEdge ge : edges) {
+                BgpNeighbor n = _encoderSlice.getGraph().getEbgpNeighbors().get(ge);
+                if (ge.getEnd() == null && n != null && n.getSendCommunity()) {
+                    val[0] = true;
+                }
+            }
+        });
+        return val[0];
     }
 
     /*
@@ -100,8 +121,8 @@ class Optimizations {
         val[0] = false;
         _encoderSlice.getGraph().getEdgeMap().forEach((router, edges) -> {
             for (GraphEdge ge : edges) {
-                if (ge.getEnd() == null && _encoderSlice.getGraph().getEbgpNeighbors()
-                                                        .containsKey(ge)) {
+                BgpNeighbor n = _encoderSlice.getGraph().getEbgpNeighbors().get(ge);
+                if (ge.getEnd() == null && n != null) {
                     val[0] = true;
                 }
             }
@@ -279,18 +300,11 @@ class Optimizations {
      * Check if we need to remember if a route was learned via iBGP or eBGP.
      * Any router than only has iBGP or eBGP connections will not need the mark.
      */
-    private void computeBgpMarkNeeded() {
-        Set<String> ebgp = new HashSet<>();
-        Set<String> ibgp = new HashSet<>();
+    private void computeBgpInternalNeeded() {
+        _needBgpInternal = new HashSet<>();
         _encoderSlice.getGraph().getIbgpNeighbors().forEach((ge,n) -> {
-            ibgp.add(ge.getRouter());
+            _needBgpInternal.add(ge.getRouter());
         });
-        _encoderSlice.getGraph().getEbgpNeighbors().forEach((ge,n) -> {
-            ebgp.add(ge.getRouter());
-        });
-
-        ebgp.retainAll(ibgp);
-        _needBgpMark = ebgp;
     }
 
     /*
@@ -544,8 +558,8 @@ class Optimizations {
         return _needRouterIdProto;
     }
 
-    Set<String> getNeedBgpMark() {
-        return _needBgpMark;
+    Set<String> getNeedBgpInternal() {
+        return _needBgpInternal;
     }
 
     Table2<String, Protocol, Boolean> getSliceCanKeepSingleExportVar() {
@@ -574,5 +588,9 @@ class Optimizations {
 
     boolean getKeepOspfType() {
         return _keepOspfType;
+    }
+
+    public boolean getHasExternalCommunity() {
+        return _hasExternalCommunity;
     }
 }

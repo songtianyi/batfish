@@ -90,17 +90,17 @@ class SymbolicRecord {
         boolean hasOspf = enc.getProtocols().get(router).contains(Protocol.OSPF);
         boolean hasBgp = enc.getProtocols().get(router).contains(Protocol.BGP);
         boolean multipleProtos = enc.getProtocols().get(router).size() > 1;
-        boolean modelAd = (_isBestOverall && multipleProtos) || opts.getKeepAdminDist();
-        boolean modelIbgp = (opts.getNeedBgpMark().contains(router));
+        boolean modelAd = !_isEnv && ((_isBestOverall && multipleProtos) || opts.getKeepAdminDist());
+        boolean modelLp = !_isEnv && opts.getKeepLocalPref() && (proto.isBgp() || _isBestOverall);
+        boolean modelIbgp = (opts.getNeedBgpInternal().contains(router));
 
         _protocolHistory = h;
         _ospfArea = null;
         _ospfType = null;
 
-        // Represent best variables as the aggregate protocol. Total hack.
         if (proto.isBest()) {
             _metric = ctx.mkIntConst(_name + "_metric");
-            _localPref = (opts.getKeepLocalPref() ? ctx.mkIntConst(_name + "_localPref") : null);
+            _localPref = (modelLp ? ctx.mkIntConst(_name + "_localPref") : null);
             _adminDist = (modelAd ? ctx.mkIntConst(_name + "_adminDist") : null);
             _med = (opts.getKeepMed() ? ctx.mkIntConst(_name + "_med") : null);
             _bgpInternal = (modelIbgp ? ctx.mkBoolConst(_name + "_bgpInternal") : null);
@@ -116,11 +116,6 @@ class SymbolicRecord {
                     _ospfArea = new SymbolicEnum<>(enc, areaIds, _name + "_ospfArea");
                 }
             }
-
-            if (opts.getNeedBgpMark().contains(router)) {
-
-            }
-
 
         } else if (proto.isConnected()) {
             _metric = null;
@@ -142,8 +137,8 @@ class SymbolicRecord {
 
         } else if (proto.isBgp()) {
             _metric = ctx.mkIntConst(_name + "_metric");
-            _localPref = (opts.getKeepLocalPref() ? ctx.mkIntConst(_name + "_localPref") : null);
-            _adminDist = (opts.getKeepAdminDist() ? ctx.mkIntConst(_name + "_adminDist") : null);
+            _localPref = (modelLp ? ctx.mkIntConst(_name + "_localPref") : null);
+            _adminDist = (modelAd ? ctx.mkIntConst(_name + "_adminDist") : null);
             _med = (opts.getKeepMed() ? ctx.mkIntConst(_name + "_med") : null);
             _bgpInternal = (modelIbgp ? ctx.mkBoolConst(_name + "_bgpInternal") : null);
             _ospfArea = null;
@@ -151,8 +146,8 @@ class SymbolicRecord {
 
         } else if (proto.isOspf()) {
             _metric = ctx.mkIntConst(_name + "_metric");
-            _localPref = (opts.getKeepLocalPref() ? ctx.mkIntConst(_name + "_localPref") : null);
-            _adminDist = (opts.getKeepAdminDist() ? ctx.mkIntConst(_name + "_adminDist") : null);
+            _localPref = (modelLp ? ctx.mkIntConst(_name + "_localPref") : null);
+            _adminDist = (modelAd ? ctx.mkIntConst(_name + "_adminDist") : null);
             _med = null;
             _bgpInternal = null;
 
@@ -178,7 +173,10 @@ class SymbolicRecord {
         _permitted = ctx.mkBoolConst(_name + "_permitted");
 
         _communities = new HashMap<>();
-        if (proto.isBgp() || (hasBgp && proto.isBest())) {
+
+        boolean comms = (proto.isBgp() || (hasBgp && proto.isBest()));
+
+        if ( comms ) {
             for (CommunityVar cvar : enc.getAllCommunities()) {
                 String s = cvar.getValue();
                 if (cvar.getType() == CommunityVar.Type.OTHER) {
@@ -220,8 +218,6 @@ class SymbolicRecord {
             all.add(var);
         });
     }
-
-
 
 
     boolean getIsUsed() {

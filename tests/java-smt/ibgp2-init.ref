@@ -1,0 +1,33 @@
+{
+"answerElements" : [
+{
+  "class" : "org.batfish.datamodel.answers.ParseVendorConfigurationAnswerElement",
+  "parseStatus" : {
+    "R1" : "PASSED",
+    "R2" : "PASSED",
+    "R3" : "PASSED",
+    "R4" : "PASSED"
+  }
+},
+{
+  "class" : "org.batfish.datamodel.answers.ConvertConfigurationAnswerElement",
+  "warnings" : {
+    "R4" : {
+      "Red flags" : {
+        "1" : "MISCELLANEOUS: Could not determine update source for BGP neighbor: '10.12.12.2'"
+      }
+    }
+  }
+},
+{
+  "class" : "org.batfish.datamodel.answers.InitInfoAnswerElement",
+  "parseStatus" : {
+    "R1" : "PASSED",
+    "R2" : "PASSED",
+    "R3" : "PASSED",
+    "R4" : "PASSED"
+  }
+}
+],
+"status" : "SUCCESS"
+}

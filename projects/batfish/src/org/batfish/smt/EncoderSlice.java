@@ -307,16 +307,18 @@ class EncoderSlice {
         _allCommunities = findAllCommunities();
 
         // Add an other variable for each regex community
-        List<CommunityVar> others = new ArrayList<>();
-        for (CommunityVar c : _allCommunities) {
-            if (c.getType() == CommunityVar.Type.REGEX) {
-                CommunityVar x = new CommunityVar(CommunityVar.Type.OTHER, c.getValue(), c.asLong
-                        ());
-                others.add(x);
+        if (_optimizations.getHasExternalCommunity()) {
+            List<CommunityVar> others = new ArrayList<>();
+            for (CommunityVar c : _allCommunities) {
+                if (c.getType() == CommunityVar.Type.REGEX) {
+                    CommunityVar x = new CommunityVar(CommunityVar.Type.OTHER, c.getValue(), c.asLong
+                            ());
+                    others.add(x);
+                }
             }
-        }
-        for (CommunityVar c : others) {
-            _allCommunities.add(c);
+            for (CommunityVar c : others) {
+                _allCommunities.add(c);
+            }
         }
 
         // Map community regex matches to Java regex
@@ -951,9 +953,28 @@ class EncoderSlice {
     }
 
     /*
+     * Check if this is the main slice
+     */
+    private boolean isMainSlice() {
+        return _sliceName.equals("") || _sliceName.equals(Encoder.MAIN_SLICE_NAME);
+    }
+
+
+    /*
      * Initialize all environment symbolic records for BGP.
      */
     private void addEnvironmentVariables() {
+        // If not the main slice, just use the main slice
+        if (!isMainSlice()) {
+            Map<LogicalEdge, SymbolicRecord> envs = _logicalGraph.getEnvironmentVars();
+            EncoderSlice main = _encoder.getMainSlice();
+            LogicalGraph lg = main.getLogicalGraph();
+            Map<LogicalEdge, SymbolicRecord> existing = lg.getEnvironmentVars();
+            envs.putAll(existing);
+            return;
+        }
+
+        // Otherwise create it anew
         getGraph().getConfigurations().forEach((router, conf) -> {
             for (Protocol proto : getProtocols().get(router)) {
                 if (proto.isBgp()) {
@@ -962,21 +983,24 @@ class EncoderSlice {
                             if (e.getEdgeType() == EdgeType.IMPORT) {
                                 BgpNeighbor n = getGraph().getEbgpNeighbors().get(e.getEdge());
                                 if (n != null && e.getEdge().getEnd() == null) {
-                                    String address;
-                                    if (n.getAddress() == null) {
-                                        address = "null";
+
+                                    if (!isMainSlice()) {
+                                        LogicalGraph lg = _encoder.getMainSlice().getLogicalGraph();
+                                        SymbolicRecord r = lg.getEnvironmentVars().get(e);
+                                        _logicalGraph.getEnvironmentVars().put(e, r);
                                     } else {
-                                        address = n.getAddress().toString();
+                                        String address;
+                                        if (n.getAddress() == null) {
+                                            address = "null";
+                                        } else {
+                                            address = n.getAddress().toString();
+                                        }
+                                        String ifaceName = "ENV-" + address;
+                                        String name = String.format("%s%s_%s_%s_%s", _sliceName, router, proto.name(), ifaceName, "EXPORT");
+                                        SymbolicRecord vars = new SymbolicRecord(this, name, router, proto, _optimizations, getCtx(), null);
+                                        getAllSymbolicRecords().add(vars);
+                                        _logicalGraph.getEnvironmentVars().put(e, vars);
                                     }
-
-                                    String ifaceName = "ENV-" + address;
-                                    String name = String.format("%s%s_%s_%s_%s", _sliceName, router, proto
-                                            .name(), ifaceName, "EXPORT");
-                                    SymbolicRecord vars = new SymbolicRecord(this, name, router,
-                                            proto, _optimizations, getCtx(), null);
-
-                                    getAllSymbolicRecords().add(vars);
-                                    _logicalGraph.getEnvironmentVars().put(e, vars);
                                 }
                             }
                         });
@@ -1132,7 +1156,7 @@ class EncoderSlice {
     }
 
     public int defaultLocalPref() {
-        return 0;
+        return 100;
     }
 
     public int defaultLength() {
@@ -2072,7 +2096,11 @@ class EncoderSlice {
                 BoolExpr active = interfaceActive(iface, proto);
 
                 // Don't re-export routes learned via iBGP
-                boolean isIbgp = (proto.isBgp()) && (getGraph().getIbgpNeighbors().containsKey(ge)) && varsOther.isBest();
+                boolean isIbgp = (proto.isBgp()) &&
+                                 (getGraph().getIbgpNeighbors().containsKey(ge)) &&
+                                 varsOther.isBest() &&
+                                 _optimizations.getNeedBgpInternal().contains(router);
+
                 BoolExpr doExport = True();
                 if (isIbgp) {
                     doExport = Not(varsOther.getBgpInternal());
@@ -2462,13 +2490,33 @@ class EncoderSlice {
         // TODO: need to implement fragment offsets, Ecns, states, etc
     }
 
-    private void addEnvironmentAreExternalConstraints() {
+    /*
+     * Add various constraints for well-formed environments
+     */
+    private void addEnvironmentConstraints() {
+        // Environment messages are not internal
         getLogicalGraph().getEnvironmentVars().forEach((le, vars) -> {
             BoolExpr x = vars.getBgpInternal();
             if (x != null) {
                 add(Not(x));
             }
         });
+
+        // Communities only when send-community is configured
+        getLogicalGraph().getEnvironmentVars().forEach((le,vars) -> {
+            BgpNeighbor n = getGraph().getEbgpNeighbors().get(le.getEdge());
+            if (!n.getSendCommunity()) {
+                vars.getCommunities().forEach((cvar, b) -> {
+                    add(Not(b));
+                });
+            }
+        });
+
+
+        // TESTING
+        // getLogicalGraph().getEnvironmentVars().forEach((le,vars) -> {
+        //    add(Not(vars.getPermitted()));
+        //});
     }
 
 
@@ -2489,7 +2537,7 @@ class EncoderSlice {
         addUnusedDefaultValueConstraints();
         addInactiveLinkConstraints();
         addHeaderSpaceConstraint();
-        addEnvironmentAreExternalConstraints();
+        addEnvironmentConstraints();
     }
 
     /*

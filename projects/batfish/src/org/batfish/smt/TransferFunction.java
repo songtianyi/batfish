@@ -162,6 +162,10 @@ class TransferFunction {
             boolean action = (line.getAction() == LineAction.ACCEPT);
             CommunityVar cvar = new CommunityVar(CommunityVar.Type.REGEX, line.getRegex(), null);
             BoolExpr c = other.getCommunities().get(cvar);
+
+            System.out.println("Community: " + cvar.getValue());
+            System.out.println("Other: " + other.getName());
+
             acc = _enc.If(c, _enc.Bool(action), acc);
         }
         return acc;
@@ -468,18 +472,20 @@ class TransferFunction {
             met = _enc.safeEq(_current.getMetric(), metValue);
         }
 
+        boolean isIbgp = _graphEdge.isAbstract() && _to.isBgp();
+
         // Update local preference
         BoolExpr lp;
         ArithExpr otherLp = getOrDefault(_other.getLocalPref(), defaultLp);
         if (mods.getSetLp() == null) {
             // If it is an ibgp edge, then copy local preference
-            if (_graphEdge.isAbstract() && _to.isBgp()) {
+            if (isIbgp) {
                 lp = _enc.safeEq(_current.getLocalPref(), otherLp);
             }
             // Otherwise, we use the default local preference value
             else {
-                long value = (_isExport ? 0 : 100);
-                lp = _enc.safeEq(_current.getLocalPref(), _enc.Int(value));
+                // Use a value of 100 for export too since we might merge records
+                lp = _enc.safeEq(_current.getLocalPref(), _enc.Int(100));
             }
         } else {
             IntExpr ie = mods.getSetLp().getLocalPreference();
@@ -503,13 +509,10 @@ class TransferFunction {
             area = _enc.safeEqEnum(_current.getOspfArea(), _iface.getOspfAreaName());
         }
 
-        boolean isIbgp = _enc.getGraph().getIbgpNeighbors().containsKey(_graphEdge);
-
         // Set whether or not is iBGP or not on import
-        BoolExpr isInternal = _enc.True();
-        if (_current.getBgpInternal() != null && isIbgp) {
-            isInternal = _enc.safeEq(_current.getBgpInternal(), _enc.True());
-        }
+        // TODO: don't reflect to other internal, but external is fine
+
+        BoolExpr isInternal = _enc.safeEq(_current.getBgpInternal(), _enc.Bool(isIbgp));
 
         // Update OSPF type
         BoolExpr type;
@@ -560,9 +563,7 @@ class TransferFunction {
         }
 
         // TODO: handle AD correctly
-        // TODO: handle MED correctly
-        // TODO: what about transitivity?
-        // TODO: communities are transmitted to neighbors?
+        // TODO: handle MED correctly (AS-specific? always-compare-med?)
         ArithExpr otherAd = (_other.getAdminDist() == null ? defaultAd : _other.getAdminDist());
         ArithExpr otherMed = (_other.getMed() == null ? defaultMed : _other.getMed());
 

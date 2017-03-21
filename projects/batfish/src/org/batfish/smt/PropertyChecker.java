@@ -567,6 +567,9 @@ public class PropertyChecker {
         return answer;
     }
 
+    /*
+     * Get the interfaces for a l
+     */
     private static Set<String> interfaces(List<GraphEdge> edges) {
         Set<String> ifaces = new TreeSet<>();
         for (GraphEdge edge : edges) {
@@ -575,6 +578,9 @@ public class PropertyChecker {
         return ifaces;
     }
 
+    /*
+     * Build the inverse map for each logical edge
+     */
     private static Map<String, Map<Protocol, Map<String, EnumMap<EdgeType,
             LogicalEdge>>>> logicalEdgeMap(EncoderSlice enc) {
 
