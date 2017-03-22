@@ -279,11 +279,28 @@ public class Encoder {
 
     // Symbolic arithmetic less than
     BoolExpr Lt(Expr e1, Expr e2) {
+        if (e1 instanceof BoolExpr && e2 instanceof BoolExpr) {
+            return And((BoolExpr) e2, Not((BoolExpr) e1));
+        }
         if (e1 instanceof ArithExpr && e2 instanceof ArithExpr) {
             return getCtx().mkLt((ArithExpr) e1, (ArithExpr) e2);
         }
         if (e1 instanceof BitVecExpr && e2 instanceof BitVecExpr) {
             return getCtx().mkBVULT((BitVecExpr) e1, (BitVecExpr) e2);
+        }
+        throw new BatfishException("Invalid call the Le while encoding control plane");
+    }
+
+    // Symbolic greater than
+    BoolExpr Gt(Expr e1, Expr e2) {
+        if (e1 instanceof BoolExpr && e2 instanceof BoolExpr) {
+            return And((BoolExpr) e1, Not((BoolExpr) e2));
+        }
+        if (e1 instanceof ArithExpr && e2 instanceof ArithExpr) {
+            return getCtx().mkGt((ArithExpr) e1, (ArithExpr) e2);
+        }
+        if (e1 instanceof BitVecExpr && e2 instanceof BitVecExpr) {
+            return getCtx().mkBVUGT((BitVecExpr) e1, (BitVecExpr) e2);
         }
         throw new BatfishException("Invalid call the Le while encoding control plane");
     }

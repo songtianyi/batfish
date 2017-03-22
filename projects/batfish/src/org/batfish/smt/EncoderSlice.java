@@ -155,13 +155,7 @@ class EncoderSlice {
 
     // Symbolic greater than
     BoolExpr Gt(Expr e1, Expr e2) {
-        if (e1 instanceof ArithExpr && e2 instanceof ArithExpr) {
-            return getCtx().mkGt((ArithExpr) e1, (ArithExpr) e2);
-        }
-        if (e1 instanceof BitVecExpr && e2 instanceof BitVecExpr) {
-            return getCtx().mkBVUGT((BitVecExpr) e1, (BitVecExpr) e2);
-        }
-        throw new BatfishException("Invalid call the Le while encoding control plane");
+        return _encoder.Gt(e1, e2);
     }
 
     // Symbolic arithmetic subtraction
@@ -1379,8 +1373,7 @@ class EncoderSlice {
      * Helper function to check if one expression is greater than
      * another accounting for null values introduced by optimizations.
      */
-    private BoolExpr geBetterHelper(
-            Expr best, Expr vars, Expr defaultVal, boolean less) {
+    private BoolExpr geBetterHelper(Expr best, Expr vars, Expr defaultVal, boolean less) {
         BoolExpr fal = False();
         if (vars == null) {
             if (best != null) {
@@ -1471,6 +1464,9 @@ class EncoderSlice {
         BoolExpr betterOspfType = geBetterHelper(bestType, varsType, defaultOspfType, true);
         BoolExpr equalOspfType = geEqualHelper(bestType, varsType, defaultOspfType);
 
+        BoolExpr betterInternal = geBetterHelper(best.getBgpInternal(), vars.getBgpInternal(), False(), true);
+        BoolExpr equalInternal = geEqualHelper(best.getBgpInternal(), vars.getBgpInternal(), True());
+
         BoolExpr tiebreak;
         if (isMultipath(conf, proto)) {
             tiebreak = True();
@@ -1485,16 +1481,18 @@ class EncoderSlice {
 
         BoolExpr b = And(equalOspfType, tiebreak);
         BoolExpr b1 = Or(betterOspfType, b);
-        BoolExpr b2 = And(equalMed, b1);
-        BoolExpr b3 = Or(betterMed, b2);
-        BoolExpr b4 = And(equalMet, b3);
-        BoolExpr b5 = Or(betterMet, b4);
-        BoolExpr b6 = And(equalLp, b5);
-        BoolExpr b7 = Or(betterLp, b6);
-        BoolExpr b8 = And(equalAd, b7);
-        BoolExpr b9 = Or(betterAd, b8);
-        BoolExpr b10 = And(equalLen, b9);
-        return Or(betterLen, b10);
+        BoolExpr b2 = And(equalInternal, b1);
+        BoolExpr b3 = Or(betterInternal, b2);
+        BoolExpr b4 = And(equalMed, b3);
+        BoolExpr b5 = Or(betterMed, b4);
+        BoolExpr b6 = And(equalMet, b5);
+        BoolExpr b7 = Or(betterMet, b6);
+        BoolExpr b8 = And(equalLp, b7);
+        BoolExpr b9 = Or(betterLp, b8);
+        BoolExpr b10 = And(equalAd, b9);
+        BoolExpr b11 = Or(betterAd, b10);
+        BoolExpr b12 = And(equalLen, b11);
+        return Or(betterLen, b12);
     }
 
     /*
@@ -2514,8 +2512,9 @@ class EncoderSlice {
 
 
         // TESTING
-        // getLogicalGraph().getEnvironmentVars().forEach((le,vars) -> {
-        //    add(Not(vars.getPermitted()));
+        //getLogicalGraph().getEnvironmentVars().forEach((le,vars) -> {
+        //    add(vars.getPermitted());
+        //    add(Implies(vars.getPermitted(), Eq(vars.getMetric(),Int(0)) ));
         //});
     }
 
