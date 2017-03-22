@@ -11,6 +11,7 @@ interface Serial1
 !
 
 router bgp 200
+ network 4.4.4.0/24
  neighbor 4.4.4.4 remote-as 200
  neighbor 4.4.4.4 update-source Loopback0
  neighbor 10.12.12.2 remote-as 100

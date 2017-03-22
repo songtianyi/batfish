@@ -2111,13 +2111,11 @@ class EncoderSlice {
                 BoolExpr active = interfaceActive(iface, proto);
 
                 // Don't re-export routes learned via iBGP
-                boolean isIbgp = (proto.isBgp()) &&
-                                 (getGraph().getIbgpNeighbors().containsKey(ge)) &&
-                                 varsOther.isBest() &&
-                                 _optimizations.getNeedBgpInternal().contains(router);
+                boolean isIbgp = (proto.isBgp()) && (getGraph().getIbgpNeighbors().containsKey(ge));
+                boolean isInternalExport = varsOther.isBest() && _optimizations.getNeedBgpInternal().contains(router);
 
                 BoolExpr doExport = True();
-                if (isIbgp) {
+                if (isIbgp && isInternalExport) {
                     doExport = Not(varsOther.getBgpInternal());
                     cost = 0;
                 }
@@ -2158,8 +2156,10 @@ class EncoderSlice {
                 acc = If(usable, acc, val);
 
                 for (Prefix p : originations) {
-                    BoolExpr relevant = And(interfaceActive(iface, proto), isRelevantFor(p,
-                            _symbolicPacket.getDstIp()));
+                    BoolExpr notIbgpExport = Not(Bool(isIbgp));
+                    BoolExpr ifaceUp = interfaceActive(iface, proto);
+                    BoolExpr relevantPrefix = isRelevantFor(p, _symbolicPacket.getDstIp());
+                    BoolExpr relevant = And(notIbgpExport, ifaceUp, relevantPrefix);
                     int adminDistance = defaultAdminDistance(conf, proto);
                     int prefixLength = p.getPrefixLength();
                     BoolExpr per = vars.getPermitted();
