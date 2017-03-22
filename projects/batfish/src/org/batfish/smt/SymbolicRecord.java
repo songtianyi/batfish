@@ -32,6 +32,8 @@ class SymbolicRecord {
 
     private boolean _isBestOverall;
 
+    private boolean _isExport;
+
     private BoolExpr _permitted;
 
     private ArithExpr _prefixLength;
@@ -45,6 +47,8 @@ class SymbolicRecord {
     private ArithExpr _localPref;
 
     private BoolExpr _bgpInternal;
+
+    private ArithExpr _igpMetric;
 
     private SymbolicEnum<Long> _ospfArea;
 
@@ -64,12 +68,14 @@ class SymbolicRecord {
         _isBest = false;
         _isBestOverall = false;
         _isEnv = false;
+        _isExport = false;
         _prefixLength = null;
         _metric = null;
         _adminDist = null;
         _med = null;
         _localPref = null;
         _bgpInternal = null;
+        _igpMetric = null;
         _routerId = null;
         _permitted = null;
         _ospfType = null;
@@ -78,11 +84,12 @@ class SymbolicRecord {
 
     SymbolicRecord(
             EncoderSlice enc, String name, String router, Protocol proto,
-            Optimizations opts, Context ctx, SymbolicEnum<Protocol> h) {
+            Optimizations opts, Context ctx, SymbolicEnum<Protocol> h, boolean isAbstract) {
 
         _name = name;
         _proto = proto;
         _isUsed = true;
+        _isExport = _name.contains("EXPORT");
         _isEnv = _name.contains("_ENV-");
         _isBest = _name.contains("_BEST");
         _isBestOverall = (_isBest && _name.contains("_OVERALL"));
@@ -97,6 +104,7 @@ class SymbolicRecord {
         _protocolHistory = h;
         _ospfArea = null;
         _ospfType = null;
+        _igpMetric = null;
 
         if (proto.isBest()) {
             _metric = ctx.mkIntConst(_name + "_metric");
@@ -104,6 +112,7 @@ class SymbolicRecord {
             _adminDist = (modelAd ? ctx.mkIntConst(_name + "_adminDist") : null);
             _med = (opts.getKeepMed() ? ctx.mkIntConst(_name + "_med") : null);
             _bgpInternal = (modelIbgp ? ctx.mkBoolConst(_name + "_bgpInternal") : null);
+            _igpMetric = (modelIbgp ? ctx.mkIntConst(_name + "_igpMetric") : null);
 
             if (hasOspf && opts.getKeepOspfType()) {
                 _ospfType = new SymbolicOspfType(enc, OspfType.values, _name + "_ospfType");
@@ -141,6 +150,7 @@ class SymbolicRecord {
             _adminDist = (modelAd ? ctx.mkIntConst(_name + "_adminDist") : null);
             _med = (opts.getKeepMed() ? ctx.mkIntConst(_name + "_med") : null);
             _bgpInternal = (modelIbgp ? ctx.mkBoolConst(_name + "_bgpInternal") : null);
+            _igpMetric = ((_isBest && modelIbgp) || (isAbstract && !_isExport) ? ctx.mkIntConst(_name + "_igpMetric") : null);
             _ospfArea = null;
             _ospfType = null;
 
@@ -214,6 +224,9 @@ class SymbolicRecord {
         if (_bgpInternal != null) {
             all.add(_bgpInternal);
         }
+        if (_igpMetric != null) {
+            all.add(_igpMetric);
+        }
         _communities.forEach((name, var) -> {
             all.add(var);
         });
@@ -282,6 +295,10 @@ class SymbolicRecord {
 
     BoolExpr getBgpInternal() {
         return _bgpInternal;
+    }
+
+    public ArithExpr getIgpMetric() {
+        return _igpMetric;
     }
 
     Protocol getProto() {

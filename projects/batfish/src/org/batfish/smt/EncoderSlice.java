@@ -763,7 +763,7 @@ class EncoderSlice {
                 SymbolicEnum<Protocol> h = new SymbolicEnum<>(this, allProtos, historyName);
 
                 SymbolicRecord evBest = new SymbolicRecord(this, name, router, Protocol.BEST
-                        , _optimizations, getCtx(), h);
+                        , _optimizations, getCtx(), h, false);
                 getAllSymbolicRecords().add(evBest);
                 _symbolicDecisions.getBestNeighbor().put(router, evBest);
             }
@@ -780,7 +780,7 @@ class EncoderSlice {
 
                     for (int len = 0; len <= BITS; len++) {
                         SymbolicRecord evBest = new SymbolicRecord(this, name, router, proto,
-                                _optimizations, getCtx(), h);
+                                _optimizations, getCtx(), h, false);
                         getAllSymbolicRecords().add(evBest);
                         _symbolicDecisions.getBestNeighborPerProtocol().put(router, proto, evBest);
                     }
@@ -849,7 +849,7 @@ class EncoderSlice {
                                     String name = String.format("%s%s_%s_%s_%s", _sliceName, router, proto
                                             .name(), "", "SINGLE-EXPORT");
                                     ev1 = new SymbolicRecord(this, name, router, proto,
-                                            _optimizations, getCtx(), null);
+                                            _optimizations, getCtx(), null, e.isAbstract());
                                     singleProtoMap.put(proto, ev1);
                                     getAllSymbolicRecords().add(ev1);
                                 } else {
@@ -863,7 +863,7 @@ class EncoderSlice {
                                         .name(), ifaceName, "EXPORT");
 
                                 SymbolicRecord ev1 = new SymbolicRecord(this, name, router,
-                                        proto, _optimizations, getCtx(), null);
+                                        proto, _optimizations, getCtx(), null, e.isAbstract());
                                 LogicalEdge eExport = new LogicalEdge(e, EdgeType.EXPORT, ev1);
                                 exportEdgeList.add(eExport);
                                 getAllSymbolicRecords().add(ev1);
@@ -883,7 +883,7 @@ class EncoderSlice {
                                 String name = String.format("%s%s_%s_%s_%s", _sliceName, router, proto
                                         .name(), ifaceName, "IMPORT");
                                 SymbolicRecord ev2 = new SymbolicRecord(this, name, router,
-                                        proto, _optimizations, getCtx(), null);
+                                        proto, _optimizations, getCtx(), null, e.isAbstract());
                                 LogicalEdge eImport = new LogicalEdge(e, EdgeType.IMPORT, ev2);
                                 importEdgeList.add(eImport);
                                 getAllSymbolicRecords().add(ev2);
@@ -975,8 +975,9 @@ class EncoderSlice {
                     _logicalGraph.getLogicalEdges().get(router, proto).forEach(eList -> {
                         eList.forEach(e -> {
                             if (e.getEdgeType() == EdgeType.IMPORT) {
-                                BgpNeighbor n = getGraph().getEbgpNeighbors().get(e.getEdge());
-                                if (n != null && e.getEdge().getEnd() == null) {
+                                GraphEdge ge = e.getEdge();
+                                BgpNeighbor n = getGraph().getEbgpNeighbors().get(ge);
+                                if (n != null && ge.getEnd() == null) {
 
                                     if (!isMainSlice()) {
                                         LogicalGraph lg = _encoder.getMainSlice().getLogicalGraph();
@@ -991,7 +992,7 @@ class EncoderSlice {
                                         }
                                         String ifaceName = "ENV-" + address;
                                         String name = String.format("%s%s_%s_%s_%s", _sliceName, router, proto.name(), ifaceName, "EXPORT");
-                                        SymbolicRecord vars = new SymbolicRecord(this, name, router, proto, _optimizations, getCtx(), null);
+                                        SymbolicRecord vars = new SymbolicRecord(this, name, router, proto, _optimizations, getCtx(), null, ge.isAbstract());
                                         getAllSymbolicRecords().add(vars);
                                         _logicalGraph.getEnvironmentVars().put(e, vars);
                                     }
@@ -1082,6 +1083,9 @@ class EncoderSlice {
                 }
                 add(Lt(e.getMetric(), upperBound16));
             }
+            if (e.getIgpMetric() != null) {
+                add(Ge(e.getIgpMetric(), zero));
+            }
             if (e.getPrefixLength() != null) {
                 add(Ge(e.getPrefixLength(), zero));
                 add(Le(e.getPrefixLength(), Int(32)));
@@ -1154,6 +1158,10 @@ class EncoderSlice {
     }
 
     public int defaultLength() {
+        return 0;
+    }
+
+    public int defaultIgpMetric() {
         return 0;
     }
 
@@ -1338,6 +1346,7 @@ class EncoderSlice {
         ArithExpr defaultMet = Int(defaultMetric(proto));
         ArithExpr defaultMed = Int(defaultMed(proto));
         ArithExpr defaultLen = Int(defaultLength());
+        ArithExpr defaultIgp = Int(defaultIgpMetric());
 
         BoolExpr equalLen;
         BoolExpr equalAd;
@@ -1349,6 +1358,7 @@ class EncoderSlice {
         BoolExpr equalId;
         BoolExpr equalHistory;
         BoolExpr equalBgpInternal;
+        BoolExpr equalIgpMet;
         BoolExpr equalCommunities;
 
         equalLen = equalHelper(best.getPrefixLength(), vars.getPrefixLength(), defaultLen);
@@ -1356,6 +1366,7 @@ class EncoderSlice {
         equalLp = equalHelper(best.getLocalPref(), vars.getLocalPref(), defaultLocal);
         equalMet = equalHelper(best.getMetric(), vars.getMetric(), defaultMet);
         equalMed = equalHelper(best.getMed(), vars.getMed(), defaultMed);
+        equalIgpMet = equalHelper(best.getIgpMetric(), vars.getIgpMetric(), defaultIgp);
 
         equalOspfType = equalTypes(best, vars);
         equalOspfArea = equalAreas(best, vars, e);
@@ -1366,7 +1377,7 @@ class EncoderSlice {
         equalCommunities = equalCommunities(best, vars);
 
         return And(equalLen, equalAd, equalLp, equalMet, equalMed, equalOspfArea, equalOspfType,
-                equalId, equalHistory, equalBgpInternal, equalCommunities);
+                equalId, equalHistory, equalBgpInternal, equalIgpMet, equalCommunities);
     }
 
     /*
@@ -1436,6 +1447,7 @@ class EncoderSlice {
         ArithExpr defaultMet = Int(defaultMetric(proto));
         ArithExpr defaultMed = Int(defaultMed(proto));
         ArithExpr defaultLen = Int(defaultLength());
+        ArithExpr defaultIgp = Int(defaultIgpMetric());
         BitVecExpr defaultOspfType = defaultOspfType();
 
 
@@ -1467,6 +1479,9 @@ class EncoderSlice {
         BoolExpr betterInternal = geBetterHelper(best.getBgpInternal(), vars.getBgpInternal(), False(), true);
         BoolExpr equalInternal = geEqualHelper(best.getBgpInternal(), vars.getBgpInternal(), True());
 
+        BoolExpr betterIgpMet = geBetterHelper(best.getIgpMetric(), vars.getIgpMetric(), defaultIgp, true);
+        BoolExpr equalIgpMet = geEqualHelper(best.getIgpMetric(), vars.getIgpMetric(), defaultIgp);
+
         BoolExpr tiebreak;
         if (isMultipath(conf, proto)) {
             tiebreak = True();
@@ -1481,18 +1496,20 @@ class EncoderSlice {
 
         BoolExpr b = And(equalOspfType, tiebreak);
         BoolExpr b1 = Or(betterOspfType, b);
-        BoolExpr b2 = And(equalInternal, b1);
-        BoolExpr b3 = Or(betterInternal, b2);
-        BoolExpr b4 = And(equalMed, b3);
-        BoolExpr b5 = Or(betterMed, b4);
-        BoolExpr b6 = And(equalMet, b5);
-        BoolExpr b7 = Or(betterMet, b6);
-        BoolExpr b8 = And(equalLp, b7);
-        BoolExpr b9 = Or(betterLp, b8);
-        BoolExpr b10 = And(equalAd, b9);
-        BoolExpr b11 = Or(betterAd, b10);
-        BoolExpr b12 = And(equalLen, b11);
-        return Or(betterLen, b12);
+        BoolExpr b2 = And(equalIgpMet, b1);
+        BoolExpr b3 = Or(betterIgpMet, b2);
+        BoolExpr b4 = And(equalInternal, b3);
+        BoolExpr b5 = Or(betterInternal, b4);
+        BoolExpr b6 = And(equalMed, b5);
+        BoolExpr b7 = Or(betterMed, b6);
+        BoolExpr b8 = And(equalMet, b7);
+        BoolExpr b9 = Or(betterMet, b8);
+        BoolExpr b10 = And(equalLp, b9);
+        BoolExpr b11 = Or(betterLp, b10);
+        BoolExpr b12 = And(equalAd, b11);
+        BoolExpr b13 = Or(betterAd, b12);
+        BoolExpr b14 = And(equalLen, b13);
+        return Or(betterLen, b14);
     }
 
     /*
@@ -2154,8 +2171,9 @@ class EncoderSlice {
                     BoolExpr type = safeEqEnum(vars.getOspfType(), OspfType.O);
                     BoolExpr area = safeEqEnum(vars.getOspfArea(), iface.getOspfAreaName());
                     // TODO: is this right?
-                    BoolExpr internal = safeEq(vars.getBgpInternal(), False());
-                    BoolExpr values = And(per, lp, ad, met, med, len, type, area, internal);
+                    BoolExpr internal = safeEq(vars.getBgpInternal(), True());
+                    BoolExpr igpMet = safeEq(vars.getIgpMetric(), Int(0));
+                    BoolExpr values = And(per, lp, ad, met, med, len, type, area, internal, igpMet);
                     acc = If(relevant, values, acc);
                 }
 
@@ -2259,6 +2277,9 @@ class EncoderSlice {
             }
             if (vars.getBgpInternal() != null) {
                 add(Implies(notPermitted, Not(vars.getBgpInternal())));
+            }
+            if (vars.getIgpMetric() != null) {
+                add(Implies(notPermitted, Eq(vars.getIgpMetric(), zero)));
             }
             vars.getCommunities().forEach((cvar, e) -> {
                 add(Implies(notPermitted, Not(e)));
@@ -2545,6 +2566,10 @@ class EncoderSlice {
 
     Graph getGraph() {
         return _logicalGraph.getGraph();
+    }
+
+    Encoder getEncoder() {
+        return _encoder;
     }
 
     Map<String, List<Protocol>> getProtocols() {

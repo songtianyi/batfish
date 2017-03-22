@@ -509,6 +509,16 @@ class TransferFunction {
             area = _enc.safeEqEnum(_current.getOspfArea(), _iface.getOspfAreaName());
         }
 
+        // Set the IGP metric accordingly
+        BoolExpr igpMet = _enc.True();
+        if (_graphEdge.isAbstract() && _current.getIgpMetric() != null) {
+            String router = _graphEdge.getRouter();
+            String peer = _graphEdge.getPeer();
+            EncoderSlice s = _enc.getEncoder().getSlice(peer);
+            SymbolicRecord r = s.getSymbolicDecisions().getBestNeighbor().get(router);
+            igpMet = _enc.Eq(_current.getIgpMetric(), r.getMetric());
+        }
+
         // Set whether or not is iBGP or not on import
         BoolExpr isInternal = _enc.safeEq(_current.getBgpInternal(), _enc.Bool(isIbgp));
 
@@ -570,7 +580,7 @@ class TransferFunction {
         BoolExpr med = _enc.safeEq(_current.getMed(), otherMed);
 
 
-        BoolExpr updates = _enc.And(per, len, ad, med, lp, met, id, type, area, comms, history, isInternal);
+        BoolExpr updates = _enc.And(per, len, ad, med, lp, met, id, type, area, comms, history, isInternal, igpMet);
         BoolExpr noOverflow = noOverflow(metValue, _to);
 
         return _enc.If(noOverflow, updates, _enc.Not(_current.getPermitted()));

@@ -88,3 +88,7 @@ test tests/java-smt/ibgp1-forwarding.ref get smt-forwarding dstIps=["10.10.10.0"
 # correct handling of transitivity and path metric update
 test tests/java-smt/ibgp2-init.ref init-testrig test_rigs/smt-examples/IBGP2
 test tests/java-smt/ibgp2-forwarding.ref get smt-forwarding dstIps=["5.5.5.5"]
+
+# Check correct handling of IGP metric cost for iBGP with eBGP
+test tests/java-smt/ibgp3-init.ref init-testrig test_rigs/smt-examples/IBGP3
+test tests/java-smt/ibgp3-forwarding.ref get smt-forwarding dstIps=["5.5.5.5"]
