@@ -510,8 +510,6 @@ class TransferFunction {
         }
 
         // Set whether or not is iBGP or not on import
-        // TODO: don't reflect to other internal, but external is fine
-
         BoolExpr isInternal = _enc.safeEq(_current.getBgpInternal(), _enc.Bool(isIbgp));
 
         // Update OSPF type
@@ -563,7 +561,7 @@ class TransferFunction {
         }
 
         // TODO: handle AD correctly
-        // TODO: handle MED correctly (AS-specific? always-compare-med?)
+        // TODO: handle MED correctly (AS-specific? always-compare-med? deterministic-med?)
         ArithExpr otherAd = (_other.getAdminDist() == null ? defaultAd : _other.getAdminDist());
         ArithExpr otherMed = (_other.getMed() == null ? defaultMed : _other.getMed());
 

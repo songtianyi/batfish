@@ -77,8 +77,8 @@ class SymbolicRecord {
     }
 
     SymbolicRecord(
-            EncoderSlice enc, String name, String router, Protocol proto, Optimizations
-            opts, Context ctx, SymbolicEnum<Protocol> h) {
+            EncoderSlice enc, String name, String router, Protocol proto,
+            Optimizations opts, Context ctx, SymbolicEnum<Protocol> h) {
 
         _name = name;
         _proto = proto;

@@ -397,10 +397,18 @@ class Optimizations {
                 if (Optimizations.ENABLE_IMPORT_EXPORT_MERGE_OPTIMIZATION) {
 
                     if (!proto.isConnected() && !proto.isStatic()) {
+
                         boolean isNotRoot = !hasRelevantOriginatedRoute(conf, proto);
                         if (isNotRoot) {
                             for (GraphEdge e : _encoderSlice.getGraph().getEdgeMap().get(router)) {
-                                if (_encoderSlice.getGraph().isEdgeUsed(conf, proto, e) && !e.isAbstract()) {
+
+                                // Don't merge when an abstract edge is used.
+                                boolean safeMergeEdge = _encoderSlice.getGraph().isEdgeUsed(conf, proto, e) && !e.isAbstract();
+
+                                // Don't merge when bgp internal/external can differ
+                                boolean sameInternal = (e.getPeer() == null) || (_needBgpInternal.contains(router) == _needBgpInternal.contains(e.getPeer()));
+
+                                if (safeMergeEdge && sameInternal) {
                                     if (hasExportVariables(e, proto)) {
                                         edges.add(e);
                                     }

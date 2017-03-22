@@ -288,7 +288,7 @@ public class Encoder {
         if (e1 instanceof BitVecExpr && e2 instanceof BitVecExpr) {
             return getCtx().mkBVULT((BitVecExpr) e1, (BitVecExpr) e2);
         }
-        throw new BatfishException("Invalid call the Le while encoding control plane");
+        throw new BatfishException("Invalid call to Lt while encoding control plane");
     }
 
     // Symbolic greater than
