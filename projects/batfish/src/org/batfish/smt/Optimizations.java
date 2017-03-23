@@ -63,7 +63,7 @@ class Optimizations {
     Optimizations(EncoderSlice encoderSlice) {
         _encoderSlice = encoderSlice;
         _hasEnvironment = false;
-        _hasExternalCommunity = true;
+        _hasExternalCommunity = false;
         _protocols = new HashMap<>();
         _relevantAggregates = new HashMap<>();
         _suppressedAggregates = new HashMap<>();

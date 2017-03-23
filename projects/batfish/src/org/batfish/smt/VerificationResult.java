@@ -136,12 +136,14 @@ public class VerificationResult {
         return sb.toString();
     }
 
-    public void debug(EncoderSlice enc, String filter) {
-        System.out.println("================= Constraints ==================");
-        for (BoolExpr be : enc.getSolver().getAssertions()) {
-            String x = be.simplify().toString();
-            if (filter == null || x.contains(filter)) {
-                System.out.println(x);
+    public void debug(EncoderSlice enc, boolean showConstraints, String filter) {
+        if (showConstraints) {
+            System.out.println("================= Constraints ==================");
+            for (BoolExpr be : enc.getSolver().getAssertions()) {
+                String x = be.simplify().toString();
+                if (filter == null || x.contains(filter)) {
+                    System.out.println(x);
+                }
             }
         }
         if (_verified) {

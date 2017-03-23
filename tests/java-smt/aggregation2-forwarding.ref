@@ -57,7 +57,8 @@
           "ip-protocol0" : "0",
           "src-ip0" : "0",
           "src-port0" : "0",
-          "|R2_OVERALL_None_BEST_NEW-LEN(Serial0)|" : "24"
+          "|R2_OVERALL_None_BEST_NEW-LEN(Serial0)|" : "24",
+          "|TEMP0_NEW-LEN(Serial0)|" : "24"
         },
         "packetModel" : {
           "dstIp" : "42.42.42.1"

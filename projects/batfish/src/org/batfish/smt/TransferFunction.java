@@ -162,10 +162,6 @@ class TransferFunction {
             boolean action = (line.getAction() == LineAction.ACCEPT);
             CommunityVar cvar = new CommunityVar(CommunityVar.Type.REGEX, line.getRegex(), null);
             BoolExpr c = other.getCommunities().get(cvar);
-
-            System.out.println("Community: " + cvar.getValue());
-            System.out.println("Other: " + other.getName());
-
             acc = _enc.If(c, _enc.Bool(action), acc);
         }
         return acc;
@@ -761,7 +757,10 @@ class TransferFunction {
             _aggregates = aggregateRoutes();
 
             if (_aggregates.size() > 0) {
-                ArithExpr i = _enc.getCtx().mkIntConst(_other.getName() + "_NEW-LEN(" + _iface
+                String otherName = _other.getName();
+                String name = (otherName == null ? ("TEMP" + _enc.generateId()) : otherName);
+
+                ArithExpr i = _enc.getCtx().mkIntConst(name + "_NEW-LEN(" + _iface
                         .getName() + ")");
                 _enc.getAllVariables().add(i);
 

@@ -31,19 +31,55 @@ class SymbolicEnum<T> {
 
     protected Map<T, BitVecExpr> _valueMap;
 
-    SymbolicEnum(EncoderSlice enc, List<T> values, String name) {
-        _enc = enc;
 
+    SymbolicEnum(EncoderSlice slice, List<T> values, String name) {
+        _enc = slice;
+        _numBits = numBits(values);
+        int size = values.size();
+        initValues(values);
+
+        if (_numBits == 0) {
+            _bitvec = null;
+        } else {
+
+            _bitvec = _enc.getCtx().mkBVConst(name, _numBits);
+            slice.getAllVariables().add(_bitvec);
+
+            if (!isPowerOfTwo(size)) {
+                BitVecExpr maxValue = slice.getCtx().mkBV(size-1, _numBits);
+                BoolExpr constraint = slice.getCtx().mkBVULE(_bitvec, maxValue);
+                slice.add( constraint );
+            }
+
+        }
+    }
+
+    protected SymbolicEnum(EncoderSlice slice, List<T> values, T value) {
+        _enc = slice;
+        int idx = values.indexOf(value);
+        _numBits = numBits(values);
+
+        if (_numBits == 0) {
+            _bitvec = null;
+        } else {
+            _bitvec = _enc.getCtx().mkBV(idx, _numBits);
+        }
+
+        initValues(values);
+    }
+
+    private int numBits(List<T> values) {
         int size = values.size();
         double log = Math.log((double) size);
         double base = Math.log((double) 2);
-
         if (size == 0) {
-            _numBits = 0;
+            return 0;
         } else {
-            _numBits = ((int) Math.ceil(log / base));
+            return ((int) Math.ceil(log / base));
         }
+    }
 
+    private void initValues(List<T> values) {
         int i = 0;
         _values = new ArrayList<>();
         _valueMap = new HashMap<>();
@@ -53,21 +89,6 @@ class SymbolicEnum<T> {
                 _valueMap.put(value, _enc.getCtx().mkBV(i, _numBits));
             }
             i++;
-        }
-
-        if (_numBits == 0) {
-            _bitvec = null;
-        } else {
-
-            _bitvec = _enc.getCtx().mkBVConst(name, _numBits);
-            enc.getAllVariables().add(_bitvec);
-
-            if (!isPowerOfTwo(size)) {
-                BitVecExpr maxValue = enc.getCtx().mkBV(size-1, _numBits);
-                BoolExpr constraint = enc.getCtx().mkBVULE(_bitvec, maxValue);
-                enc.add( constraint );
-            }
-
         }
     }
 

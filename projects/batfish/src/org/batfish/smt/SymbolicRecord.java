@@ -61,6 +61,27 @@ class SymbolicRecord {
     private Map<CommunityVar, BoolExpr> _communities;
 
 
+    SymbolicRecord() {
+        _name = null;
+        _proto = null;
+        _isUsed = false;
+        _isBest = false;
+        _isBestOverall = false;
+        _isEnv = false;
+        _isExport = false;
+        _prefixLength = null;
+        _metric = null;
+        _adminDist = null;
+        _med = null;
+        _localPref = null;
+        _bgpInternal = null;
+        _igpMetric = null;
+        _routerId = null;
+        _permitted = null;
+        _ospfType = null;
+        _protocolHistory = null;
+    }
+
     SymbolicRecord(String name, Protocol proto) {
         _name = name;
         _proto = proto;
@@ -82,9 +103,10 @@ class SymbolicRecord {
         _protocolHistory = null;
     }
 
+
     SymbolicRecord(
             EncoderSlice enc, String name, String router, Protocol proto,
-            Optimizations opts, Context ctx, SymbolicEnum<Protocol> h, boolean isAbstract) {
+            Optimizations opts, SymbolicEnum<Protocol> h, boolean isAbstract) {
 
         _name = name;
         _proto = proto;
@@ -93,6 +115,8 @@ class SymbolicRecord {
         _isEnv = _name.contains("_ENV-");
         _isBest = _name.contains("_BEST");
         _isBestOverall = (_isBest && _name.contains("_OVERALL"));
+
+        Context ctx = enc.getCtx();
 
         boolean hasOspf = enc.getProtocols().get(router).contains(Protocol.OSPF);
         boolean hasBgp = enc.getProtocols().get(router).contains(Protocol.BGP);
@@ -115,7 +139,7 @@ class SymbolicRecord {
             _igpMetric = (modelIbgp ? ctx.mkIntConst(_name + "_igpMetric") : null);
 
             if (hasOspf && opts.getKeepOspfType()) {
-                _ospfType = new SymbolicOspfType(enc, OspfType.values, _name + "_ospfType");
+                _ospfType = new SymbolicOspfType(enc, _name + "_ospfType");
             }
 
             // Set OSPF area only for best OSPF or OVERALL choice
@@ -162,7 +186,7 @@ class SymbolicRecord {
             _bgpInternal = null;
 
             if (opts.getKeepOspfType()) {
-                _ospfType = new SymbolicOspfType(enc, OspfType.values, _name + "_ospfType");
+                _ospfType = new SymbolicOspfType(enc, _name + "_ospfType");
             }
         }
 
@@ -303,6 +327,58 @@ class SymbolicRecord {
 
     Protocol getProto() {
         return _proto;
+    }
+
+    public void setPermitted(BoolExpr _permitted) {
+        this._permitted = _permitted;
+    }
+
+    public void setPrefixLength(ArithExpr _prefixLength) {
+        this._prefixLength = _prefixLength;
+    }
+
+    public void setAdminDist(ArithExpr _adminDist) {
+        this._adminDist = _adminDist;
+    }
+
+    public void setMetric(ArithExpr _metric) {
+        this._metric = _metric;
+    }
+
+    public void setMed(ArithExpr _med) {
+        this._med = _med;
+    }
+
+    public void setLocalPref(ArithExpr _localPref) {
+        this._localPref = _localPref;
+    }
+
+    public void setBgpInternal(BoolExpr _bgpInternal) {
+        this._bgpInternal = _bgpInternal;
+    }
+
+    public void setIgpMetric(ArithExpr _igpMetric) {
+        this._igpMetric = _igpMetric;
+    }
+
+    public void setOspfArea(SymbolicEnum<Long> _ospfArea) {
+        this._ospfArea = _ospfArea;
+    }
+
+    public void setOspfType(SymbolicOspfType _ospfType) {
+        this._ospfType = _ospfType;
+    }
+
+    public void setRouterId(ArithExpr _routerId) {
+        this._routerId = _routerId;
+    }
+
+    public void setProtocolHistory(SymbolicEnum<Protocol> _protocolHistory) {
+        this._protocolHistory = _protocolHistory;
+    }
+
+    public void setCommunities(Map<CommunityVar, BoolExpr> _communities) {
+        this._communities = _communities;
     }
 
     @Override

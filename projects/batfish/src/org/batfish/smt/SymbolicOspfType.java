@@ -2,8 +2,6 @@ package org.batfish.smt;
 
 import com.microsoft.z3.BoolExpr;
 
-import java.util.List;
-
 
 /**
  * <p>A symbolic enum representing the OSPF type,
@@ -13,8 +11,12 @@ import java.util.List;
  */
 class SymbolicOspfType extends SymbolicEnum<OspfType> {
 
-    SymbolicOspfType(EncoderSlice enc, List<OspfType> values, String name) {
-        super(enc, values, name);
+    SymbolicOspfType(EncoderSlice slice, String name) {
+        super(slice, OspfType.values, name);
+    }
+
+    SymbolicOspfType(EncoderSlice slice, OspfType t) {
+        super(slice, OspfType.values, t);
     }
 
     BoolExpr isExternal() {

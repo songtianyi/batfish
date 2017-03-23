@@ -42,7 +42,7 @@ public class PropertyChecker {
         answer.setResult(result);
 
         // EncoderSlice slice = encoder.getMainSlice();
-        // result.debug(slice, null);
+        // result.debug(slice, false, "SLICE-MAIN_");
 
         return answer;
     }

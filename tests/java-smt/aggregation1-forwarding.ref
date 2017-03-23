@@ -57,6 +57,7 @@
           "ip-protocol0" : "0",
           "src-ip0" : "0",
           "src-port0" : "0",
+          "|TEMP0_NEW-LEN(Serial0)|" : "16",
           "|R2_OVERALL_None_BEST_NEW-LEN(Serial0)|" : "16"
         },
         "packetModel" : {

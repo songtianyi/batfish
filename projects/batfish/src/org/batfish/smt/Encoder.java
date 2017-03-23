@@ -3,6 +3,7 @@ package org.batfish.smt;
 
 import com.microsoft.z3.*;
 import org.batfish.common.BatfishException;
+import org.batfish.common.Pair;
 import org.batfish.common.plugin.IBatfish;
 import org.batfish.datamodel.*;
 
@@ -220,23 +221,46 @@ public class Encoder {
         }
 
         if (_modelIgp) {
+            SortedSet<Pair<String, Ip>> ibgpRouters = new TreeSet<>();
+
             g.getIbgpNeighbors().forEach((ge, n) -> {
-                HeaderSpace hs = new HeaderSpace();
-                SortedSet<IpWildcard> ips = new TreeSet<>();
-                ips.add(new IpWildcard(n.getLocalIp()));
-                hs.setDstIps(ips);
 
                 String router = ge.getRouter();
-                String sliceName = "SLICE-" + router + "_";
+                Ip ip = n.getLocalIp();
+                Pair<String, Ip> pair = new Pair<>(router, ip);
 
-                EncoderSlice slice = new EncoderSlice(this, hs, g, sliceName);
-                _slices.put(sliceName, slice);
+                // Add one slice per (router, source ip) pair
+                if (!ibgpRouters.contains(pair)) {
 
-                PropertyAdder pa = new PropertyAdder(slice);
-                Map<String, BoolExpr> reachVars = pa.instrumentReachability(router);
-                _sliceReachability.put(router, reachVars);
+                    ibgpRouters.add(pair);
 
-                // TODO: set other fields like srcIp icmpCode, etc
+                    // Create a control plane slice only for this ip
+                    HeaderSpace hs = new HeaderSpace();
+
+                    // Make sure messages are sent to this destination IP
+                    SortedSet<IpWildcard> ips = new TreeSet<>();
+                    ips.add(new IpWildcard(n.getLocalIp()));
+                    hs.setDstIps(ips);
+
+                    // Make sure messages use TCP port 179
+                    SortedSet<SubRange> dstPorts = new TreeSet<>();
+                    dstPorts.add(new SubRange(179,179));
+                    hs.setDstPorts(dstPorts);
+
+                    // Make sure messages use the TCP protocol
+                    SortedSet<IpProtocol> protocols = new TreeSet<>();
+                    protocols.add(IpProtocol.TCP);
+                    hs.setIpProtocols(protocols);
+
+                    String sliceName = "SLICE-" + router + "_";
+
+                    EncoderSlice slice = new EncoderSlice(this, hs, g, sliceName);
+                    _slices.put(sliceName, slice);
+
+                    PropertyAdder pa = new PropertyAdder(slice);
+                    Map<String, BoolExpr> reachVars = pa.instrumentReachability(router);
+                    _sliceReachability.put(router, reachVars);
+                }
             });
         }
 
@@ -387,6 +411,10 @@ public class Encoder {
         VerificationStats stats = new VerificationStats(numNodes, numEdges, numVariables,
                 numConstraints, time);
 
+        // System.out.println("Constraints: " + stats.getNumConstraints());
+        // System.out.println("Variables: " + stats.getNumVariables());
+        // System.out.println("Z3 Time: " + stats.getTime());
+
         if (status == Status.UNSATISFIABLE) {
             return new VerificationResult(true, null, null, null, null, null);
         } else if (status == Status.UNKNOWN) {
@@ -448,7 +476,9 @@ public class Encoder {
                 packetModel.put("icmpType", icmpType);
             }
             if (ipProtocol != null && !ipProtocol.equals("0")) {
-                packetModel.put("ipProtocol", ipProtocol);
+                Integer number = Integer.parseInt(ipProtocol);
+                IpProtocol proto = IpProtocol.fromNumber(number);
+                packetModel.put("protocol", proto.toString());
             }
             if (tcpAck != null && tcpAck.equals("true")) {
                 packetModel.put("tcpAck", "set");
