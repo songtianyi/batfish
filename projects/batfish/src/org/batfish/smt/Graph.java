@@ -225,8 +225,8 @@ public class Graph {
      * Create a new "fake" interface to correspond to an abstract
      * iBGP control plane edge in the network.
      */
-    private Interface createIbgpInterface(BgpNeighbor n) {
-        Interface iface = new Interface("iBGP-" + n.getLocalIp());
+    private Interface createIbgpInterface(BgpNeighbor n, String peer) {
+        Interface iface = new Interface("iBGP-" + peer);
         iface.setActive(true);
         iface.setPrefix(n.getPrefix());
         return iface;
@@ -273,13 +273,13 @@ public class Graph {
         Table2<String, String, GraphEdge> reverse = new Table2<>();
 
         neighbors.forEach((r1, r2, n1) -> {
-            Interface iface1 = createIbgpInterface(n1);
+            Interface iface1 = createIbgpInterface(n1, r2);
 
             BgpNeighbor n2 = neighbors.get(r2, r1);
 
             GraphEdge ge;
             if (n2 != null) {
-                Interface iface2 = createIbgpInterface(n2);
+                Interface iface2 = createIbgpInterface(n2, r1);
                 ge = new GraphEdge(iface1, iface2, r1, r2, true);
             } else {
                 ge = new GraphEdge(iface1, null, r1, null, true);
@@ -466,7 +466,7 @@ public class Graph {
                 if (edge.getEnd() == null) {
                     sb.append(" to: null \n");
                 } else {
-                    sb.append(" to: ").append(edge.getEnd().getName()).append("\n");
+                    sb.append(" to: ").append(edge.getPeer()).append(",").append(edge.getEnd().getName()).append("\n");
                 }
             });
         });

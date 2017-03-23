@@ -314,8 +314,6 @@ class EncoderSlice {
         // Add an other variable for each regex community
         if (_optimizations.getHasExternalCommunity()) {
 
-            System.out.println(" Adding now... ");
-
             List<CommunityVar> others = new ArrayList<>();
             for (CommunityVar c : _allCommunities) {
                 if (c.getType() == CommunityVar.Type.REGEX) {
@@ -2090,12 +2088,16 @@ class EncoderSlice {
                             proto, proto, statements, 0, ge, false);
                     importFunction = f.compute();
 
+                    BoolExpr acc = If(usable, importFunction, val);
+
                     // System.out.println("IMPORT FUNCTION: " + router + " " + varsOther.getName());
                     // System.out.println(importFunction);
-                    // System.out.println("IMPORT FUNCTION (simpl): " + router + " " + varsOther.getName());
-                    // System.out.println(importFunction.simplify());
+                    //if (router.equals("as2border1") && proto.isBgp()) {
+                    //    System.out.println("IMPORT FUNCTION (simpl): " + router + " " + varsOther.getName() + " " + ge);
+                    //    System.out.println(acc.simplify());
+                    //}
 
-                    add(If(usable, importFunction, val));
+                    add(acc);
 
                 } else {
                     add(val);
@@ -2208,7 +2210,7 @@ class EncoderSlice {
                         SymbolicEnum<Long> area = new SymbolicEnum<>(this, areas, iface.getOspfAreaName());
 
                         r.setOspfArea(area);
-                        r.setBgpInternal(True());
+                        r.setBgpInternal(False());
                         r.setIgpMetric(Int(0));
 
                         Map<CommunityVar, BoolExpr> comms = new HashMap<>();
@@ -2231,7 +2233,7 @@ class EncoderSlice {
                         BoolExpr type = safeEqEnum(vars.getOspfType(), OspfType.O);
                         BoolExpr area = safeEqEnum(vars.getOspfArea(), iface.getOspfAreaName());
                         // TODO: is this right?
-                        BoolExpr internal = safeEq(vars.getBgpInternal(), True());
+                        BoolExpr internal = safeEq(vars.getBgpInternal(), False());
                         BoolExpr igpMet = safeEq(vars.getIgpMetric(), Int(0));
 
                         BoolExpr comms = True();
@@ -2248,13 +2250,13 @@ class EncoderSlice {
 
                 add(acc);
 
-                if (router.equals("as2dept1") && proto.isBgp()) {
+                /* if (router.equals("as2border1") && proto.isBgp()) {
                     //System.out.println("EXPORT FUNCTION: " + router + " " + varsOther.getName());
                     //System.out.println(acc);
-                    System.out.println("SIMPLIFIED: " + router + " " + varsOther.getName());
+                    System.out.println("SIMPLIFIED: " + router + " " + varsOther.getName() + " " + ge);
                     System.out.println(acc.simplify());
                     System.out.println("");
-                }
+                } */
 
             }
             return true;
@@ -2610,11 +2612,12 @@ class EncoderSlice {
         });
 
 
-        // TESTING
-        //getLogicalGraph().getEnvironmentVars().forEach((le,vars) -> {
-        //    add(vars.getPermitted());
+        // TESTING no environments
+        // getLogicalGraph().getEnvironmentVars().forEach((le,vars) -> {
+        //    add(Not(vars.getPermitted()));
         //    add(Implies(vars.getPermitted(), Eq(vars.getMetric(),Int(0)) ));
         //});
+
     }
 
 

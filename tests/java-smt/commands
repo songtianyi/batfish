@@ -82,7 +82,7 @@ test tests/java-smt/acl1-multipath.ref get smt-multipath-consistency finalNodeRe
 
 # Check correctness of iBGP encoding
 test tests/java-smt/ibgp1-init.ref init-testrig test_rigs/smt-examples/IBGP1
-test tests/java-smt/ibgp1-forwarding.ref get smt-forwarding dstIps=["10.10.10.0"]
+test tests/java-smt/ibgp1-forwarding.ref get smt-forwarding dstIps=["20.20.20.20"]
 
 # Check correctness of multiple ASes using both iBGP and eBGP. Also ensures
 # correct handling of transitivity and path metric update

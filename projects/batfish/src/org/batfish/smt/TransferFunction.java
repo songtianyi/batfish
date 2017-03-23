@@ -445,28 +445,17 @@ class TransferFunction {
         ArithExpr otherMet = getOrDefault(_other.getMetric(), defaultMet);
 
         // Update the path metric
-        if (mods.getSetMetric() == null) {
-            Integer addedCost;
+        Integer addedCost;
 
-            if (mods.getPrependPath() != null) {
-                addedCost = _addedCost + prependLength(mods.getPrependPath().getExpr());
-            } else {
-                addedCost = _addedCost;
-            }
-
-            metValue = _enc.Sum(otherMet, _enc.Int(addedCost));
-            met = _enc.safeEqAdd(_current.getMetric(), otherMet, addedCost);
+        if (mods.getPrependPath() != null) {
+            addedCost = _addedCost + prependLength(mods.getPrependPath().getExpr());
         } else {
-            IntExpr ie = mods.getSetMetric().getMetric();
-            metValue = applyIntExprModification(otherMet, ie);
-
-            if (mods.getPrependPath() != null) {
-                Integer prependCost = prependLength(mods.getPrependPath().getExpr());
-                metValue = _enc.Sum(metValue, _enc.Int(prependCost));
-            }
-
-            met = _enc.safeEq(_current.getMetric(), metValue);
+            addedCost = _addedCost;
         }
+
+        metValue = _enc.Sum(otherMet, _enc.Int(addedCost));
+        met = _enc.safeEqAdd(_current.getMetric(), otherMet, addedCost);
+
 
         boolean isIbgp = _graphEdge.isAbstract() && _to.isBgp();
 
@@ -566,15 +555,24 @@ class TransferFunction {
             }
         }
 
-        // TODO: handle AD correctly
+
         // TODO: handle MED correctly (AS-specific? always-compare-med? deterministic-med?)
         ArithExpr otherAd = (_other.getAdminDist() == null ? defaultAd : _other.getAdminDist());
         ArithExpr otherMed = (_other.getMed() == null ? defaultMed : _other.getMed());
 
-        BoolExpr history = _enc.equalHistories(_from, _current, _other);
-        BoolExpr ad = _enc.safeEq(_current.getAdminDist(), otherAd);
-        BoolExpr med = _enc.safeEq(_current.getMed(), otherMed);
+        // Update the administrative distance
+        BoolExpr ad;
+        SetMetric updateAd = mods.getSetAdminDist();
+        if (updateAd == null) {
+            ad = _enc.safeEq(_current.getAdminDist(), otherAd);
+        } else {
+            IntExpr ie = mods.getSetAdminDist().getMetric();
+            ArithExpr newAd = applyIntExprModification(otherMet, ie);
+            ad = _enc.safeEq(_current.getAdminDist(), newAd);
+        }
 
+        BoolExpr history = _enc.equalHistories(_from, _current, _other);
+        BoolExpr med = _enc.safeEq(_current.getMed(), otherMed);
 
         BoolExpr updates = _enc.And(per, len, ad, med, lp, met, id, type, area, comms, history, isInternal, igpMet);
         BoolExpr noOverflow = noOverflow(metValue, _to);
