@@ -1,10 +1,14 @@
 package org.batfish.question.smt;
 
 import org.batfish.common.Answerer;
+import org.batfish.common.BatfishException;
 import org.batfish.common.plugin.IBatfish;
 import org.batfish.datamodel.answers.AnswerElement;
 import org.batfish.datamodel.questions.Question;
 import org.batfish.question.QuestionPlugin;
+import org.codehaus.jettison.json.JSONObject;
+
+import java.util.Iterator;
 
 
 public class RoutingLoopQuestionPlugin extends QuestionPlugin {
@@ -17,13 +21,27 @@ public class RoutingLoopQuestionPlugin extends QuestionPlugin {
 
         @Override
         public AnswerElement answer() {
-            return _batfish.smtRoutingLoop();
+            RoutingLoopQuestion q = (RoutingLoopQuestion) _question;
+            return _batfish.smtRoutingLoop(q.getFailures(), q.getFullModel());
         }
     }
 
-    public static class RoutingLoopQuestion extends Question {
+    public static class RoutingLoopQuestion extends HeaderQuestion {
 
         public RoutingLoopQuestion() {}
+
+        @Override
+        public void setJsonParameters(JSONObject parameters) {
+            super.setJsonParameters(parameters);
+            Iterator<?> paramKeys = parameters.keys();
+            while (paramKeys.hasNext()) {
+                String paramKey = (String) paramKeys.next();
+                if (isBaseKey(paramKey)) {
+                    continue;
+                }
+                throw new BatfishException("Unknown key: " + paramKey);
+            }
+        }
 
         @Override
         public boolean getDataPlane() {

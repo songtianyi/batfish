@@ -13,8 +13,10 @@
     "class" : "org.batfish.question.smt.BoundedLengthQuestionPlugin$BoundedLengthQuestion",
     "bound" : 1,
     "differential" : false,
+    "failures" : 0,
     "finalIfaceRegex" : "Loopback.*",
     "finalNodeRegex" : "R1",
+    "fullModel" : true,
     "ingressNodeRegex" : ".*"
   },
   "status" : "SUCCESS"

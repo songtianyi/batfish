@@ -106,7 +106,9 @@
     "differential" : false,
     "dstIps" : [
       "70.70.70.70"
-    ]
+    ],
+    "failures" : 0,
+    "fullModel" : true
   },
   "status" : "SUCCESS"
 }

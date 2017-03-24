@@ -12,8 +12,10 @@
   "question" : {
     "class" : "org.batfish.question.smt.MultipathConsistencyQuestionPlugin$MultipathConsistencyQuestion",
     "differential" : false,
+    "failures" : 0,
     "finalIfaceRegex" : "Loopback.*",
     "finalNodeRegex" : "R1",
+    "fullModel" : true,
     "ingressNodeRegex" : ".*"
   },
   "status" : "SUCCESS"

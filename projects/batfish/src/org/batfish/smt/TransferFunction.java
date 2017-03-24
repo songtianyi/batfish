@@ -445,16 +445,28 @@ class TransferFunction {
         ArithExpr otherMet = getOrDefault(_other.getMetric(), defaultMet);
 
         // Update the path metric
-        Integer addedCost;
+        if (mods.getSetMetric() == null) {
+            Integer addedCost;
 
-        if (mods.getPrependPath() != null) {
-            addedCost = _addedCost + prependLength(mods.getPrependPath().getExpr());
+            if (mods.getPrependPath() != null) {
+                addedCost = _addedCost + prependLength(mods.getPrependPath().getExpr());
+            } else {
+                addedCost = _addedCost;
+            }
+
+            metValue = _enc.Sum(otherMet, _enc.Int(addedCost));
+            met = _enc.safeEqAdd(_current.getMetric(), otherMet, addedCost);
         } else {
-            addedCost = _addedCost;
-        }
+            IntExpr ie = mods.getSetMetric().getMetric();
+            metValue = applyIntExprModification(otherMet, ie);
 
-        metValue = _enc.Sum(otherMet, _enc.Int(addedCost));
-        met = _enc.safeEqAdd(_current.getMetric(), otherMet, addedCost);
+            if (mods.getPrependPath() != null) {
+                Integer prependCost = prependLength(mods.getPrependPath().getExpr());
+                metValue = _enc.Sum(metValue, _enc.Int(prependCost));
+            }
+
+            met = _enc.safeEq(_current.getMetric(), metValue);
+        }
 
 
         boolean isIbgp = _graphEdge.isAbstract() && _to.isBgp();
@@ -561,15 +573,7 @@ class TransferFunction {
         ArithExpr otherMed = (_other.getMed() == null ? defaultMed : _other.getMed());
 
         // Update the administrative distance
-        BoolExpr ad;
-        SetMetric updateAd = mods.getSetAdminDist();
-        if (updateAd == null) {
-            ad = _enc.safeEq(_current.getAdminDist(), otherAd);
-        } else {
-            IntExpr ie = mods.getSetAdminDist().getMetric();
-            ArithExpr newAd = applyIntExprModification(otherMet, ie);
-            ad = _enc.safeEq(_current.getAdminDist(), newAd);
-        }
+        BoolExpr ad = _enc.safeEq(_current.getAdminDist(), otherAd);
 
         BoolExpr history = _enc.equalHistories(_from, _current, _other);
         BoolExpr med = _enc.safeEq(_current.getMed(), otherMed);

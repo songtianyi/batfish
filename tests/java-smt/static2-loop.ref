@@ -49,7 +49,9 @@
   ],
   "question" : {
     "class" : "org.batfish.question.smt.RoutingLoopQuestionPlugin$RoutingLoopQuestion",
-    "differential" : false
+    "differential" : false,
+    "failures" : 0,
+    "fullModel" : true
   },
   "status" : "SUCCESS"
 }

@@ -152,6 +152,8 @@
   "question" : {
     "class" : "org.batfish.question.smt.LocalConsistencyQuestionPlugin$LocalConsistencyQuestion",
     "differential" : false,
+    "failures" : 0,
+    "fullModel" : true,
     "nodeRegex" : ".*"
   },
   "status" : "SUCCESS"

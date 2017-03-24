@@ -39,6 +39,10 @@ public class Encoder {
 
     private boolean _modelIgp;
 
+    private int _failures;
+
+    private boolean _fullModel;
+
     private Map<String, EncoderSlice> _slices;
 
     private Map<String, Map<String, BoolExpr>> _sliceReachability;
@@ -62,8 +66,8 @@ public class Encoder {
      * @param h  The packet headerspace of interest
      * @param batfish  The Batfish object
      */
-    public Encoder(HeaderSpace h, IBatfish batfish) {
-        this(h, new Graph(batfish));
+    public Encoder(IBatfish batfish, HeaderSpace h, int failures, boolean fullModel) {
+        this(new Graph(batfish), h, failures, fullModel);
     }
 
     /**
@@ -71,8 +75,8 @@ public class Encoder {
      * @param h  The packet headerspace of interest
      * @param graph  The network graph
      */
-    public Encoder(HeaderSpace h, Graph graph) {
-        this(h, graph, null, null, null, 0);
+    public Encoder(Graph graph, HeaderSpace h, int failures, boolean fullModel) {
+        this(graph, h, failures, fullModel, null, null, null, 0);
     }
 
     /**
@@ -81,7 +85,7 @@ public class Encoder {
      * @param g An existing network graph
      */
     Encoder(Encoder e, Graph g) {
-        this(e.getMainSlice().getHeaderSpace(), g, e.getCtx(), e.getSolver(), e.getAllVariables()
+        this(g, e.getMainSlice().getHeaderSpace(), e.getFailures(), e.getFullModel(),  e.getCtx(), e.getSolver(), e.getAllVariables()
                 , e.getId() + 1);
     }
 
@@ -90,8 +94,10 @@ public class Encoder {
      * of another encoder. If the context and solver are null, then a new
      * encoder is created. Otherwise the old encoder is used.
      */
-    private Encoder(HeaderSpace h, Graph graph, Context ctx, Solver solver, List<Expr> vars, int id) {
+    private Encoder(Graph graph, HeaderSpace h, int failures, boolean fullModel, Context ctx, Solver solver, List<Expr> vars, int id) {
         _graph = graph;
+        _failures = failures;
+        _fullModel = fullModel;
         _modelIgp = true;
         _encodingId = id;
         _slices = new HashMap<>();
@@ -424,13 +430,15 @@ public class Encoder {
             SortedMap<Expr, String> valuation = new TreeMap<>();
             SortedMap<String, String> model = new TreeMap<>();
 
-            // Full model
+            // If user asks for the full model
             for (Expr e : _allVariables) {
                 String name = e.toString();
                 Expr val = m.evaluate(e, false);
                 if (!val.equals(e)) {
                     String s = val.toString();
-                    model.put(name, s);
+                    if (_fullModel) {
+                        model.put(name, s);
+                    }
                     valuation.put(e, s);
                 }
             }
@@ -614,7 +622,7 @@ public class Encoder {
      * to calling the <b>verify method</b></p>
      */
     public void computeEncoding() {
-        addFailedConstraints(0);
+        addFailedConstraints(_failures);
         getMainSlice().computeEncoding();
         _slices.forEach((name, slice) -> {
             if (!name.equals(MAIN_SLICE_NAME)) {
@@ -705,5 +713,13 @@ public class Encoder {
 
     UnsatCore getUnsatCore() {
         return _unsatCore;
+    }
+
+    public int getFailures() {
+        return _failures;
+    }
+
+    public boolean getFullModel() {
+        return _fullModel;
     }
 }

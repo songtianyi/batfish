@@ -6,7 +6,9 @@
   ],
   "question" : {
     "class" : "org.batfish.question.smt.LocalConsistencyQuestionPlugin$LocalConsistencyQuestion",
-    "differential" : false
+    "differential" : false,
+    "failures" : 0,
+    "fullModel" : true
   },
   "status" : "SUCCESS"
 }

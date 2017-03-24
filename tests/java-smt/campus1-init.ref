@@ -1,0 +1,79 @@
+{
+  "answerElements" : [
+    {
+      "class" : "org.batfish.datamodel.answers.ParseVendorConfigurationAnswerElement",
+      "parseStatus" : {
+        "as2border1" : "PASSED",
+        "as2border2" : "PASSED",
+        "as2core1" : "PASSED",
+        "as2core2" : "PASSED",
+        "as2dept1" : "PASSED",
+        "as2dist1" : "PASSED",
+        "as2dist2" : "PASSED"
+      }
+    },
+    {
+      "class" : "org.batfish.datamodel.answers.ConvertConfigurationAnswerElement",
+      "undefinedReferences" : {
+        "as2core2" : {
+          "route-map" : [
+            "filter-bogons"
+          ]
+        }
+      },
+      "unusedStructures" : {
+        "as2border1" : {
+          "bgp group" : [
+            "as3"
+          ],
+          "community-list" : [
+            "as2_community"
+          ],
+          "ipv4 prefix-list" : [
+            "inbound_route_filter"
+          ]
+        },
+        "as2border2" : {
+          "bgp group" : [
+            "as1"
+          ],
+          "community-list" : [
+            "as2_community"
+          ],
+          "ipv4 prefix-list" : [
+            "inbound_route_filter"
+          ]
+        },
+        "as2dept1" : {
+          "ip acl" : [
+            "105",
+            "RESTRICT_HOST_TRAFFIC_OUT"
+          ]
+        },
+        "as2dist1" : {
+          "ip acl" : [
+            "102"
+          ]
+        },
+        "as2dist2" : {
+          "ip acl" : [
+            "102"
+          ]
+        }
+      }
+    },
+    {
+      "class" : "org.batfish.datamodel.answers.InitInfoAnswerElement",
+      "parseStatus" : {
+        "as2border1" : "PASSED",
+        "as2border2" : "PASSED",
+        "as2core1" : "PASSED",
+        "as2core2" : "PASSED",
+        "as2dept1" : "PASSED",
+        "as2dist1" : "PASSED",
+        "as2dist2" : "PASSED"
+      }
+    }
+  ],
+  "status" : "SUCCESS"
+}

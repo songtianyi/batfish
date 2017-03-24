@@ -29,7 +29,7 @@ class Modifications {
 
     private SetLocalPreference _setLp;
 
-    private SetMetric _setAdminDist;
+    private SetMetric _setMetric;
 
     private SetOspfMetricType _setOspfMetricType;
 
@@ -49,7 +49,7 @@ class Modifications {
         _defaultAcceptLocal = false;
         _prependPath = null;
         _setLp = null;
-        _setAdminDist = null;
+        _setMetric = null;
         _setOspfMetricType = null;
         _setWeight = null;
         _setNextHop = null;
@@ -60,7 +60,7 @@ class Modifications {
     Modifications(Modifications other) {
         PrependAsPath a = other.getPrependPath();
         SetLocalPreference b = other.getSetLp();
-        SetMetric c = other.getSetAdminDist();
+        SetMetric c = other.getSetMetric();
         SetWeight d = other.getSetWeight();
         SetNextHop e = other.getSetNextHop();
         Set<CommunityVar> f = other.getPositiveCommunities();
@@ -75,7 +75,7 @@ class Modifications {
         _defaultAcceptLocal = other._defaultAcceptLocal;
         _prependPath = (a == null ? null : new PrependAsPath(a.getExpr()));
         _setLp = (b == null ? null : new SetLocalPreference(b.getLocalPreference()));
-        _setAdminDist = (c == null ? null : new SetMetric(c.getMetric()));
+        _setMetric = (c == null ? null : new SetMetric(c.getMetric()));
         _setWeight = (d == null ? null : new SetWeight(d.getWeight()));
         _setNextHop = (e == null ? null : new SetNextHop(e.getExpr(), e.getDestinationVrf()));
         _positiveCommunities = (f == null ? null : new HashSet<>(f));
@@ -122,7 +122,7 @@ class Modifications {
         }
 
         if (stmt instanceof SetMetric) {
-            _setAdminDist = (SetMetric) stmt;
+            _setMetric = (SetMetric) stmt;
         }
 
         if (stmt instanceof SetOspfMetricType) {
@@ -168,8 +168,8 @@ class Modifications {
         return _setLp;
     }
 
-    SetMetric getSetAdminDist() {
-        return _setAdminDist;
+    SetMetric getSetMetric() {
+        return _setMetric;
     }
 
     SetOspfMetricType getSetOspfMetricType() {

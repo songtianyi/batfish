@@ -1059,34 +1059,37 @@ public class Batfish extends PluginConsumer implements AutoCloseable, IBatfish {
    }
 
    @Override
-   public AnswerElement smtForwarding(HeaderSpace h) {
-      return PropertyChecker.computeForwarding(this, h);
+   public AnswerElement smtForwarding(HeaderSpace h, int failures, boolean fullModel) {
+      return PropertyChecker.computeForwarding(this, h, failures, fullModel);
    }
 
    @Override
    public AnswerElement smtReachability(HeaderSpace h,
+           int failures, boolean fullModel,
            String ingressNodeRegexStr, String notIngressNodeRegexStr,
            String finalNodeRegexStr, String notFinalNodeRegexStr,
            String finalIfaceRegexStr, String notFinalIfaceRegexStr) {
 
       return PropertyChecker.computeReachability(this, h,
+              failures, fullModel,
               ingressNodeRegexStr, notIngressNodeRegexStr,
               finalNodeRegexStr, notFinalNodeRegexStr,
               finalIfaceRegexStr, notFinalIfaceRegexStr);
    }
 
    @Override
-   public AnswerElement smtBlackhole() {
-      return PropertyChecker.computeBlackHole(this);
+   public AnswerElement smtBlackhole(int failures, boolean fullModel) {
+      return PropertyChecker.computeBlackHole(this, failures, fullModel);
    }
 
    @Override
-   public AnswerElement smtRoutingLoop() {
-      return PropertyChecker.computeRoutingLoop(this);
+   public AnswerElement smtRoutingLoop(int failures, boolean fullModel) {
+      return PropertyChecker.computeRoutingLoop(this, failures, fullModel);
    }
 
    @Override
    public AnswerElement smtBoundedLength(HeaderSpace h,
+           int failures, boolean fullModel,
            String ingressNodeRegexStr, String notIngressNodeRegexStr,
            String finalNodeRegexStr, String notFinalNodeRegexStr,
            String finalIfaceRegexStr, String notFinalIfaceRegexStr, Integer bound) {
@@ -1095,6 +1098,7 @@ public class Batfish extends PluginConsumer implements AutoCloseable, IBatfish {
       }
 
       return PropertyChecker.computeBoundedLength(this, h,
+              failures, fullModel,
               ingressNodeRegexStr, notIngressNodeRegexStr,
               finalNodeRegexStr, notFinalNodeRegexStr,
               finalIfaceRegexStr, notFinalIfaceRegexStr, bound);
@@ -1102,11 +1106,13 @@ public class Batfish extends PluginConsumer implements AutoCloseable, IBatfish {
 
    @Override
    public AnswerElement smtEqualLength(HeaderSpace h,
+           int failures, boolean fullModel,
            String ingressNodeRegexStr, String notIngressNodeRegexStr,
            String finalNodeRegexStr, String notFinalNodeRegexStr,
            String finalIfaceRegexStr, String notFinalIfaceRegexStr) {
 
       return PropertyChecker.computeEqualLength(this, h,
+              failures, fullModel,
               ingressNodeRegexStr, notIngressNodeRegexStr,
               finalNodeRegexStr, notFinalNodeRegexStr,
               finalIfaceRegexStr, notFinalIfaceRegexStr);
@@ -1114,29 +1120,33 @@ public class Batfish extends PluginConsumer implements AutoCloseable, IBatfish {
 
    @Override
    public AnswerElement smtMultipathConsistency(HeaderSpace h,
+           int failures, boolean fullModel,
            String finalNodeRegexStr, String notFinalNodeRegexStr,
            String finalIfaceRegexStr, String notFinalIfaceRegexStr) {
 
       return PropertyChecker.computeMultipathConsistency(this, h,
+              failures, fullModel,
               finalNodeRegexStr, notFinalNodeRegexStr,
               finalIfaceRegexStr, notFinalIfaceRegexStr);
    }
 
    @Override
    public AnswerElement smtLoadBalance(HeaderSpace h,
+           int failures, boolean fullModel,
            String ingressNodeRegexStr, String notIngressNodeRegexStr,
            String finalNodeRegexStr, String notFinalNodeRegexStr,
            String finalIfaceRegexStr, String notFinalIfaceRegexStr, int threshold) {
 
       return PropertyChecker.computeLoadBalance(this, h,
+              failures, fullModel,
               ingressNodeRegexStr, notIngressNodeRegexStr,
               finalNodeRegexStr, notFinalNodeRegexStr,
               finalIfaceRegexStr, notFinalIfaceRegexStr, threshold);
    }
 
    @Override
-   public AnswerElement smtLocalConsistency(Pattern routerRegex) {
-      return PropertyChecker.computeLocalConsistency(this, routerRegex);
+   public AnswerElement smtLocalConsistency(Pattern routerRegex, boolean fullModel) {
+      return PropertyChecker.computeLocalConsistency(this, routerRegex, fullModel);
    }
 
 

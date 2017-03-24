@@ -34,6 +34,7 @@ public class ReachabilityQuestionPlugin extends QuestionPlugin {
             ReachabilityQuestion q = (ReachabilityQuestion) _question;
 
             return _batfish.smtReachability(q.getHeaderSpace(),
+                    q.getFailures(), q.getFullModel(),
                     q.getIngressNodeRegex(), q.getNotIngressNodeRegex(),
                     q.getFinalNodeRegex(), q.getNotFinalNodeRegex(),
                     q.getFinalIfaceRegex(), q.getNotFinalIfaceRegex());

@@ -1,0 +1,30 @@
+{
+  "answerElements" : [
+    {
+      "class" : "org.batfish.smt.answers.SmtManyAnswerElement",
+      "result" : {
+        "as2border2<-->as2border1" : {
+          "environmentModel" : {
+            "as2border1,FastEthernet0/0 (BGP)" : {
+              "community" : "(3:2)",
+              "prefix" : "0.0.0.0/0",
+              "protocol metric" : "254"
+            }
+          },
+          "packetModel" : {
+            "dstIp" : "2.1.1.0"
+          },
+          "verified" : false
+        }
+      }
+    }
+  ],
+  "question" : {
+    "class" : "org.batfish.question.smt.LocalConsistencyQuestionPlugin$LocalConsistencyQuestion",
+    "differential" : false,
+    "failures" : 0,
+    "fullModel" : false,
+    "nodeRegex" : ".*border.*"
+  },
+  "status" : "SUCCESS"
+}

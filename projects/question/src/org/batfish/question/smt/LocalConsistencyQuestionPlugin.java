@@ -38,11 +38,11 @@ public class LocalConsistencyQuestionPlugin extends QuestionPlugin {
                         q.getRouterRegex()), e);
             }
 
-            return _batfish.smtLocalConsistency(routerRegex);
+            return _batfish.smtLocalConsistency(routerRegex, q.getFullModel());
         }
     }
 
-    public static class LocalConsistencyQuestion extends Question {
+    public static class LocalConsistencyQuestion extends HeaderQuestion {
 
         private static final String NODE_REGEX_VAR = "nodeRegex";
 
@@ -60,7 +60,8 @@ public class LocalConsistencyQuestionPlugin extends QuestionPlugin {
 
             while (paramKeys.hasNext()) {
                 String paramKey = (String) paramKeys.next();
-                if (isBaseParamKey(paramKey)) {
+
+                if (isBaseKey(paramKey)) {
                     continue;
                 }
 

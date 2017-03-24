@@ -30,8 +30,8 @@ public class PropertyChecker {
      * determined only for a particular network environment, failure scenario,
      * and data plane packet.
      */
-    public static AnswerElement computeForwarding(IBatfish batfish, HeaderSpace h) {
-        Encoder encoder = new Encoder(h, batfish);
+    public static AnswerElement computeForwarding(IBatfish batfish, HeaderSpace h, int failures, boolean fullModel) {
+        Encoder encoder = new Encoder(batfish, h, failures, fullModel);
         encoder.computeEncoding();
         if (encoder.getMainSlice().getLogicalGraph().getEnvironmentVars().size() > 0) {
             System.out.println("Warning: forwarding computed for only a single concrete " +
@@ -51,9 +51,10 @@ public class PropertyChecker {
      * Compute if a collection of source routers can reach a collection of destination
      * ports. This is broken up into multiple queries, one for each destination port.
      */
-    public static AnswerElement computeReachability(IBatfish batfish, HeaderSpace h, String
-            ingressNodeRegexStr, String notIngressNodeRegexStr, String finalNodeRegexStr, String
-            notFinalNodeRegexStr, String finalIfaceRegexStr, String notFinalIfaceRegexStr) {
+    public static AnswerElement computeReachability(IBatfish batfish, HeaderSpace h,
+            int failures, boolean fullModel,
+            String ingressNodeRegexStr, String notIngressNodeRegexStr, String finalNodeRegexStr,
+            String notFinalNodeRegexStr, String finalIfaceRegexStr, String notFinalIfaceRegexStr) {
 
         PathRegexes p = new PathRegexes(finalNodeRegexStr, notFinalNodeRegexStr,
                 finalIfaceRegexStr, notFinalIfaceRegexStr, ingressNodeRegexStr,
@@ -74,7 +75,7 @@ public class PropertyChecker {
                 h.getDstIps().add(dst);
             }
 
-            Encoder enc = new Encoder(h, graph);
+            Encoder enc = new Encoder(graph, h, failures, fullModel);
             enc.computeEncoding();
 
             EncoderSlice slice = enc.getMainSlice();
@@ -109,12 +110,12 @@ public class PropertyChecker {
      * Compute if there can ever be a black hole for routers that are
      * not at the edge of the network. This is almost certainly a bug.
      */
-    public static AnswerElement computeBlackHole(IBatfish batfish) {
+    public static AnswerElement computeBlackHole(IBatfish batfish, int failures, boolean fullModel) {
         Graph graph = new Graph(batfish);
 
         HeaderSpace h = new HeaderSpace();
 
-        Encoder enc = new Encoder(h, graph);
+        Encoder enc = new Encoder(graph, h, failures, fullModel);
         enc.computeEncoding();
 
         Context ctx = enc.getCtx();
@@ -178,9 +179,10 @@ public class PropertyChecker {
      * Compute whether the path length will always be bounded by a constant k
      * for a collection of source routers to any of a number of destination ports.
      */
-    public static AnswerElement computeBoundedLength(IBatfish batfish, HeaderSpace h, String
-            ingressNodeRegexStr, String notIngressNodeRegexStr, String finalNodeRegexStr, String
-            notFinalNodeRegexStr, String finalIfaceRegexStr, String notFinalIfaceRegexStr, int k) {
+    public static AnswerElement computeBoundedLength(IBatfish batfish, HeaderSpace h,
+            int failures, boolean fullModel,
+            String ingressNodeRegexStr, String notIngressNodeRegexStr, String finalNodeRegexStr,
+            String notFinalNodeRegexStr, String finalIfaceRegexStr, String notFinalIfaceRegexStr, int k) {
 
         PathRegexes p = new PathRegexes(finalNodeRegexStr, notFinalNodeRegexStr,
                 finalIfaceRegexStr, notFinalIfaceRegexStr, ingressNodeRegexStr,
@@ -201,7 +203,7 @@ public class PropertyChecker {
                 h.getDstIps().add(dst);
             }
 
-            Encoder enc = new Encoder(h, graph);
+            Encoder enc = new Encoder(graph, h, failures, fullModel);
             enc.computeEncoding();
 
             EncoderSlice slice = enc.getMainSlice();
@@ -238,9 +240,10 @@ public class PropertyChecker {
      * Computes whether a collection of source routers will always have
      * equal path length to destination port(s).
      */
-    public static AnswerElement computeEqualLength(IBatfish batfish, HeaderSpace h, String
-            ingressNodeRegexStr, String notIngressNodeRegexStr, String finalNodeRegexStr, String
-            notFinalNodeRegexStr, String finalIfaceRegexStr, String notFinalIfaceRegexStr) {
+    public static AnswerElement computeEqualLength(IBatfish batfish, HeaderSpace h,
+            int failures, boolean fullModel,
+            String ingressNodeRegexStr, String notIngressNodeRegexStr, String finalNodeRegexStr,
+            String notFinalNodeRegexStr, String finalIfaceRegexStr, String notFinalIfaceRegexStr) {
 
         PathRegexes p = new PathRegexes(finalNodeRegexStr, notFinalNodeRegexStr,
                 finalIfaceRegexStr, notFinalIfaceRegexStr, ingressNodeRegexStr,
@@ -261,7 +264,7 @@ public class PropertyChecker {
                 h.getDstIps().add(dst);
             }
 
-            Encoder enc = new Encoder(h, graph);
+            Encoder enc = new Encoder(graph, h, failures, fullModel);
             enc.computeEncoding();
 
             EncoderSlice slice = enc.getMainSlice();
@@ -299,9 +302,10 @@ public class PropertyChecker {
      * Computes whether load balancing for each source node in a collection is
      * within some threshold k of the each other.
      */
-    public static AnswerElement computeLoadBalance(IBatfish batfish, HeaderSpace h, String
-            ingressNodeRegexStr, String notIngressNodeRegexStr, String finalNodeRegexStr, String
-            notFinalNodeRegexStr, String finalIfaceRegexStr, String notFinalIfaceRegexStr, int k) {
+    public static AnswerElement computeLoadBalance(IBatfish batfish, HeaderSpace h,
+            int failures, boolean fullModel,
+            String ingressNodeRegexStr, String notIngressNodeRegexStr, String finalNodeRegexStr,
+            String notFinalNodeRegexStr, String finalIfaceRegexStr, String notFinalIfaceRegexStr, int k) {
 
         PathRegexes p = new PathRegexes(finalNodeRegexStr, notFinalNodeRegexStr,
                 finalIfaceRegexStr, notFinalIfaceRegexStr, ingressNodeRegexStr,
@@ -337,7 +341,7 @@ public class PropertyChecker {
                 h.getDstIps().add(dst);
             }
 
-            Encoder enc = new Encoder(h, graph);
+            Encoder enc = new Encoder(graph, h, failures, fullModel);
             enc.computeEncoding();
 
             EncoderSlice slice = enc.getMainSlice();
@@ -382,7 +386,7 @@ public class PropertyChecker {
      * We finally check that their forwarding decisions and exported messages
      * will be equal given their equal inputs.
      */
-    public static AnswerElement computeLocalConsistency(IBatfish batfish, Pattern n) {
+    public static AnswerElement computeLocalConsistency(IBatfish batfish, Pattern n, boolean fullModel) {
         Graph graph = new Graph(batfish);
         List<String> routers = PatternUtils.findMatchingNodes(graph, n, Pattern.compile(""));
 
@@ -407,7 +411,7 @@ public class PropertyChecker {
             Set<String> toModel1 = new TreeSet<>();
             toModel1.add(r1);
             Graph g1 = new Graph(batfish, toModel1);
-            Encoder e1 = new Encoder(h, g1);
+            Encoder e1 = new Encoder(g1, h, 0, fullModel);
             e1.computeEncoding();
 
             Context ctx = e1.getCtx();
@@ -646,6 +650,7 @@ public class PropertyChecker {
      * (i.e., dropped or accepted by each).
      */
     public static AnswerElement computeMultipathConsistency(IBatfish batfish, HeaderSpace h,
+            int failures, boolean fullModel,
             String finalNodeRegexStr, String notFinalNodeRegexStr, String finalIfaceRegexStr,
             String notFinalIfaceRegexStr) {
 
@@ -666,7 +671,7 @@ public class PropertyChecker {
                 h.getDstIps().add(dst);
             }
 
-            Encoder enc = new Encoder(h, graph);
+            Encoder enc = new Encoder(graph, h, failures, fullModel);
             enc.computeEncoding();
 
             EncoderSlice slice = enc.getMainSlice();
@@ -716,7 +721,7 @@ public class PropertyChecker {
      * we only check for loops with routers that use static routes since
      * these can override the usual loop-prevention mechanisms.
      */
-    public static AnswerElement computeRoutingLoop(IBatfish batfish) {
+    public static AnswerElement computeRoutingLoop(IBatfish batfish, int failures, boolean fullModel) {
         Graph graph = new Graph(batfish);
 
         // Collect all relevant destinations
@@ -746,7 +751,7 @@ public class PropertyChecker {
             }
         });
 
-        Encoder enc = new Encoder(h, graph);
+        Encoder enc = new Encoder(graph, h, failures, fullModel);
         enc.computeEncoding();
         Context ctx = enc.getCtx();
 

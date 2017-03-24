@@ -88,7 +88,9 @@
     "differential" : false,
     "dstIps" : [
       "41.41.41.1"
-    ]
+    ],
+    "failures" : 0,
+    "fullModel" : true
   },
   "status" : "SUCCESS"
 }

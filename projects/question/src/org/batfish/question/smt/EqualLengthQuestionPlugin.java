@@ -24,6 +24,7 @@ public class EqualLengthQuestionPlugin extends QuestionPlugin {
             EqualLengthQuestion q = (EqualLengthQuestion) _question;
 
             return _batfish.smtEqualLength(q.getHeaderSpace(),
+                    q.getFailures(), q.getFullModel(),
                     q.getIngressNodeRegex(), q.getNotIngressNodeRegex(),
                     q.getFinalNodeRegex(), q.getNotFinalNodeRegex(),
                     q.getFinalIfaceRegex(), q.getNotFinalIfaceRegex());

@@ -54,13 +54,23 @@ public class HeaderQuestion extends Question implements IQuestion {
 
     private static final String SRC_PORTS_VAR = "srcPorts";
 
+    private static final String FAILURES_VAR = "failures";
+
+    private static final String FULL_MODEL_VAR = "fullModel";
+
     private Set<ForwardingAction> _actions;
 
     private final HeaderSpace _headerSpace;
 
+    private int _failures;
+
+    private boolean _fullModel;
+
     public HeaderQuestion() {
         _actions = EnumSet.of(ForwardingAction.ACCEPT);
         _headerSpace = new HeaderSpace();
+        _failures = 0;
+        _fullModel = false;
     }
 
     @Override
@@ -168,6 +178,16 @@ public class HeaderQuestion extends Question implements IQuestion {
         return _headerSpace.getSrcPorts();
     }
 
+    @JsonProperty(FAILURES_VAR)
+    public int getFailures() {
+        return _failures;
+    }
+
+    @JsonProperty(FULL_MODEL_VAR)
+    public boolean getFullModel() {
+        return _fullModel;
+    }
+
     @Override
     public boolean getTraffic() {
         return true;
@@ -259,30 +279,6 @@ public class HeaderQuestion extends Question implements IQuestion {
         }
     }
 
-    @JsonProperty(DST_IPS_VAR)
-    public void setDstIps(Set<IpWildcard> dstIps) {
-        _headerSpace.setDstIps(new TreeSet<>(dstIps));
-    }
-
-    @JsonProperty(DST_PORTS_VAR)
-    public void setDstPorts(Set<SubRange> dstPorts) {
-        _headerSpace.setDstPorts(new TreeSet<>(dstPorts));
-    }
-
-    @JsonProperty(ICMP_CODES_VAR)
-    public void setIcmpCodes(Set<SubRange> icmpCodes) {
-        _headerSpace.setIcmpCodes(new TreeSet<>(icmpCodes));
-    }
-
-    @JsonProperty(ICMP_TYPES_VAR)
-    public void setIcmpTypes(Set<SubRange> icmpTypes) {
-        _headerSpace.setIcmpTypes(new TreeSet<>(icmpTypes));
-    }
-
-    @JsonProperty(IP_PROTOCOLS_VAR)
-    public void setIpProtocols(Set<IpProtocol> ipProtocols) {
-        _headerSpace.setIpProtocols(ipProtocols);
-    }
 
     protected boolean isBaseKey(String paramKey) {
         if (super.isBaseParamKey(paramKey)) {
@@ -321,6 +317,10 @@ public class HeaderQuestion extends Question implements IQuestion {
             case FRAGMENT_OFFSETS_VAR:
                 return true;
             case NOT_FRAGMENT_OFFSETS_VAR:
+                return true;
+            case FAILURES_VAR:
+                return true;
+            case FULL_MODEL_VAR:
                 return true;
             default:
                 return false;
@@ -440,6 +440,12 @@ public class HeaderQuestion extends Question implements IQuestion {
                                         new TypeReference<Set<SubRange>>() {
                                         }));
                         break;
+                    case FAILURES_VAR:
+                        setFailures(parameters.getInt(paramKey));
+                        break;
+                    case FULL_MODEL_VAR:
+                        setFullModel(parameters.getBoolean(paramKey));
+                        break;
                     default:
                         break;
                 }
@@ -503,6 +509,41 @@ public class HeaderQuestion extends Question implements IQuestion {
     @JsonProperty(SRC_PORTS_VAR)
     public void setSrcPorts(Set<SubRange> srcPorts) {
         _headerSpace.setSrcPorts(new TreeSet<>(srcPorts));
+    }
+
+    @JsonProperty(DST_IPS_VAR)
+    public void setDstIps(Set<IpWildcard> dstIps) {
+        _headerSpace.setDstIps(new TreeSet<>(dstIps));
+    }
+
+    @JsonProperty(DST_PORTS_VAR)
+    public void setDstPorts(Set<SubRange> dstPorts) {
+        _headerSpace.setDstPorts(new TreeSet<>(dstPorts));
+    }
+
+    @JsonProperty(ICMP_CODES_VAR)
+    public void setIcmpCodes(Set<SubRange> icmpCodes) {
+        _headerSpace.setIcmpCodes(new TreeSet<>(icmpCodes));
+    }
+
+    @JsonProperty(ICMP_TYPES_VAR)
+    public void setIcmpTypes(Set<SubRange> icmpTypes) {
+        _headerSpace.setIcmpTypes(new TreeSet<>(icmpTypes));
+    }
+
+    @JsonProperty(IP_PROTOCOLS_VAR)
+    public void setIpProtocols(Set<IpProtocol> ipProtocols) {
+        _headerSpace.setIpProtocols(ipProtocols);
+    }
+
+    @JsonProperty(FAILURES_VAR)
+    public void setFailures(int k) {
+        _failures = k;
+    }
+
+    @JsonProperty(FULL_MODEL_VAR)
+    public void setFullModel(boolean b) {
+        _fullModel = b;
     }
 
 }

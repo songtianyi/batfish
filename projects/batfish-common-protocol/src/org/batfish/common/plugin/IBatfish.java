@@ -42,37 +42,42 @@ public interface IBatfish extends IPluginConsumer {
          boolean dp);
 
 
-   AnswerElement smtForwarding(HeaderSpace h);
+   AnswerElement smtForwarding(HeaderSpace h, int failures, boolean fullModel);
 
    AnswerElement smtReachability(HeaderSpace h,
+           int failures, boolean fullModel,
            String ingressNodeRegexStr, String notIngressNodeRegexStr,
            String finalNodeRegexStr, String notFinalNodeRegexStr,
            String finalIfaceRegexStr, String notFinalIfaceRegexStr);
 
-   AnswerElement smtBlackhole();
+   AnswerElement smtBlackhole(int failures, boolean fullModel);
 
-   AnswerElement smtRoutingLoop();
+   AnswerElement smtRoutingLoop(int failures, boolean fullModel);
 
    AnswerElement smtBoundedLength(HeaderSpace h,
+           int failures, boolean fullModel,
            String ingressNodeRegexStr, String notIngressNodeRegexStr,
            String finalNodeRegexStr, String notFinalNodeRegexStr,
            String finalIfaceRegexStr, String notFinalIfaceRegexStr, Integer bound);
 
    AnswerElement smtEqualLength(HeaderSpace h,
+           int failures, boolean fullModel,
            String ingressNodeRegexStr, String notIngressNodeRegexStr,
            String finalNodeRegexStr, String notFinalNodeRegexStr,
            String finalIfaceRegexStr, String notFinalIfaceRegexStr);
 
    AnswerElement smtMultipathConsistency(HeaderSpace h,
+           int failures, boolean fullModel,
            String finalNodeRegexStr, String notFinalNodeRegexStr,
            String finalIfaceRegexStr, String notFinalIfaceRegexStr);
 
    AnswerElement smtLoadBalance(HeaderSpace h,
+           int failures, boolean fullModel,
            String ingressNodeRegexStr, String notIngressNodeRegexStr,
            String finalNodeRegexStr, String notFinalNodeRegexStr,
            String finalIfaceRegexStr, String notFinalIfaceRegexStr, int threshold);
 
-   AnswerElement smtLocalConsistency(Pattern routerRegex);
+   AnswerElement smtLocalConsistency(Pattern routerRegex, boolean fullModel);
 
 
    Map<String, BiFunction<Question, IBatfish, Answerer>> getAnswererCreators();

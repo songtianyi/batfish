@@ -22,7 +22,7 @@ public class ForwardingQuestionPlugin extends QuestionPlugin {
         @Override
         public AnswerElement answer() {
             ForwardingQuestion q = (ForwardingQuestion) _question;
-            return _batfish.smtForwarding(q.getHeaderSpace());
+            return _batfish.smtForwarding(q.getHeaderSpace(), q.getFailures(), q.getFullModel());
         }
     }
 

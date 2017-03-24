@@ -26,6 +26,7 @@ public class BoundedLengthQuestionPlugin extends QuestionPlugin {
             BoundedLengthQuestion q = (BoundedLengthQuestion) _question;
 
             return _batfish.smtBoundedLength(q.getHeaderSpace(),
+                    q.getFailures(), q.getFullModel(),
                     q.getIngressNodeRegex(), q.getNotIngressNodeRegex(),
                     q.getFinalNodeRegex(), q.getNotFinalNodeRegex(),
                     q.getFinalIfaceRegex(), q.getNotFinalIfaceRegex(), q.getBound());

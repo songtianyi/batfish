@@ -26,6 +26,7 @@ public class LoadBalanceQuestionPlugin extends QuestionPlugin {
             LoadBalanceQuestion q = (LoadBalanceQuestion) _question;
 
             return _batfish.smtLoadBalance(q.getHeaderSpace(),
+                    q.getFailures(), q.getFullModel(),
                     q.getIngressNodeRegex(), q.getNotIngressNodeRegex(),
                     q.getFinalNodeRegex(), q.getNotFinalNodeRegex(),
                     q.getFinalIfaceRegex(), q.getNotFinalIfaceRegex(), q.getThreshold());

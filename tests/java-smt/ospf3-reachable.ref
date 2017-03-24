@@ -12,8 +12,10 @@
   "question" : {
     "class" : "org.batfish.question.smt.ReachabilityQuestionPlugin$ReachabilityQuestion",
     "differential" : false,
+    "failures" : 0,
     "finalIfaceRegex" : "Loopback.*",
     "finalNodeRegex" : "R3",
+    "fullModel" : true,
     "ingressNodeRegex" : ".*"
   },
   "status" : "SUCCESS"

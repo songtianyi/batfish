@@ -1,0 +1,47 @@
+{
+  "answerElements" : [
+    {
+      "class" : "org.batfish.smt.answers.SmtOneAnswerElement",
+      "result" : {
+        "environmentModel" : {
+          "as2border1,FastEthernet0/0 (BGP)" : {
+            "community" : "(1:2)",
+            "prefix" : "2.128.0.0/17",
+            "protocol metric" : "51"
+          }
+        },
+        "forwardingModel" : [
+          "as2core1,FastEthernet1/0 --> as2dist2,FastEthernet0/1",
+          "as2core1,FastEthernet2/0 --> as2dist1,FastEthernet0/1",
+          "as2core2,FastEthernet1/0 --> as2dist1,FastEthernet0/0",
+          "as2core2,FastEthernet2/0 --> as2dist2,FastEthernet0/0",
+          "as2dept1,FastEthernet1/0 --> _,_",
+          "as2dist1,FastEthernet1/0 --> as2dept1,FastEthernet0/0",
+          "as2dist2,FastEthernet1/0 --> as2dept1,FastEthernet0/1"
+        ],
+        "packetModel" : {
+          "dstIp" : "2.128.0.101",
+          "protocol" : "IP",
+          "srcIp" : "1.0.1.2"
+        },
+        "verified" : false
+      }
+    }
+  ],
+  "question" : {
+    "class" : "org.batfish.question.smt.ForwardingQuestionPlugin$ForwardingQuestion",
+    "differential" : false,
+    "dstIps" : [
+      "2.128.0.101"
+    ],
+    "failures" : 0,
+    "fullModel" : false,
+    "ipProtocols" : [
+      "IP"
+    ],
+    "srcIps" : [
+      "1.0.1.2"
+    ]
+  },
+  "status" : "SUCCESS"
+}
