@@ -273,7 +273,12 @@ class Optimizations {
         if (Optimizations.ENABLE_SLICING_OPTIMIZATION) {
             return hasRelevantOriginatedRoute(conf, Protocol.STATIC);
         } else {
-            return conf.getDefaultVrf().getStaticRoutes().size() > 0;
+            for (StaticRoute sr : conf.getDefaultVrf().getStaticRoutes()) {
+                if (!Graph.isNullRouted(sr)) {
+                    return true;
+                }
+            }
+            return false;
         }
     }
 

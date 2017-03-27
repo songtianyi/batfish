@@ -2,6 +2,7 @@ package org.batfish.smt;
 
 
 import com.microsoft.z3.*;
+import org.apache.commons.lang.StringUtils;
 import org.batfish.common.BatfishException;
 import org.batfish.common.Pair;
 import org.batfish.common.plugin.IBatfish;
@@ -47,6 +48,8 @@ public class Encoder {
 
     private Map<String, Map<String, BoolExpr>> _sliceReachability;
 
+    private Encoder _previousEncoder;
+
     private SymbolicFailures _symbolicFailures;
 
     private List<Expr> _allVariables;
@@ -76,7 +79,7 @@ public class Encoder {
      * @param graph  The network graph
      */
     public Encoder(Graph graph, HeaderSpace h, int failures, boolean fullModel) {
-        this(graph, h, failures, fullModel, null, null, null, 0);
+        this(null, graph, h, failures, fullModel, null, null, null, 0);
     }
 
     /**
@@ -85,7 +88,7 @@ public class Encoder {
      * @param g An existing network graph
      */
     Encoder(Encoder e, Graph g) {
-        this(g, e.getMainSlice().getHeaderSpace(), e.getFailures(), e.getFullModel(),  e.getCtx(), e.getSolver(), e.getAllVariables()
+        this(e, g, e.getMainSlice().getHeaderSpace(), e.getFailures(), e.getFullModel(),  e.getCtx(), e.getSolver(), e.getAllVariables()
                 , e.getId() + 1);
     }
 
@@ -94,10 +97,11 @@ public class Encoder {
      * of another encoder. If the context and solver are null, then a new
      * encoder is created. Otherwise the old encoder is used.
      */
-    private Encoder(Graph graph, HeaderSpace h, int failures, boolean fullModel, Context ctx, Solver solver, List<Expr> vars, int id) {
+    private Encoder(Encoder enc, Graph graph, HeaderSpace h, int failures, boolean fullModel, Context ctx, Solver solver, List<Expr> vars, int id) {
         _graph = graph;
         _failures = failures;
         _fullModel = fullModel;
+        _previousEncoder = enc;
         _modelIgp = true;
         _encodingId = id;
         _slices = new HashMap<>();
@@ -392,6 +396,205 @@ public class Encoder {
         _unsatCore.track(_solver, _ctx, e);
     }
 
+    /*
+     * Check if a community value should be displayed to the human
+     */
+    private boolean displayCommunity(CommunityVar cvar) {
+        if (cvar.getType() == CommunityVar.Type.OTHER) {
+            return false;
+        }
+        if (cvar.getType() == CommunityVar.Type.EXACT) {
+            return true;
+        }
+        return !StringUtils.containsAny(cvar.getValue(), "$^*+[()]");
+
+    }
+
+    /*
+     * Add the relevant variables in the counterexample to
+     * display to the user in a human-readable fashion
+     */
+    private void buildCounterExample(Encoder enc, Model m, SortedMap<String, String> model, SortedMap<String, String> packetModel, SortedSet<String> fwdModel, SortedMap<String, SortedMap<String, String>> envModel, SortedSet<String> failures) {
+        SortedMap<Expr, String> valuation = new TreeMap<>();
+
+        // If user asks for the full model
+        for (Expr e : _allVariables) {
+            String name = e.toString();
+            Expr val = m.evaluate(e, false);
+            if (!val.equals(e)) {
+                String s = val.toString();
+                if (_fullModel) {
+                    model.put(name, s);
+                }
+                valuation.put(e, s);
+            }
+        }
+
+        // Packet model
+        SymbolicPacket p = enc.getMainSlice().getSymbolicPacket();
+        String dstIp = valuation.get(p.getDstIp());
+        String srcIp = valuation.get(p.getSrcIp());
+        String dstPt = valuation.get(p.getDstPort());
+        String srcPt = valuation.get(p.getSrcPort());
+        String icmpCode = valuation.get(p.getIcmpCode());
+        String icmpType = valuation.get(p.getIcmpType());
+        String ipProtocol = valuation.get(p.getIpProtocol());
+        String tcpAck = valuation.get(p.getTcpAck());
+        String tcpCwr = valuation.get(p.getTcpCwr());
+        String tcpEce = valuation.get(p.getTcpEce());
+        String tcpFin = valuation.get(p.getTcpFin());
+        String tcpPsh = valuation.get(p.getTcpPsh());
+        String tcpRst = valuation.get(p.getTcpRst());
+        String tcpSyn = valuation.get(p.getTcpSyn());
+        String tcpUrg = valuation.get(p.getTcpUrg());
+
+        Ip dip = new Ip(Long.parseLong(dstIp));
+        Ip sip = new Ip(Long.parseLong(srcIp));
+
+        packetModel.put("dstIp", dip.toString());
+
+        if (sip.asLong() != 0) {
+            packetModel.put("srcIp", sip.toString());
+        }
+        if (dstPt != null && !dstPt.equals("0")) {
+            packetModel.put("dstPort", dstPt);
+        }
+        if (srcPt != null && !srcPt.equals("0")) {
+            packetModel.put("srcPort", srcPt);
+        }
+        if (icmpCode != null && !icmpCode.equals("0")) {
+            packetModel.put("icmpCode", icmpCode);
+        }
+        if (icmpType != null && !icmpType.equals("0")) {
+            packetModel.put("icmpType", icmpType);
+        }
+        if (ipProtocol != null && !ipProtocol.equals("0")) {
+            Integer number = Integer.parseInt(ipProtocol);
+            IpProtocol proto = IpProtocol.fromNumber(number);
+            packetModel.put("protocol", proto.toString());
+        }
+        if (tcpAck != null && tcpAck.equals("true")) {
+            packetModel.put("tcpAck", "set");
+        }
+        if (tcpCwr != null && tcpCwr.equals("true")) {
+            packetModel.put("tcpCwr", "set");
+        }
+        if (tcpEce != null && tcpEce.equals("true")) {
+            packetModel.put("tcpEce", "set");
+        }
+        if (tcpFin != null && tcpFin.equals("true")) {
+            packetModel.put("tcpFin", "set");
+        }
+        if (tcpPsh != null && tcpPsh.equals("true")) {
+            packetModel.put("tcpPsh", "set");
+        }
+        if (tcpRst != null && tcpRst.equals("true")) {
+            packetModel.put("tcpRst", "set");
+        }
+        if (tcpSyn != null && tcpSyn.equals("true")) {
+            packetModel.put("tcpSyn", "set");
+        }
+        if (tcpUrg != null && tcpUrg.equals("true")) {
+            packetModel.put("tcpUrg", "set");
+        }
+
+
+        enc.getSlices().forEach((name, slice) -> {
+
+            slice.getLogicalGraph().getEnvironmentVars().forEach((lge, r) -> {
+
+                if (valuation.get(r.getPermitted()).equals("true")) {
+                    SortedMap<String, String> recordMap = new TreeMap<>();
+                    GraphEdge ge = lge.getEdge();
+                    String nodeIface = ge.getRouter() + "," + ge.getStart().getName() + " (BGP)";
+                    envModel.put(nodeIface, recordMap);
+                    if (r.getPrefixLength() != null) {
+                        String x = valuation.get(r.getPrefixLength());
+                        if (x != null) {
+                            int len = Integer.parseInt(x);
+                            Prefix p1 = new Prefix(dip, len);
+                            Prefix p2 = p1.getNetworkPrefix();
+                            recordMap.put("prefix", p2.toString());
+                        }
+                    }
+                    if (r.getAdminDist() != null) {
+                        String x = valuation.get(r.getAdminDist());
+                        if (x != null) {
+                            recordMap.put("admin distance", x);
+                        }
+                    }
+                    if (r.getLocalPref() != null) {
+                        String x = valuation.get(r.getLocalPref());
+                        if (x != null) {
+                            recordMap.put("local preference", x);
+                        }
+                    }
+                    if (r.getMetric() != null) {
+                        String x = valuation.get(r.getMetric());
+                        if (x != null) {
+                            recordMap.put("protocol metric", x);
+                        }
+                    }
+                    if (r.getMed() != null) {
+                        String x = valuation.get(r.getMed());
+                        if (x != null) {
+                            recordMap.put("multi-exit disc.", valuation.get(r.getMed()));
+                        }
+                    }
+                    if (r.getOspfArea() != null && r.getOspfArea().getBitVec() != null) {
+                        String x = valuation.get(r.getOspfArea().getBitVec());
+                        if (x != null) {
+                            Integer i = Integer.parseInt(x);
+                            Long area = r.getOspfArea().value(i);
+                            recordMap.put("OSPF Area", area.toString());
+                        }
+                    }
+                    if (r.getOspfType() != null && r.getOspfType().getBitVec() != null) {
+                        String x = valuation.get(r.getOspfType().getBitVec());
+                        if (x != null) {
+                            Integer i = Integer.parseInt(x);
+                            OspfType type = r.getOspfType().value(i);
+                            recordMap.put("OSPF Type", type.toString());
+                        }
+                    }
+
+                    r.getCommunities().forEach((cvar, e) -> {
+                        String c = valuation.get(e);
+                        // TODO: what about OTHER type?
+                        if (c != null && c.equals("true")) {
+                            if (displayCommunity(cvar)) {
+                                recordMap.put("community(" + cvar.getValue() + ")", "set");
+                            }
+                        }
+                    });
+                }
+            });
+
+        });
+
+        // Forwarding Model
+        enc.getMainSlice().getSymbolicDecisions().getDataForwarding().forEach((router, edge, e) -> {
+            String s = valuation.get(e);
+            if (s != null && s.equals("true")) {
+                fwdModel.add(edge.toString());
+            }
+        });
+
+        _symbolicFailures.getFailedInternalLinks().forEach((x, y, e) -> {
+            String s = valuation.get(e);
+            if (s != null && s.equals("true")) {
+                failures.add("link(" + x + "," + y + ")");
+            }
+        });
+        _symbolicFailures.getFailedEdgeLinks().forEach((ge, e) -> {
+            String s = valuation.get(e);
+            if (s != null && s.equals("true")) {
+                failures.add("link(" + ge.getRouter() + "," + ge.getStart().getName() + ")");
+            }
+        });
+    }
+
+
     /**
      * <p>Checks that a property is always true by seeing if the encoding
      * is unsatisfiable. If the model is satisfiable, then there is a
@@ -427,190 +630,15 @@ public class Encoder {
             throw new BatfishException("ERROR: satisfiability unknown");
         } else {
             Model m = _solver.getModel();
-            SortedMap<Expr, String> valuation = new TreeMap<>();
             SortedMap<String, String> model = new TreeMap<>();
-
-            // If user asks for the full model
-            for (Expr e : _allVariables) {
-                String name = e.toString();
-                Expr val = m.evaluate(e, false);
-                if (!val.equals(e)) {
-                    String s = val.toString();
-                    if (_fullModel) {
-                        model.put(name, s);
-                    }
-                    valuation.put(e, s);
-                }
-            }
-
-            // Packet model
-            SymbolicPacket p = mainSlice.getSymbolicPacket();
-            String dstIp = valuation.get(p.getDstIp());
-            String srcIp = valuation.get(p.getSrcIp());
-            String dstPt = valuation.get(p.getDstPort());
-            String srcPt = valuation.get(p.getSrcPort());
-            String icmpCode = valuation.get(p.getIcmpCode());
-            String icmpType = valuation.get(p.getIcmpType());
-            String ipProtocol = valuation.get(p.getIpProtocol());
-            String tcpAck = valuation.get(p.getTcpAck());
-            String tcpCwr = valuation.get(p.getTcpCwr());
-            String tcpEce = valuation.get(p.getTcpEce());
-            String tcpFin = valuation.get(p.getTcpFin());
-            String tcpPsh = valuation.get(p.getTcpPsh());
-            String tcpRst = valuation.get(p.getTcpRst());
-            String tcpSyn = valuation.get(p.getTcpSyn());
-            String tcpUrg = valuation.get(p.getTcpUrg());
-
             SortedMap<String, String> packetModel = new TreeMap<>();
-
-            Ip dip = new Ip(Long.parseLong(dstIp));
-            Ip sip = new Ip(Long.parseLong(srcIp));
-
-            packetModel.put("dstIp", dip.toString());
-
-            if (sip.asLong() != 0) {
-                packetModel.put("srcIp", sip.toString());
-            }
-            if (dstPt != null && !dstPt.equals("0")) {
-                packetModel.put("dstPort", dstPt);
-            }
-            if (srcPt != null && !srcPt.equals("0")) {
-                packetModel.put("srcPort", srcPt);
-            }
-            if (icmpCode != null && !icmpCode.equals("0")) {
-                packetModel.put("icmpCode", icmpCode);
-            }
-            if (icmpType != null && !icmpType.equals("0")) {
-                packetModel.put("icmpType", icmpType);
-            }
-            if (ipProtocol != null && !ipProtocol.equals("0")) {
-                Integer number = Integer.parseInt(ipProtocol);
-                IpProtocol proto = IpProtocol.fromNumber(number);
-                packetModel.put("protocol", proto.toString());
-            }
-            if (tcpAck != null && tcpAck.equals("true")) {
-                packetModel.put("tcpAck", "set");
-            }
-            if (tcpCwr != null && tcpCwr.equals("true")) {
-                packetModel.put("tcpCwr", "set");
-            }
-            if (tcpEce != null && tcpEce.equals("true")) {
-                packetModel.put("tcpEce", "set");
-            }
-            if (tcpFin != null && tcpFin.equals("true")) {
-                packetModel.put("tcpFin", "set");
-            }
-            if (tcpPsh != null && tcpPsh.equals("true")) {
-                packetModel.put("tcpPsh", "set");
-            }
-            if (tcpRst != null && tcpRst.equals("true")) {
-                packetModel.put("tcpRst", "set");
-            }
-            if (tcpSyn != null && tcpSyn.equals("true")) {
-                packetModel.put("tcpSyn", "set");
-            }
-            if (tcpUrg != null && tcpUrg.equals("true")) {
-                packetModel.put("tcpUrg", "set");
-            }
-
-            // Environment model
-            SortedMap<String, SortedMap<String, String>> envModel = new TreeMap<>();
-
-            _slices.forEach((name, slice) -> {
-
-                slice.getLogicalGraph().getEnvironmentVars().forEach((lge, r) -> {
-
-                    if (valuation.get(r.getPermitted()).equals("true")) {
-                        SortedMap<String, String> recordMap = new TreeMap<>();
-                        GraphEdge ge = lge.getEdge();
-                        String nodeIface = ge.getRouter() + "," + ge.getStart().getName() + " (BGP)";
-                        envModel.put(nodeIface, recordMap);
-                        if (r.getPrefixLength() != null) {
-                            String x = valuation.get(r.getPrefixLength());
-                            if (x != null) {
-                                int len = Integer.parseInt(x);
-                                Prefix p1 = new Prefix(dip, len);
-                                Prefix p2 = p1.getNetworkPrefix();
-                                recordMap.put("prefix", p2.toString());
-                            }
-                        }
-                        if (r.getAdminDist() != null) {
-                            String x = valuation.get(r.getAdminDist());
-                            if (x != null) {
-                                recordMap.put("admin distance", x);
-                            }
-                        }
-                        if (r.getLocalPref() != null) {
-                            String x = valuation.get(r.getLocalPref());
-                            if (x != null) {
-                                recordMap.put("local preference", x);
-                            }
-                        }
-                        if (r.getMetric() != null) {
-                            String x = valuation.get(r.getMetric());
-                            if (x != null) {
-                                recordMap.put("protocol metric", x);
-                            }
-                        }
-                        if (r.getMed() != null) {
-                            String x = valuation.get(r.getMed());
-                            if (x != null) {
-                                recordMap.put("multi-exit disc.", valuation.get(r.getMed()));
-                            }
-                        }
-                        if (r.getOspfArea() != null && r.getOspfArea().getBitVec() != null) {
-                            String x = valuation.get(r.getOspfArea().getBitVec());
-                            if (x != null) {
-                                Integer i = Integer.parseInt(x);
-                                Long area = r.getOspfArea().value(i);
-                                recordMap.put("OSPF Area", area.toString());
-                            }
-                        }
-                        if (r.getOspfType() != null && r.getOspfType().getBitVec() != null) {
-                            String x = valuation.get(r.getOspfType().getBitVec());
-                            if (x != null) {
-                                Integer i = Integer.parseInt(x);
-                                OspfType type = r.getOspfType().value(i);
-                                recordMap.put("OSPF Type", type.toString());
-                            }
-                        }
-
-                        r.getCommunities().forEach((cvar, e) -> {
-                            String c = valuation.get(e);
-                            // TODO: what about OTHER type?
-                            if (c.equals("true")) {
-                                if (cvar.getType() == CommunityVar.Type.EXACT) {
-                                    recordMap.put("community", "(" + cvar.getValue() + ")");
-                                }
-                            }
-                        });
-                    }
-                });
-
-            });
-
-            // Forwarding Model
             SortedSet<String> fwdModel = new TreeSet<>();
-            mainSlice.getSymbolicDecisions().getDataForwarding().forEach((router, edge, e) -> {
-                String s = valuation.get(e);
-                if (s != null && s.equals("true")) {
-                    fwdModel.add(edge.toString());
-                }
-            });
-
+            SortedMap<String, SortedMap<String, String>> envModel = new TreeMap<>();
             SortedSet<String> failures = new TreeSet<>();
-            _symbolicFailures.getFailedInternalLinks().forEach((x, y, e) -> {
-                String s = valuation.get(e);
-                if (s != null && s.equals("true")) {
-                    failures.add("link(" + x + "," + y + ")");
-                }
-            });
-            _symbolicFailures.getFailedEdgeLinks().forEach((ge, e) -> {
-                String s = valuation.get(e);
-                if (s != null && s.equals("true")) {
-                    failures.add("link(" + ge.getRouter() + "," + ge.getStart().getName() + ")");
-                }
-            });
+            buildCounterExample(this, m, model, packetModel, fwdModel, envModel, failures);
+            if (_previousEncoder != null) {
+                buildCounterExample(_previousEncoder, m, model, packetModel, fwdModel, envModel, failures);
+            }
 
             return new VerificationResult(false, model, packetModel, envModel, fwdModel, failures);
         }
@@ -721,5 +749,9 @@ public class Encoder {
 
     public boolean getFullModel() {
         return _fullModel;
+    }
+
+    public Map<String, EncoderSlice> getSlices() {
+        return _slices;
     }
 }

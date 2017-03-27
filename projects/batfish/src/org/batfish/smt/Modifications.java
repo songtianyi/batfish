@@ -107,6 +107,12 @@ class Modifications {
             if (ss.getType() == Statements.SetDefaultActionReject) {
                 _defaultAccept = false;
             }
+            if (ss.getType() == Statements.SetLocalDefaultActionAccept) {
+                _defaultAcceptLocal = true;
+            }
+            if (ss.getType() == Statements.SetLocalDefaultActionReject) {
+                _defaultAcceptLocal = false;
+            }
         }
 
         if (stmt instanceof SetDefaultPolicy) {
@@ -158,6 +164,7 @@ class Modifications {
         if (stmt instanceof RetainCommunity) {
             // TODO
         }
+
     }
 
     PrependAsPath getPrependPath() {
@@ -202,5 +209,9 @@ class Modifications {
 
     SetDefaultPolicy getSetDefaultPolicy() {
         return _defaultPolicy;
+    }
+
+    public void setDefaultAcceptLocal(boolean _defaultAcceptLocal) {
+        this._defaultAcceptLocal = _defaultAcceptLocal;
     }
 }

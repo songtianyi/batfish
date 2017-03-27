@@ -683,7 +683,7 @@ class EncoderSlice {
 
         if (proto.isStatic()) {
             for (StaticRoute sr : conf.getDefaultVrf().getStaticRoutes()) {
-                if (sr.getNetwork() != null) {
+                if (sr.getNetwork() != null && !Graph.isNullRouted(sr)) {
                     acc.add(sr.getNetwork());
                 }
             }
@@ -1370,7 +1370,7 @@ class EncoderSlice {
      */
     public BoolExpr equal(
             Configuration conf, Protocol proto, SymbolicRecord best, SymbolicRecord vars,
-            LogicalEdge e) {
+            LogicalEdge e, boolean compareCommunities) {
 
         ArithExpr defaultLocal = Int(defaultLocalPref());
         ArithExpr defaultAdmin = Int(defaultAdminDistance(conf, proto));
@@ -1405,7 +1405,7 @@ class EncoderSlice {
         equalId = equalIds(best, vars, conf, proto, e);
         equalHistory = equalHistories(proto, best, vars);
         equalBgpInternal = equalBgpInternal(proto, best, vars);
-        equalCommunities = equalCommunities(best, vars);
+        equalCommunities = (compareCommunities ? equalCommunities(best, vars) : True());
 
         return And(equalLen, equalAd, equalLp, equalMet, equalMed, equalOspfArea, equalOspfType,
                 equalId, equalHistory, equalBgpInternal, equalIgpMet, equalCommunities);
@@ -1578,7 +1578,7 @@ class EncoderSlice {
                     }
 
                     BoolExpr val = And(bestVars.getPermitted(), equal(conf, proto, best,
-                            bestVars, null));
+                            bestVars, null, true));
                     if (acc == null) {
                         acc = val;
                     } else {
@@ -1625,7 +1625,7 @@ class EncoderSlice {
                         somePermitted = Or(somePermitted, vars.getPermitted());
                     }
 
-                    BoolExpr v = And(vars.getPermitted(), equal(conf, proto, bestVars, vars, e));
+                    BoolExpr v = And(vars.getPermitted(), equal(conf, proto, bestVars, vars, e, true));
                     if (acc == null) {
                         acc = v;
                     } else {
@@ -1660,7 +1660,7 @@ class EncoderSlice {
                 for (LogicalEdge e : collectAllImportLogicalEdges(router, conf, proto)) {
                     SymbolicRecord vars = correctVars(e);
                     BoolExpr choice = _symbolicDecisions.getChoiceVariables().get(router, proto, e);
-                    BoolExpr isBest = equal(conf, proto, bestVars, vars, e);
+                    BoolExpr isBest = equal(conf, proto, bestVars, vars, e, false);
                     add(Eq(choice, And(vars.getPermitted(), isBest)));
                 }
             }
@@ -1689,7 +1689,9 @@ class EncoderSlice {
 
                     SymbolicRecord vars = correctVars(e);
                     BoolExpr choice = _symbolicDecisions.getChoiceVariables().get(router, proto, e);
-                    BoolExpr isBest = And(choice, equal(conf, proto, best, vars, e));
+
+                    // TODO: do we need this equality check?
+                    BoolExpr isBest = And(choice, equal(conf, proto, best, vars, e, false));
 
                     GraphEdge ge = e.getEdge();
                     BoolExpr cForward = _symbolicDecisions.getControlForwarding().get(router, ge);

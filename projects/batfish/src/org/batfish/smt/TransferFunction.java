@@ -288,6 +288,10 @@ class TransferFunction {
             MatchPrefixSet m = (MatchPrefixSet) expr;
             return matchPrefixSet(_conf, m.getPrefixSet());
 
+        // TODO: implement me
+        } else if (expr instanceof MatchPrefix6Set) {
+            return _enc.False();
+
         } else if (expr instanceof CallExpr) {
             CallExpr c = (CallExpr) expr;
             String name = c.getCalledPolicyName();
@@ -605,6 +609,8 @@ class TransferFunction {
      * Handle a return true statement
      */
     private BoolExpr returnTrue(Modifications mods, boolean inExprCall, boolean inStmtCall) {
+        Modifications newMods = new Modifications(mods);
+        newMods.setDefaultAcceptLocal(false);
         if (!_operands.isEmpty() && !_operands.peek().isEmpty()) {
             Queue<BooleanExpr> queue = _operands.peek();
             BooleanExpr x = queue.poll();
@@ -625,6 +631,8 @@ class TransferFunction {
      * Handle a return false statement
      */
     private BoolExpr returnFalse(Modifications mods, boolean inExprCall, boolean inStmtCall) {
+        Modifications newMods = new Modifications(mods);
+        newMods.setDefaultAcceptLocal(false);
         if (!_operands.isEmpty() && !_operands.peek().isEmpty()) {
             Queue<BooleanExpr> queue = _operands.peek();
             BooleanExpr x = queue.poll();
@@ -667,6 +675,12 @@ class TransferFunction {
                     freshMods.addModification(s);
 
                 } else if (ss.getType() == SetDefaultActionReject) {
+                    freshMods.addModification(s);
+
+                } else if (ss.getType() == SetLocalDefaultActionAccept) {
+                    freshMods.addModification(s);
+
+                } else if (ss.getType() == SetLocalDefaultActionReject) {
                     freshMods.addModification(s);
 
                 } else if (ss.getType() == ReturnLocalDefaultAction) {

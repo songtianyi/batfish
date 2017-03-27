@@ -5,9 +5,9 @@
       "result" : {
         "environmentModel" : {
           "as2border1,FastEthernet0/0 (BGP)" : {
-            "community" : "(1:2)",
+            "community(1:2)" : "set",
             "prefix" : "2.128.0.0/17",
-            "protocol metric" : "51"
+            "protocol metric" : "48"
           }
         },
         "forwardingModel" : [

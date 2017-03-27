@@ -417,7 +417,6 @@ public class PropertyChecker {
             Context ctx = e1.getCtx();
 
             // Create transfer function for router 2
-            // Reuse the context and solver
             Set<String> toModel2 = new TreeSet<>();
             toModel2.add(r2);
             Graph g2 = new Graph(batfish, toModel2);
@@ -456,6 +455,8 @@ public class PropertyChecker {
 
             Configuration conf1 = g1.getConfigurations().get(r1);
             Configuration conf2 = g2.getConfigurations().get(r2);
+
+
 
             // Set environments equal
             for (Protocol proto1 : slice1.getProtocols().get(r1)) {
@@ -502,16 +503,50 @@ public class PropertyChecker {
                                     CommunityVar cvar = entry.getKey();
                                     BoolExpr ce1 = entry.getValue();
                                     BoolExpr ce2 = vars2.getCommunities().get(cvar);
-                                    if (ce2 == null) {
-                                        System.out.println("Community: " + cvar.getValue());
-                                        throw new BatfishException("mismatched communities");
+                                    if (ce2 != null) {
+                                        equalComms = e1.And(equalComms, e1.Eq(ce1, ce2));
                                     }
-                                    equalComms = e1.And(equalComms, e1.Eq(ce1, ce2));
                                 }
 
-                                BoolExpr equalVars = slice1.equal(conf1, proto1, vars1, vars2, lge1);
-                                equalEnvs = ctx.mkAnd(equalEnvs, samePermitted, equalVars,
+                                // Set communities belonging to one but not the other
+                                // off, but give a warning of the difference
+                                BoolExpr unsetComms = e1.True();
+
+                                for (Map.Entry<CommunityVar, BoolExpr> entry : vars1.getCommunities().entrySet()) {
+                                    CommunityVar cvar = entry.getKey();
+                                    BoolExpr ce1 = entry.getValue();
+                                    BoolExpr ce2 = vars2.getCommunities().get(cvar);
+                                    if (ce2 == null) {
+                                        String msg = String.format("Warning: community %s found for router %s but not %s.",
+                                                cvar.getValue(),
+                                                conf1.getName(),
+                                                conf2.getName());
+                                        System.out.println(msg);
+                                        unsetComms = e1.And(unsetComms, e1.Not(ce1));
+                                    }
+                                }
+
+                                // Do the same thing for communities missing from the other side
+                                for (Map.Entry<CommunityVar, BoolExpr> entry : vars2.getCommunities().entrySet()) {
+                                    CommunityVar cvar = entry.getKey();
+                                    BoolExpr ce2 = entry.getValue();
+                                    BoolExpr ce1 = vars1.getCommunities().get(cvar);
+                                    if (ce1 == null) {
+                                        String msg = String.format("Warning: community %s found for router %s but not %s.",
+                                                cvar.getValue(),
+                                                conf2.getName(),
+                                                conf1.getName());
+                                        System.out.println(msg);
+                                        unsetComms = e1.And(unsetComms, e1.Not(ce2));
+                                    }
+                                }
+
+                                BoolExpr equalVars = slice1.equal(conf1, proto1, vars1, vars2, lge1, true);
+                                equalEnvs = ctx.mkAnd(equalEnvs, unsetComms, samePermitted, equalVars,
                                         equalComms);
+
+                                //System.out.println("Unset communities: ");
+                                //System.out.println(unsetComms);
 
                             } else if (hasEnv1 || hasEnv2) {
                                 System.out.println("Edge1: " + lge1);
@@ -525,7 +560,7 @@ public class PropertyChecker {
                             SymbolicRecord out2 = lge2.getSymbolicRecord();
 
                             equalOutputs = ctx.mkAnd(equalOutputs, slice1.equal(conf1, proto1, out1,
-                                    out2, lge1));
+                                    out2, lge1, false));
                         }
                     }
                 }
@@ -553,14 +588,17 @@ public class PropertyChecker {
             BoolExpr equalPackets = p1.mkEqual(p2);
 
             BoolExpr assumptions = ctx.mkAnd(equalEnvs, equalPackets, validDest);
-            BoolExpr required = ctx.mkAnd(equalOutputs, equalIncomingAcls);
+            BoolExpr required = ctx.mkAnd(sameForwarding); //, equalOutputs, equalIncomingAcls);
+
+            // System.out.println("Assumptions: ");
+            // System.out.println(assumptions);
 
             e2.add(assumptions);
             e2.add(ctx.mkNot(required));
 
             VerificationResult res = e2.verify();
 
-            // res.debug(e2.getMainSlice(), null);
+            // res.debug(e2.getMainSlice(), true, null);
 
             String name = r1 + "<-->" + r2;
             result.put(name, res);

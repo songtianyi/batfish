@@ -17,7 +17,7 @@ import java.util.*;
  * abstracted into graph edges, which include a direction.
  * Each graph edge can be mapped to its opposite edge, which
  * may be null, if there is no such edge (e.g., for loopbacks)</p>
- *
+ * <p>
  * <p>iBGP is modeled as additional "abstract" edges that do not
  * correspond to any concrete edge in the topology.</p>
  *
@@ -145,6 +145,10 @@ public class Graph {
         });
     }
 
+    public static boolean isNullRouted(StaticRoute sr) {
+        return sr.getNextHopInterface() != null && sr.getNextHopInterface().equals("null_interface");
+    }
+
     /*
      * Collect all static routes after inferring which interface they indicate
      * should be used for the next-hop.
@@ -153,14 +157,18 @@ public class Graph {
         _configurations.forEach((router, conf) -> {
             Map<String, List<StaticRoute>> map = new HashMap<>();
             _staticRoutes.put(router, map);
-            for (GraphEdge ge : _edgeMap.get(router)) {
-                Interface here = ge.getStart();
-                Interface there = ge.getEnd();
 
-                for (StaticRoute sr : conf.getDefaultVrf().getStaticRoutes()) {
+            for (StaticRoute sr : conf.getDefaultVrf().getStaticRoutes()) {
+
+                boolean someIface = false;
+
+                for (GraphEdge ge : _edgeMap.get(router)) {
+                    Interface here = ge.getStart();
+                    Interface there = ge.getEnd();
 
                     // Check if next-hop interface is specified
                     String hereName = here.getName();
+                    someIface = true;
                     if (hereName.equals(sr.getNextHopInterface())) {
                         List<StaticRoute> srs = map.getOrDefault(hereName, new ArrayList<>());
                         srs.add(sr);
@@ -173,11 +181,20 @@ public class Graph {
                             null && there.getPrefix().getAddress().equals(nhIp);
 
                     if (isNextHop) {
+                        someIface = true;
                         List<StaticRoute> srs = map.getOrDefault(hereName, new ArrayList<>());
                         srs.add(sr);
                         map.put(there.getName(), srs);
+
                     }
+
                 }
+
+                if (!someIface && !Graph.isNullRouted(sr)) {
+                    throw new BatfishException("Router " + router + " has static route: " + sr.getNextHopInterface() +
+                            "(" + sr.getNetwork() + ")" + " for non next-hop");
+                }
+
             }
         });
     }
@@ -405,7 +422,7 @@ public class Graph {
      * Find the import routing policy for a given edge
      */
     public RoutingPolicy findImportRoutingPolicy(String router, Protocol proto,
-            LogicalEdge e) {
+                                                 LogicalEdge e) {
         Configuration conf = _configurations.get(router);
         if (proto.isConnected()) {
             return null;
@@ -494,7 +511,7 @@ public class Graph {
             map.forEach((iface, srs) -> {
                 for (StaticRoute sr : srs) {
                     sb.append("Router: ").append(router).append(", Interface: ").append(iface)
-                      .append(" --> ").append(sr.getNetwork().toString()).append("\n");
+                            .append(" --> ").append(sr.getNetwork().toString()).append("\n");
                 }
             });
         });

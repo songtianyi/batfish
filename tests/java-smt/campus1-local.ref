@@ -6,13 +6,24 @@
         "as2border2<-->as2border1" : {
           "environmentModel" : {
             "as2border1,FastEthernet0/0 (BGP)" : {
-              "community" : "(3:2)",
-              "prefix" : "0.0.0.0/0",
-              "protocol metric" : "254"
+              "community(1:2)" : "set",
+              "community(3:2)" : "set",
+              "prefix" : "0.0.0.0/1",
+              "protocol metric" : "255"
+            },
+            "as2border2,FastEthernet0/0 (BGP)" : {
+              "community(1:2)" : "set",
+              "community(3:2)" : "set",
+              "prefix" : "0.0.0.0/1",
+              "protocol metric" : "255"
             }
           },
+          "forwardingModel" : [
+            "as2border1,FastEthernet0/0 --> _,_"
+          ],
           "packetModel" : {
-            "dstIp" : "2.1.1.0"
+            "dstIp" : "1.0.0.0",
+            "srcIp" : "2.0.0.0"
           },
           "verified" : false
         }
