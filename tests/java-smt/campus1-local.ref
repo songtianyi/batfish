@@ -10,14 +10,14 @@
               "community as1_community" : "",
               "community as3_community" : "",
               "prefix" : "0.0.0.0/1",
-              "protocol metric" : "255"
+              "protocol metric" : "1"
             },
             "as2border2,FastEthernet0/0 (BGP)" : {
               "community 3:2" : "",
               "community as1_community" : "",
               "community as3_community" : "",
               "prefix" : "0.0.0.0/1",
-              "protocol metric" : "255"
+              "protocol metric" : "1"
             }
           },
           "forwardingModel" : [

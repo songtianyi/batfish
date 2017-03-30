@@ -4,11 +4,9 @@
       "class" : "org.batfish.smt.answers.SmtOneAnswerElement",
       "result" : {
         "environmentModel" : {
-          "as2border1,FastEthernet0/0 (BGP)" : {
-            "community 1:2" : "",
-            "community as1_community" : "",
-            "prefix" : "2.128.0.0/17",
-            "protocol metric" : "48"
+          "as2border2,FastEthernet0/0 (BGP)" : {
+            "prefix" : "0.0.0.0/1",
+            "protocol metric" : "1"
           }
         },
         "forwardingModel" : [

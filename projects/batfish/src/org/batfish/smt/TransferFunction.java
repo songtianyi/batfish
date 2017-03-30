@@ -56,7 +56,7 @@ class TransferFunction {
 
     private GraphEdge _graphEdge;
 
-    private Stack<Queue<BooleanExpr>> _operands;
+    private Stack<Queue<BooleanExpr>> _conjOperands;
 
     private Stack<List<Statement>> _contTrue;
 
@@ -230,9 +230,9 @@ class TransferFunction {
             } else {
                 Queue<BooleanExpr> queue = new ArrayDeque<>(c.getConjuncts());
                 BooleanExpr x = queue.remove();
-                _operands.push(queue);
+                _conjOperands.push(queue);
                 BoolExpr ret = compute(wrapExpr(x), freshMods, inExprCall, inStmtCall);
-                _operands.pop();
+                _conjOperands.pop();
                 return ret;
             }
         }
@@ -260,7 +260,8 @@ class TransferFunction {
             } else if (disjuncts.size() == 1) {
                 return compute(disjuncts.get(0), freshMods, pure, true, inStmtCall);
             } else {
-                throw new BatfishException("TODO: disjunct chain");
+                System.out.println("Router: " + _conf.getName());
+                throw new BatfishException("TODO: disjunct chain longer than length 1");
             }
         }
 
@@ -609,9 +610,10 @@ class TransferFunction {
      */
     private BoolExpr returnTrue(Modifications mods, boolean inExprCall, boolean inStmtCall) {
         Modifications newMods = new Modifications(mods);
+        // TODO: we might introduce a returnTrue, so this might not be right
         newMods.setDefaultAcceptLocal(false);
-        if (!_operands.isEmpty() && !_operands.peek().isEmpty()) {
-            Queue<BooleanExpr> queue = _operands.peek();
+        if (!_conjOperands.isEmpty() && !_conjOperands.peek().isEmpty()) {
+            Queue<BooleanExpr> queue = _conjOperands.peek();
             BooleanExpr x = queue.poll();
             return compute(wrapExpr(x), mods, inExprCall, inStmtCall);
         } else if (!_contTrue.isEmpty()) {
@@ -632,11 +634,11 @@ class TransferFunction {
     private BoolExpr returnFalse(Modifications mods, boolean inExprCall, boolean inStmtCall) {
         Modifications newMods = new Modifications(mods);
         newMods.setDefaultAcceptLocal(false);
-        if (!_operands.isEmpty() && !_operands.peek().isEmpty()) {
-            Queue<BooleanExpr> queue = _operands.peek();
+        /* if (!_conjOperands.isEmpty() && !_conjOperands.peek().isEmpty()) {
+            Queue<BooleanExpr> queue = _conjOperands.peek();
             BooleanExpr x = queue.poll();
             return compute(wrapExpr(x), mods, inExprCall, inStmtCall);
-        } else if (!_contFalse.isEmpty()) {
+        } else */ if (!_contFalse.isEmpty()) {
             List<Statement> t = _contTrue.pop();
             List<Statement> f = _contFalse.pop();
             BoolExpr ret = compute(f, mods, inExprCall, inStmtCall);
@@ -800,7 +802,7 @@ class TransferFunction {
     BoolExpr compute() {
         computeIntermediatePrefixLen();
         Modifications mods = new Modifications(_enc, _conf);
-        _operands = new Stack<>();
+        _conjOperands = new Stack<>();
         _contTrue = new Stack<>();
         _contFalse = new Stack<>();
         return compute(_statements, mods, false, false);
