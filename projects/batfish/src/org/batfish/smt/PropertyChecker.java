@@ -390,6 +390,8 @@ public class PropertyChecker {
         Graph graph = new Graph(batfish);
         List<String> routers = PatternUtils.findMatchingNodes(graph, n, Pattern.compile(""));
 
+        Collections.sort(routers);
+
         Map<String, VerificationResult> result = new HashMap<>();
 
         HeaderSpace h = new HeaderSpace();
@@ -459,6 +461,9 @@ public class PropertyChecker {
 
 
             // Set environments equal
+
+            Set<String> communities = new HashSet<>();
+
             for (Protocol proto1 : slice1.getProtocols().get(r1)) {
                 for (ArrayList<LogicalEdge> es : slice1.getLogicalGraph().getLogicalEdges().get(r1)
                                                    .get(proto1)) {
@@ -517,11 +522,15 @@ public class PropertyChecker {
                                     BoolExpr ce1 = entry.getValue();
                                     BoolExpr ce2 = vars2.getCommunities().get(cvar);
                                     if (ce2 == null) {
-                                        String msg = String.format("Warning: community %s found for router %s but not %s.",
-                                                cvar.getValue(),
-                                                conf1.getName(),
-                                                conf2.getName());
-                                        System.out.println(msg);
+
+                                        if (!communities.contains(cvar.getValue())) {
+                                            communities.add(cvar.getValue());
+                                            String msg = String.format("Warning: community %s found for router %s but not %s.",
+                                                    cvar.getValue(),
+                                                    conf1.getName(),
+                                                    conf2.getName());
+                                            // System.out.println(msg);
+                                        }
                                         unsetComms = e1.And(unsetComms, e1.Not(ce1));
                                     }
                                 }
@@ -532,11 +541,14 @@ public class PropertyChecker {
                                     BoolExpr ce2 = entry.getValue();
                                     BoolExpr ce1 = vars1.getCommunities().get(cvar);
                                     if (ce1 == null) {
-                                        String msg = String.format("Warning: community %s found for router %s but not %s.",
-                                                cvar.getValue(),
-                                                conf2.getName(),
-                                                conf1.getName());
-                                        System.out.println(msg);
+                                        if (!communities.contains(cvar.getValue())) {
+                                            communities.add(cvar.getValue());
+                                            String msg = String.format("Warning: community %s found for router %s but not %s.",
+                                                    cvar.getValue(),
+                                                    conf2.getName(),
+                                                    conf1.getName());
+                                            // System.out.println(msg);
+                                        }
                                         unsetComms = e1.And(unsetComms, e1.Not(ce2));
                                     }
                                 }
@@ -588,17 +600,26 @@ public class PropertyChecker {
             BoolExpr equalPackets = p1.mkEqual(p2);
 
             BoolExpr assumptions = ctx.mkAnd(equalEnvs, equalPackets, validDest);
-            BoolExpr required = ctx.mkAnd(sameForwarding); //, equalOutputs, equalIncomingAcls);
+            BoolExpr required = ctx.mkAnd(sameForwarding); //, equalOutputs); //, equalOutputs, equalIncomingAcls);
 
-            // System.out.println("Assumptions: ");
-            // System.out.println(assumptions);
+            //System.out.println("Assumptions: ");
+            //System.out.println(assumptions.simplify());
+
+            //System.out.println("Required: ");
+            //System.out.println(required.simplify());
 
             e2.add(assumptions);
             e2.add(ctx.mkNot(required));
 
+            // System.out.println("About to verify");
             VerificationResult res = e2.verify();
+            // System.out.println("Verified");
 
-            // res.debug(e2.getMainSlice(), true, null);
+            if (!res.getVerified()) {
+                System.out.println("Violation: " + conf1.getName() + "<-->" + conf2.getName());
+            }
+
+            // res.debug(e2.getMainSlice(), false, null);
 
             String name = r1 + "<-->" + r2;
             result.put(name, res);

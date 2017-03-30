@@ -32,6 +32,8 @@ public class Encoder {
 
     private static final boolean ENABLE_DEBUGGING = false;
 
+    private static final boolean MINIMIZE_COUNTEREXAMPLE = false;
+
     public static final String MAIN_SLICE_NAME = "SLICE-MAIN_";
 
     static final int DEFAULT_CISCO_VLAN_OSPF_COST = 1;
@@ -397,6 +399,41 @@ public class Encoder {
     }
 
     /*
+     * Adds the constraint that at most k links have failed.
+     * This is done in two steps. First we ensure that each link
+     * variable is constrained to take on a value between 0 and 1:
+     *
+     * 0 <= link_i <= 1
+     *
+     * Then we ensure that the sum of all links is never more than k:
+     *
+     * link_1 + link_2 + ... + link_n <= k
+     */
+    private void addFailedConstraints(int k) {
+        List<ArithExpr> vars = new ArrayList<>();
+        getSymbolicFailures().getFailedInternalLinks().forEach((router, peer, var) -> {
+            vars.add(var);
+        });
+        getSymbolicFailures().getFailedEdgeLinks().forEach((ge, var) -> {
+            vars.add(var);
+        });
+
+        ArithExpr sum = Int(0);
+        for (ArithExpr var : vars) {
+            sum = Sum(sum, var);
+            add(Ge(var, Int(0)));
+            add(Le(var, Int(1)));
+        }
+        if (k == 0) {
+            for (ArithExpr var : vars) {
+                add(Eq(var, Int(0)));
+            }
+        } else {
+            add(Le(sum, Int(k)));
+        }
+    }
+
+    /*
      * Check if a community value should be displayed to the human
      */
     private boolean displayCommunity(CommunityVar cvar) {
@@ -406,7 +443,7 @@ public class Encoder {
         if (cvar.getType() == CommunityVar.Type.EXACT) {
             return true;
         }
-        return !StringUtils.containsAny(cvar.getValue(), "$^*+[()]");
+        return true; //!StringUtils.containsAny(cvar.getValue(), "$^*+[()]");
 
     }
 
@@ -563,7 +600,10 @@ public class Encoder {
                         // TODO: what about OTHER type?
                         if (c != null && c.equals("true")) {
                             if (displayCommunity(cvar)) {
-                                recordMap.put("community(" + cvar.getValue() + ")", "set");
+                                String s = cvar.getValue();
+                                String t = slice.getNamedCommunities().get(cvar.getValue());
+                                s = (t == null ? s : t);
+                                recordMap.put("community " + s, "");
                             }
                         }
                     });
@@ -594,6 +634,44 @@ public class Encoder {
         });
     }
 
+    /*
+     * Generate a blocking clause for the encoding that says that one
+     * of the environments that was true before must now be false.
+     */
+    private BoolExpr environmentBlockingClause(Model m) {
+        BoolExpr acc1 = False();
+        BoolExpr acc2 = True();
+
+        // Disable an environment edge if possible
+        Map<LogicalEdge, SymbolicRecord> map = getMainSlice().getLogicalGraph().getEnvironmentVars();
+        for (Map.Entry<LogicalEdge, SymbolicRecord> entry : map.entrySet()) {
+            SymbolicRecord record = entry.getValue();
+            BoolExpr per = record.getPermitted();
+            Expr x = m.evaluate(per, false);
+            if (x.toString().equals("true")) {
+                acc1 = Or(acc1, Not(per));
+            } else {
+                acc2 = And(acc2, Not(per));
+            }
+        }
+
+        // Disable a community value if possible
+        for (Map.Entry<LogicalEdge, SymbolicRecord> entry : map.entrySet()) {
+            SymbolicRecord record = entry.getValue();
+            for (Map.Entry<CommunityVar, BoolExpr> centry : record.getCommunities().entrySet()) {
+                BoolExpr comm = centry.getValue();
+                Expr x = m.evaluate(comm, false);
+                if (x.toString().equals("true")) {
+                    acc1 = Or(acc1, Not(comm));
+                } else {
+                    acc2 = And(acc2, Not(comm));
+                }
+            }
+        }
+
+        return And(acc1,acc2);
+    }
+
 
     /**
      * <p>Checks that a property is always true by seeing if the encoding
@@ -613,6 +691,7 @@ public class Encoder {
         for (Map.Entry<String, Set<String>> e : mainSlice.getGraph().getNeighbors().entrySet()) {
             numEdges += e.getValue().size();
         }
+
         long start = System.currentTimeMillis();
         Status status = _solver.check();
         long time = System.currentTimeMillis() - start;
@@ -629,18 +708,39 @@ public class Encoder {
         } else if (status == Status.UNKNOWN) {
             throw new BatfishException("ERROR: satisfiability unknown");
         } else {
-            Model m = _solver.getModel();
-            SortedMap<String, String> model = new TreeMap<>();
-            SortedMap<String, String> packetModel = new TreeMap<>();
-            SortedSet<String> fwdModel = new TreeSet<>();
-            SortedMap<String, SortedMap<String, String>> envModel = new TreeMap<>();
-            SortedSet<String> failures = new TreeSet<>();
-            buildCounterExample(this, m, model, packetModel, fwdModel, envModel, failures);
-            if (_previousEncoder != null) {
-                buildCounterExample(_previousEncoder, m, model, packetModel, fwdModel, envModel, failures);
+            VerificationResult result;
+
+            while (true) {
+                Model m = _solver.getModel();
+                SortedMap<String, String> model = new TreeMap<>();
+                SortedMap<String, String> packetModel = new TreeMap<>();
+                SortedSet<String> fwdModel = new TreeSet<>();
+                SortedMap<String, SortedMap<String, String>> envModel = new TreeMap<>();
+                SortedSet<String> failures = new TreeSet<>();
+                buildCounterExample(this, m, model, packetModel, fwdModel, envModel, failures);
+                if (_previousEncoder != null) {
+                    buildCounterExample(_previousEncoder, m, model, packetModel, fwdModel, envModel, failures);
+                }
+
+                result = new VerificationResult(false, model, packetModel, envModel, fwdModel, failures);
+
+                if (!MINIMIZE_COUNTEREXAMPLE) {
+                    break;
+                }
+
+                BoolExpr blocking = environmentBlockingClause(m);
+                add(blocking);
+
+                Status s = _solver.check();
+                if (s == Status.UNSATISFIABLE) {
+                    break;
+                }
+                if (s == Status.UNKNOWN) {
+                    throw new BatfishException("ERROR: satisfiability unknown");
+                }
             }
 
-            return new VerificationResult(false, model, packetModel, envModel, fwdModel, failures);
+            return result;
         }
     }
 
@@ -657,41 +757,6 @@ public class Encoder {
                 slice.computeEncoding();
             }
         });
-    }
-
-    /*
-     * Adds the constraint that at most k links have failed.
-     * This is done in two steps. First we ensure that each link
-     * variable is constrained to take on a value between 0 and 1:
-     *
-     * 0 <= link_i <= 1
-     *
-     * Then we ensure that the sum of all links is never more than k:
-     *
-     * link_1 + link_2 + ... + link_n <= k
-     */
-    private void addFailedConstraints(int k) {
-        List<ArithExpr> vars = new ArrayList<>();
-        getSymbolicFailures().getFailedInternalLinks().forEach((router, peer, var) -> {
-            vars.add(var);
-        });
-        getSymbolicFailures().getFailedEdgeLinks().forEach((ge, var) -> {
-            vars.add(var);
-        });
-
-        ArithExpr sum = Int(0);
-        for (ArithExpr var : vars) {
-            sum = Sum(sum, var);
-            add(Ge(var, Int(0)));
-            add(Le(var, Int(1)));
-        }
-        if (k == 0) {
-            for (ArithExpr var : vars) {
-                add(Eq(var, Int(0)));
-            }
-        } else {
-            add(Le(sum, Int(k)));
-        }
     }
 
     /*

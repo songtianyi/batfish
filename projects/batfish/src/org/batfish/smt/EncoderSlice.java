@@ -65,6 +65,8 @@ class EncoderSlice {
 
     private Set<CommunityVar> _allCommunities;
 
+    private Map<String, String> _namedCommunities;
+
     private Map<CommunityVar, List<CommunityVar>> _communityDependencies;
 
     /**
@@ -310,6 +312,7 @@ class EncoderSlice {
      */
     private void initCommunities() {
         _allCommunities = findAllCommunities();
+        _namedCommunities = findNamedCommunities();
 
         // Add an other variable for each regex community
         if (_optimizations.getHasExternalCommunity()) {
@@ -436,6 +439,24 @@ class EncoderSlice {
                 }
             }
         }
+        return comms;
+    }
+
+    /*
+     * Map named community sets that contain a single match
+     * back to the community/regex value. This makes it
+     * easier to provide intuitive counter examples.
+     */
+    private Map<String, String> findNamedCommunities() {
+        Map<String, String> comms = new HashMap<>();
+        getGraph().getConfigurations().forEach((router, conf) -> {
+            conf.getCommunityLists().forEach((name, cl) -> {
+                if (cl != null && cl.getLines().size() == 1) {
+                    CommunityListLine line = cl.getLines().get(0);
+                    comms.put(line.getRegex(), name);
+                }
+            });
+        });
         return comms;
     }
 
@@ -2161,6 +2182,10 @@ class EncoderSlice {
                 BoolExpr acc;
                 RoutingPolicy pol = getGraph().findExportRoutingPolicy(router, proto, e);
 
+                //if (pol != null) {
+                //    System.out.println("Export policy: " + pol.getName());
+                //}
+
                 // We have to wrap this with the right thing for some reason
                 List<Statement> statements;
                 Statements.StaticStatement s1 = new Statements.StaticStatement(Statements
@@ -2252,9 +2277,7 @@ class EncoderSlice {
 
                 add(acc);
 
-                /* if (router.equals("as2border1") && proto.isBgp()) {
-                    //System.out.println("EXPORT FUNCTION: " + router + " " + varsOther.getName());
-                    //System.out.println(acc);
+                /* if (proto.isBgp()) {
                     System.out.println("SIMPLIFIED: " + router + " " + varsOther.getName() + " " + ge);
                     System.out.println(acc.simplify());
                     System.out.println("");
@@ -2710,6 +2733,8 @@ class EncoderSlice {
     Set<CommunityVar> getAllCommunities() {
         return _allCommunities;
     }
+
+    Map<String, String> getNamedCommunities() { return _namedCommunities; }
 
     Map<CommunityVar, List<CommunityVar>> getCommunityDependencies() {
         return _communityDependencies;

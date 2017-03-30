@@ -571,7 +571,6 @@ class TransferFunction {
             }
         }
 
-
         // TODO: handle MED correctly (AS-specific? always-compare-med? deterministic-med?)
         ArithExpr otherAd = (_other.getAdminDist() == null ? defaultAd : _other.getAdminDist());
         ArithExpr otherMed = (_other.getMed() == null ? defaultMed : _other.getMed());
@@ -749,6 +748,9 @@ class TransferFunction {
 
             } else if (s instanceof PrependAsPath) {
                 freshMods.addModification(s);
+
+            // TODO: implement me
+            } else if (s instanceof SetOrigin) {
 
             } else {
                 throw new BatfishException("TODO: statement transfer function: " + s);
