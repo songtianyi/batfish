@@ -3,12 +3,6 @@
     {
       "class" : "org.batfish.smt.answers.SmtOneAnswerElement",
       "result" : {
-        "environmentModel" : {
-          "as2border2,FastEthernet0/0 (BGP)" : {
-            "prefix" : "0.0.0.0/1",
-            "protocol metric" : "1"
-          }
-        },
         "forwardingModel" : [
           "as2core1,FastEthernet1/0 --> as2dist2,FastEthernet0/1",
           "as2core1,FastEthernet2/0 --> as2dist1,FastEthernet0/1",

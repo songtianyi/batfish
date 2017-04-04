@@ -36,6 +36,8 @@ import static org.batfish.datamodel.routing_policy.statement.Statements.*;
  */
 class TransferFunction {
 
+    private enum Operation {CONJUNCTION, DISJUNCTION}
+
     private EncoderSlice _enc;
 
     private Configuration _conf;
@@ -56,7 +58,9 @@ class TransferFunction {
 
     private GraphEdge _graphEdge;
 
-    private Stack<Queue<BooleanExpr>> _conjOperands;
+    private Stack<Queue<BooleanExpr>> _operands;
+
+    private Stack<Operation> _operandTypes;
 
     private Stack<List<Statement>> _contTrue;
 
@@ -230,20 +234,33 @@ class TransferFunction {
             } else {
                 Queue<BooleanExpr> queue = new ArrayDeque<>(c.getConjuncts());
                 BooleanExpr x = queue.remove();
-                _conjOperands.push(queue);
+                _operands.push(queue);
+                _operandTypes.push(Operation.CONJUNCTION);
                 BoolExpr ret = compute(wrapExpr(x), freshMods, inExprCall, inStmtCall);
-                _conjOperands.pop();
+                _operandTypes.pop();
+                _operands.pop();
                 return ret;
             }
         }
 
         if (expr instanceof Disjunction) {
             Disjunction d = (Disjunction) expr;
-            BoolExpr v = _enc.False();
-            for (BooleanExpr x : d.getDisjuncts()) {
-                v = _enc.Or(v, compute(x, freshMods, pure, inExprCall, inStmtCall));
+            if (pure) {
+                BoolExpr v = _enc.False();
+                for (BooleanExpr x : d.getDisjuncts()) {
+                    v = _enc.Or(v, compute(x, freshMods, pure, inExprCall, inStmtCall));
+                }
+                return v;
+            } else {
+                Queue<BooleanExpr> queue = new ArrayDeque<>(d.getDisjuncts());
+                BooleanExpr x = queue.remove();
+                _operands.push(queue);
+                _operandTypes.push(Operation.DISJUNCTION);
+                BoolExpr ret = compute(wrapExpr(x), freshMods, inExprCall, inStmtCall);
+                _operandTypes.pop();
+                _operands.pop();
+                return ret;
             }
-            return v;
         }
 
         if (expr instanceof DisjunctionChain) {
@@ -598,6 +615,7 @@ class TransferFunction {
         v.visit(_conf, be, stmt -> {
             val[0] = true;
         }, expr -> {
+            // TODO: might still be pure actually
             if (expr instanceof DisjunctionChain || expr instanceof ConjunctionChain) {
                 val[0] = true;
             }
@@ -612,8 +630,8 @@ class TransferFunction {
         Modifications newMods = new Modifications(mods);
         // TODO: we might introduce a returnTrue, so this might not be right
         newMods.setDefaultAcceptLocal(false);
-        if (!_conjOperands.isEmpty() && !_conjOperands.peek().isEmpty()) {
-            Queue<BooleanExpr> queue = _conjOperands.peek();
+        if (!_operands.isEmpty() && !_operands.peek().isEmpty() && _operandTypes.peek() == Operation.CONJUNCTION) {
+            Queue<BooleanExpr> queue = _operands.peek();
             BooleanExpr x = queue.poll();
             return compute(wrapExpr(x), mods, inExprCall, inStmtCall);
         } else if (!_contTrue.isEmpty()) {
@@ -634,11 +652,18 @@ class TransferFunction {
     private BoolExpr returnFalse(Modifications mods, boolean inExprCall, boolean inStmtCall) {
         Modifications newMods = new Modifications(mods);
         newMods.setDefaultAcceptLocal(false);
-        /* if (!_conjOperands.isEmpty() && !_conjOperands.peek().isEmpty()) {
-            Queue<BooleanExpr> queue = _conjOperands.peek();
+
+        if (!_operands.isEmpty() && !_operands.peek().isEmpty() && _operandTypes.peek() == Operation.DISJUNCTION) {
+            Queue<BooleanExpr> queue = _operands.peek();
             BooleanExpr x = queue.poll();
             return compute(wrapExpr(x), mods, inExprCall, inStmtCall);
-        } else */ if (!_contFalse.isEmpty()) {
+        }
+
+        /* if (!_operands.isEmpty() && !_operands.peek().isEmpty()) {
+            Queue<BooleanExpr> queue = _operands.peek();
+            BooleanExpr x = queue.poll();
+            return compute(wrapExpr(x), mods, inExprCall, inStmtCall);
+        } */ else if (!_contFalse.isEmpty()) {
             List<Statement> t = _contTrue.pop();
             List<Statement> f = _contFalse.pop();
             BoolExpr ret = compute(f, mods, inExprCall, inStmtCall);
@@ -802,7 +827,8 @@ class TransferFunction {
     BoolExpr compute() {
         computeIntermediatePrefixLen();
         Modifications mods = new Modifications(_enc, _conf);
-        _conjOperands = new Stack<>();
+        _operands = new Stack<>();
+        _operandTypes = new Stack<>();
         _contTrue = new Stack<>();
         _contFalse = new Stack<>();
         return compute(_statements, mods, false, false);

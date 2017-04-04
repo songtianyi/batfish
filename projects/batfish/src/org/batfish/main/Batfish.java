@@ -407,7 +407,8 @@ public class Batfish extends PluginConsumer implements AutoCloseable, IBatfish {
       boolean diffActive = _settings.getDiffActive() && !diff;
       _settings.setDiffActive(diffActive);
       _settings.setDiffQuestion(diff);
-      initQuestionEnvironments(question, diff, diffActive, dp);
+      // TODO: temporarily disabled due to non-termination
+      //initQuestionEnvironments(question, diff, diffActive, dp);
       AnswerElement answerElement = null;
       BatfishException exception = null;
       try {

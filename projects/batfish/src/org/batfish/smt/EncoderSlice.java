@@ -2093,10 +2093,22 @@ class EncoderSlice {
                         receiveMessage = notFailed;
                     }
 
-                    BoolExpr usable = And(Not(isRoot), active, varsOther.getPermitted(), receiveMessage);
+                    // Take into account BGP loop prevention
+                    // The path length will prevent any isolated loops
+                    BoolExpr loop;
+                    if (ge.getPeer() != null) {
+                        String peer = ge.getPeer();
+                        GraphEdge gePeer = getGraph().getOtherEnd().get(ge);
+                        loop = getSymbolicDecisions().getControlForwarding().get(peer, gePeer);
+                    } else {
+                        loop = False();
+                    }
+
+
+                    BoolExpr usable = And(Not(isRoot), Not(loop), active, varsOther.getPermitted(), receiveMessage);
 
                     BoolExpr importFunction;
-                    RoutingPolicy pol = getGraph().findImportRoutingPolicy(router, proto, e);
+                    RoutingPolicy pol = getGraph().findImportRoutingPolicy(router, proto, e.getEdge());
 
                     List<Statement> statements;
                     if (pol == null) {

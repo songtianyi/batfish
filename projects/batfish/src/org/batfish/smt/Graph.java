@@ -422,7 +422,7 @@ public class Graph {
      * Find the import routing policy for a given edge
      */
     public RoutingPolicy findImportRoutingPolicy(String router, Protocol proto,
-                                                 LogicalEdge e) {
+                                                 GraphEdge ge) {
         Configuration conf = _configurations.get(router);
         if (proto.isConnected()) {
             return null;
@@ -434,7 +434,6 @@ public class Graph {
             return null;
         }
         if (proto.isBgp()) {
-            GraphEdge ge = e.getEdge();
             BgpNeighbor n = findBgpNeighbor(ge);
             if (n == null || n.getImportPolicy() == null) {
                 return null;

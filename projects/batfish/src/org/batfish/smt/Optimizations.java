@@ -405,17 +405,24 @@ class Optimizations {
 
                         boolean isNotRoot = !hasRelevantOriginatedRoute(conf, proto);
                         if (isNotRoot) {
-                            for (GraphEdge e : _encoderSlice.getGraph().getEdgeMap().get(router)) {
+                            for (GraphEdge ge : _encoderSlice.getGraph().getEdgeMap().get(router)) {
 
                                 // Don't merge when an abstract edge is used.
-                                boolean safeMergeEdge = _encoderSlice.getGraph().isEdgeUsed(conf, proto, e) && !e.isAbstract();
+                                boolean safeMergeEdge = _encoderSlice.getGraph().isEdgeUsed(conf, proto, ge) && !ge.isAbstract();
 
                                 // Don't merge when bgp internal/external can differ
-                                boolean sameInternal = (e.getPeer() == null) || (_needBgpInternal.contains(router) == _needBgpInternal.contains(e.getPeer()));
+                                boolean sameInternal = (ge.getPeer() == null) || (_needBgpInternal.contains(router) == _needBgpInternal.contains(ge.getPeer()));
 
-                                if (safeMergeEdge && sameInternal) {
-                                    if (hasExportVariables(e, proto)) {
-                                        edges.add(e);
+                                // Check if there are any local modifications on import
+                                boolean isPure = true;
+                                RoutingPolicy pol = _encoderSlice.getGraph().findImportRoutingPolicy(router, proto, ge);
+                                if (pol != null) {
+                                    isPure = false;
+                                }
+
+                                if (safeMergeEdge && sameInternal && isPure) {
+                                    if (hasExportVariables(ge, proto)) {
+                                        edges.add(ge);
                                     }
                                 }
                             }
