@@ -2,6 +2,22 @@
   "answerElements" : [
     {
       "class" : "org.batfish.datamodel.answers.ParseVendorConfigurationAnswerElement",
+      "fileMap" : {
+        "as1border1" : "as1border1.cfg",
+        "as1border2" : "as1border2.cfg",
+        "as1core1" : "as1core1.cfg",
+        "as2border1" : "as2border1.cfg",
+        "as2border2" : "as2border2.cfg",
+        "as2core1" : "as2core1.cfg",
+        "as2core2" : "as2core2.cfg",
+        "as2dept1" : "as2dept1.cfg",
+        "as2dist1" : "as2dist1.cfg",
+        "as2dist2" : "as2dist2.cfg",
+        "as2host1" : "as2host1.cfg",
+        "as3border1" : "as3border1.cfg",
+        "as3border2" : "as3border2.cfg",
+        "as3core1" : "as3core1.cfg"
+      },
       "parseStatus" : {
         "as1border1" : "PASSED",
         "as1border2" : "PASSED",
@@ -95,20 +111,21 @@
             "        CEF:'cef'  <== mode:DEFAULT_MODE",
             "        NEWLINE:'\\n'  <== mode:DEFAULT_MODE)))",
             "  (stanza",
-            "    (s_null",
-            "      (null_single",
-            "        NO:'no'  <== mode:DEFAULT_MODE",
-            "        IP:'ip'  <== mode:DEFAULT_MODE",
-            "        DOMAIN:'domain'  <== mode:DEFAULT_MODE",
-            "        VARIABLE:'lookup'  <== mode:DEFAULT_MODE",
+            "    (s_ip_domain",
+            "      NO:'no'  <== mode:DEFAULT_MODE",
+            "      IP:'ip'  <== mode:DEFAULT_MODE",
+            "      DOMAIN:'domain'  <== mode:DEFAULT_MODE",
+            "      (ip_domain_null",
+            "        LOOKUP:'lookup'  <== mode:DEFAULT_MODE",
             "        NEWLINE:'\\n'  <== mode:DEFAULT_MODE)))",
             "  (stanza",
-            "    (s_null",
-            "      (null_single",
-            "        IP:'ip'  <== mode:DEFAULT_MODE",
-            "        DOMAIN:'domain'  <== mode:DEFAULT_MODE",
+            "    (s_ip_domain",
+            "      IP:'ip'  <== mode:DEFAULT_MODE",
+            "      DOMAIN:'domain'  <== mode:DEFAULT_MODE",
+            "      (ip_domain_name",
             "        NAME:'name'  <== mode:DEFAULT_MODE",
-            "        VARIABLE:'lab.local'  <== mode:M_Name",
+            "        (variable_hostname",
+            "          VARIABLE:'lab.local'  <== mode:M_Name)",
             "        NEWLINE:'\\n'  <== mode:DEFAULT_MODE)))",
             "  (stanza",
             "    (s_null",
@@ -622,7 +639,8 @@
             "            MATCH:'match'  <== mode:DEFAULT_MODE",
             "            IP:'ip'  <== mode:DEFAULT_MODE",
             "            ADDRESS:'address'  <== mode:DEFAULT_MODE",
-            "            DEC:'101'  <== mode:DEFAULT_MODE",
+            "            (variable_access_list",
+            "              DEC:'101'  <== mode:DEFAULT_MODE)",
             "            NEWLINE:'\\n'  <== mode:DEFAULT_MODE)))",
             "      (rm_stanza",
             "        (set_rm_stanza",
@@ -656,7 +674,8 @@
             "            MATCH:'match'  <== mode:DEFAULT_MODE",
             "            IP:'ip'  <== mode:DEFAULT_MODE",
             "            ADDRESS:'address'  <== mode:DEFAULT_MODE",
-            "            DEC:'103'  <== mode:DEFAULT_MODE",
+            "            (variable_access_list",
+            "              DEC:'103'  <== mode:DEFAULT_MODE)",
             "            NEWLINE:'\\n'  <== mode:DEFAULT_MODE)))",
             "      (rm_stanza",
             "        (set_rm_stanza",
@@ -715,7 +734,8 @@
             "            MATCH:'match'  <== mode:DEFAULT_MODE",
             "            IP:'ip'  <== mode:DEFAULT_MODE",
             "            ADDRESS:'address'  <== mode:DEFAULT_MODE",
-            "            DEC:'101'  <== mode:DEFAULT_MODE",
+            "            (variable_access_list",
+            "              DEC:'101'  <== mode:DEFAULT_MODE)",
             "            NEWLINE:'\\n'  <== mode:DEFAULT_MODE)))",
             "      (rm_stanza",
             "        (set_rm_stanza",
@@ -749,7 +769,8 @@
             "            MATCH:'match'  <== mode:DEFAULT_MODE",
             "            IP:'ip'  <== mode:DEFAULT_MODE",
             "            ADDRESS:'address'  <== mode:DEFAULT_MODE",
-            "            DEC:'102'  <== mode:DEFAULT_MODE",
+            "            (variable_access_list",
+            "              DEC:'102'  <== mode:DEFAULT_MODE)",
             "            NEWLINE:'\\n'  <== mode:DEFAULT_MODE)))",
             "      (rm_stanza",
             "        (set_rm_stanza",
@@ -946,20 +967,21 @@
             "        CEF:'cef'  <== mode:DEFAULT_MODE",
             "        NEWLINE:'\\n'  <== mode:DEFAULT_MODE)))",
             "  (stanza",
-            "    (s_null",
-            "      (null_single",
-            "        NO:'no'  <== mode:DEFAULT_MODE",
-            "        IP:'ip'  <== mode:DEFAULT_MODE",
-            "        DOMAIN:'domain'  <== mode:DEFAULT_MODE",
-            "        VARIABLE:'lookup'  <== mode:DEFAULT_MODE",
+            "    (s_ip_domain",
+            "      NO:'no'  <== mode:DEFAULT_MODE",
+            "      IP:'ip'  <== mode:DEFAULT_MODE",
+            "      DOMAIN:'domain'  <== mode:DEFAULT_MODE",
+            "      (ip_domain_null",
+            "        LOOKUP:'lookup'  <== mode:DEFAULT_MODE",
             "        NEWLINE:'\\n'  <== mode:DEFAULT_MODE)))",
             "  (stanza",
-            "    (s_null",
-            "      (null_single",
-            "        IP:'ip'  <== mode:DEFAULT_MODE",
-            "        DOMAIN:'domain'  <== mode:DEFAULT_MODE",
+            "    (s_ip_domain",
+            "      IP:'ip'  <== mode:DEFAULT_MODE",
+            "      DOMAIN:'domain'  <== mode:DEFAULT_MODE",
+            "      (ip_domain_name",
             "        NAME:'name'  <== mode:DEFAULT_MODE",
-            "        VARIABLE:'lab.local'  <== mode:M_Name",
+            "        (variable_hostname",
+            "          VARIABLE:'lab.local'  <== mode:M_Name)",
             "        NEWLINE:'\\n'  <== mode:DEFAULT_MODE)))",
             "  (stanza",
             "    (s_null",
@@ -1473,7 +1495,8 @@
             "            MATCH:'match'  <== mode:DEFAULT_MODE",
             "            IP:'ip'  <== mode:DEFAULT_MODE",
             "            ADDRESS:'address'  <== mode:DEFAULT_MODE",
-            "            DEC:'101'  <== mode:DEFAULT_MODE",
+            "            (variable_access_list",
+            "              DEC:'101'  <== mode:DEFAULT_MODE)",
             "            NEWLINE:'\\n'  <== mode:DEFAULT_MODE)))",
             "      (rm_stanza",
             "        (set_rm_stanza",
@@ -1507,7 +1530,8 @@
             "            MATCH:'match'  <== mode:DEFAULT_MODE",
             "            IP:'ip'  <== mode:DEFAULT_MODE",
             "            ADDRESS:'address'  <== mode:DEFAULT_MODE",
-            "            DEC:'103'  <== mode:DEFAULT_MODE",
+            "            (variable_access_list",
+            "              DEC:'103'  <== mode:DEFAULT_MODE)",
             "            NEWLINE:'\\n'  <== mode:DEFAULT_MODE)))",
             "      (rm_stanza",
             "        (set_rm_stanza",
@@ -1566,7 +1590,8 @@
             "            MATCH:'match'  <== mode:DEFAULT_MODE",
             "            IP:'ip'  <== mode:DEFAULT_MODE",
             "            ADDRESS:'address'  <== mode:DEFAULT_MODE",
-            "            DEC:'101'  <== mode:DEFAULT_MODE",
+            "            (variable_access_list",
+            "              DEC:'101'  <== mode:DEFAULT_MODE)",
             "            NEWLINE:'\\n'  <== mode:DEFAULT_MODE)))",
             "      (rm_stanza",
             "        (set_rm_stanza",
@@ -1600,7 +1625,8 @@
             "            MATCH:'match'  <== mode:DEFAULT_MODE",
             "            IP:'ip'  <== mode:DEFAULT_MODE",
             "            ADDRESS:'address'  <== mode:DEFAULT_MODE",
-            "            DEC:'102'  <== mode:DEFAULT_MODE",
+            "            (variable_access_list",
+            "              DEC:'102'  <== mode:DEFAULT_MODE)",
             "            NEWLINE:'\\n'  <== mode:DEFAULT_MODE)))",
             "      (rm_stanza",
             "        (set_rm_stanza",
@@ -1797,20 +1823,21 @@
             "        CEF:'cef'  <== mode:DEFAULT_MODE",
             "        NEWLINE:'\\n'  <== mode:DEFAULT_MODE)))",
             "  (stanza",
-            "    (s_null",
-            "      (null_single",
-            "        NO:'no'  <== mode:DEFAULT_MODE",
-            "        IP:'ip'  <== mode:DEFAULT_MODE",
-            "        DOMAIN:'domain'  <== mode:DEFAULT_MODE",
-            "        VARIABLE:'lookup'  <== mode:DEFAULT_MODE",
+            "    (s_ip_domain",
+            "      NO:'no'  <== mode:DEFAULT_MODE",
+            "      IP:'ip'  <== mode:DEFAULT_MODE",
+            "      DOMAIN:'domain'  <== mode:DEFAULT_MODE",
+            "      (ip_domain_null",
+            "        LOOKUP:'lookup'  <== mode:DEFAULT_MODE",
             "        NEWLINE:'\\n'  <== mode:DEFAULT_MODE)))",
             "  (stanza",
-            "    (s_null",
-            "      (null_single",
-            "        IP:'ip'  <== mode:DEFAULT_MODE",
-            "        DOMAIN:'domain'  <== mode:DEFAULT_MODE",
+            "    (s_ip_domain",
+            "      IP:'ip'  <== mode:DEFAULT_MODE",
+            "      DOMAIN:'domain'  <== mode:DEFAULT_MODE",
+            "      (ip_domain_name",
             "        NAME:'name'  <== mode:DEFAULT_MODE",
-            "        VARIABLE:'lab.local'  <== mode:M_Name",
+            "        (variable_hostname",
+            "          VARIABLE:'lab.local'  <== mode:M_Name)",
             "        NEWLINE:'\\n'  <== mode:DEFAULT_MODE)))",
             "  (stanza",
             "    (s_null",
@@ -2228,20 +2255,21 @@
             "        CEF:'cef'  <== mode:DEFAULT_MODE",
             "        NEWLINE:'\\n'  <== mode:DEFAULT_MODE)))",
             "  (stanza",
-            "    (s_null",
-            "      (null_single",
-            "        NO:'no'  <== mode:DEFAULT_MODE",
-            "        IP:'ip'  <== mode:DEFAULT_MODE",
-            "        DOMAIN:'domain'  <== mode:DEFAULT_MODE",
-            "        VARIABLE:'lookup'  <== mode:DEFAULT_MODE",
+            "    (s_ip_domain",
+            "      NO:'no'  <== mode:DEFAULT_MODE",
+            "      IP:'ip'  <== mode:DEFAULT_MODE",
+            "      DOMAIN:'domain'  <== mode:DEFAULT_MODE",
+            "      (ip_domain_null",
+            "        LOOKUP:'lookup'  <== mode:DEFAULT_MODE",
             "        NEWLINE:'\\n'  <== mode:DEFAULT_MODE)))",
             "  (stanza",
-            "    (s_null",
-            "      (null_single",
-            "        IP:'ip'  <== mode:DEFAULT_MODE",
-            "        DOMAIN:'domain'  <== mode:DEFAULT_MODE",
+            "    (s_ip_domain",
+            "      IP:'ip'  <== mode:DEFAULT_MODE",
+            "      DOMAIN:'domain'  <== mode:DEFAULT_MODE",
+            "      (ip_domain_name",
             "        NAME:'name'  <== mode:DEFAULT_MODE",
-            "        VARIABLE:'lab.local'  <== mode:M_Name",
+            "        (variable_hostname",
+            "          VARIABLE:'lab.local'  <== mode:M_Name)",
             "        NEWLINE:'\\n'  <== mode:DEFAULT_MODE)))",
             "  (stanza",
             "    (s_null",
@@ -2800,7 +2828,8 @@
             "            MATCH:'match'  <== mode:DEFAULT_MODE",
             "            IP:'ip'  <== mode:DEFAULT_MODE",
             "            ADDRESS:'address'  <== mode:DEFAULT_MODE",
-            "            DEC:'102'  <== mode:DEFAULT_MODE",
+            "            (variable_access_list",
+            "              DEC:'102'  <== mode:DEFAULT_MODE)",
             "            NEWLINE:'\\n'  <== mode:DEFAULT_MODE)))",
             "      (rm_stanza",
             "        (set_rm_stanza",
@@ -2834,7 +2863,8 @@
             "            MATCH:'match'  <== mode:DEFAULT_MODE",
             "            IP:'ip'  <== mode:DEFAULT_MODE",
             "            ADDRESS:'address'  <== mode:DEFAULT_MODE",
-            "            DEC:'103'  <== mode:DEFAULT_MODE",
+            "            (variable_access_list",
+            "              DEC:'103'  <== mode:DEFAULT_MODE)",
             "            NEWLINE:'\\n'  <== mode:DEFAULT_MODE)))",
             "      (rm_stanza",
             "        (set_rm_stanza",
@@ -2893,7 +2923,8 @@
             "            MATCH:'match'  <== mode:DEFAULT_MODE",
             "            IP:'ip'  <== mode:DEFAULT_MODE",
             "            ADDRESS:'address'  <== mode:DEFAULT_MODE",
-            "            DEC:'101'  <== mode:DEFAULT_MODE",
+            "            (variable_access_list",
+            "              DEC:'101'  <== mode:DEFAULT_MODE)",
             "            NEWLINE:'\\n'  <== mode:DEFAULT_MODE)))",
             "      (rm_stanza",
             "        (set_rm_stanza",
@@ -2927,7 +2958,8 @@
             "            MATCH:'match'  <== mode:DEFAULT_MODE",
             "            IP:'ip'  <== mode:DEFAULT_MODE",
             "            ADDRESS:'address'  <== mode:DEFAULT_MODE",
-            "            DEC:'102'  <== mode:DEFAULT_MODE",
+            "            (variable_access_list",
+            "              DEC:'102'  <== mode:DEFAULT_MODE)",
             "            NEWLINE:'\\n'  <== mode:DEFAULT_MODE)))",
             "      (rm_stanza",
             "        (set_rm_stanza",
@@ -3124,20 +3156,21 @@
             "        CEF:'cef'  <== mode:DEFAULT_MODE",
             "        NEWLINE:'\\n'  <== mode:DEFAULT_MODE)))",
             "  (stanza",
-            "    (s_null",
-            "      (null_single",
-            "        NO:'no'  <== mode:DEFAULT_MODE",
-            "        IP:'ip'  <== mode:DEFAULT_MODE",
-            "        DOMAIN:'domain'  <== mode:DEFAULT_MODE",
-            "        VARIABLE:'lookup'  <== mode:DEFAULT_MODE",
+            "    (s_ip_domain",
+            "      NO:'no'  <== mode:DEFAULT_MODE",
+            "      IP:'ip'  <== mode:DEFAULT_MODE",
+            "      DOMAIN:'domain'  <== mode:DEFAULT_MODE",
+            "      (ip_domain_null",
+            "        LOOKUP:'lookup'  <== mode:DEFAULT_MODE",
             "        NEWLINE:'\\n'  <== mode:DEFAULT_MODE)))",
             "  (stanza",
-            "    (s_null",
-            "      (null_single",
-            "        IP:'ip'  <== mode:DEFAULT_MODE",
-            "        DOMAIN:'domain'  <== mode:DEFAULT_MODE",
+            "    (s_ip_domain",
+            "      IP:'ip'  <== mode:DEFAULT_MODE",
+            "      DOMAIN:'domain'  <== mode:DEFAULT_MODE",
+            "      (ip_domain_name",
             "        NAME:'name'  <== mode:DEFAULT_MODE",
-            "        VARIABLE:'lab.local'  <== mode:M_Name",
+            "        (variable_hostname",
+            "          VARIABLE:'lab.local'  <== mode:M_Name)",
             "        NEWLINE:'\\n'  <== mode:DEFAULT_MODE)))",
             "  (stanza",
             "    (s_null",
@@ -3696,7 +3729,8 @@
             "            MATCH:'match'  <== mode:DEFAULT_MODE",
             "            IP:'ip'  <== mode:DEFAULT_MODE",
             "            ADDRESS:'address'  <== mode:DEFAULT_MODE",
-            "            DEC:'102'  <== mode:DEFAULT_MODE",
+            "            (variable_access_list",
+            "              DEC:'102'  <== mode:DEFAULT_MODE)",
             "            NEWLINE:'\\n'  <== mode:DEFAULT_MODE)))",
             "      (rm_stanza",
             "        (set_rm_stanza",
@@ -3730,7 +3764,8 @@
             "            MATCH:'match'  <== mode:DEFAULT_MODE",
             "            IP:'ip'  <== mode:DEFAULT_MODE",
             "            ADDRESS:'address'  <== mode:DEFAULT_MODE",
-            "            DEC:'103'  <== mode:DEFAULT_MODE",
+            "            (variable_access_list",
+            "              DEC:'103'  <== mode:DEFAULT_MODE)",
             "            NEWLINE:'\\n'  <== mode:DEFAULT_MODE)))",
             "      (rm_stanza",
             "        (set_rm_stanza",
@@ -3798,7 +3833,8 @@
             "            MATCH:'match'  <== mode:DEFAULT_MODE",
             "            IP:'ip'  <== mode:DEFAULT_MODE",
             "            ADDRESS:'address'  <== mode:DEFAULT_MODE",
-            "            DEC:'101'  <== mode:DEFAULT_MODE",
+            "            (variable_access_list",
+            "              DEC:'101'  <== mode:DEFAULT_MODE)",
             "            NEWLINE:'\\n'  <== mode:DEFAULT_MODE)))",
             "      (rm_stanza",
             "        (set_rm_stanza",
@@ -3832,7 +3868,8 @@
             "            MATCH:'match'  <== mode:DEFAULT_MODE",
             "            IP:'ip'  <== mode:DEFAULT_MODE",
             "            ADDRESS:'address'  <== mode:DEFAULT_MODE",
-            "            DEC:'102'  <== mode:DEFAULT_MODE",
+            "            (variable_access_list",
+            "              DEC:'102'  <== mode:DEFAULT_MODE)",
             "            NEWLINE:'\\n'  <== mode:DEFAULT_MODE)))",
             "      (rm_stanza",
             "        (set_rm_stanza",
@@ -4038,20 +4075,21 @@
             "        CEF:'cef'  <== mode:DEFAULT_MODE",
             "        NEWLINE:'\\n'  <== mode:DEFAULT_MODE)))",
             "  (stanza",
-            "    (s_null",
-            "      (null_single",
-            "        NO:'no'  <== mode:DEFAULT_MODE",
-            "        IP:'ip'  <== mode:DEFAULT_MODE",
-            "        DOMAIN:'domain'  <== mode:DEFAULT_MODE",
-            "        VARIABLE:'lookup'  <== mode:DEFAULT_MODE",
+            "    (s_ip_domain",
+            "      NO:'no'  <== mode:DEFAULT_MODE",
+            "      IP:'ip'  <== mode:DEFAULT_MODE",
+            "      DOMAIN:'domain'  <== mode:DEFAULT_MODE",
+            "      (ip_domain_null",
+            "        LOOKUP:'lookup'  <== mode:DEFAULT_MODE",
             "        NEWLINE:'\\n'  <== mode:DEFAULT_MODE)))",
             "  (stanza",
-            "    (s_null",
-            "      (null_single",
-            "        IP:'ip'  <== mode:DEFAULT_MODE",
-            "        DOMAIN:'domain'  <== mode:DEFAULT_MODE",
+            "    (s_ip_domain",
+            "      IP:'ip'  <== mode:DEFAULT_MODE",
+            "      DOMAIN:'domain'  <== mode:DEFAULT_MODE",
+            "      (ip_domain_name",
             "        NAME:'name'  <== mode:DEFAULT_MODE",
-            "        VARIABLE:'lab.local'  <== mode:M_Name",
+            "        (variable_hostname",
+            "          VARIABLE:'lab.local'  <== mode:M_Name)",
             "        NEWLINE:'\\n'  <== mode:DEFAULT_MODE)))",
             "  (stanza",
             "    (s_null",
@@ -4619,20 +4657,21 @@
             "        CEF:'cef'  <== mode:DEFAULT_MODE",
             "        NEWLINE:'\\n'  <== mode:DEFAULT_MODE)))",
             "  (stanza",
-            "    (s_null",
-            "      (null_single",
-            "        NO:'no'  <== mode:DEFAULT_MODE",
-            "        IP:'ip'  <== mode:DEFAULT_MODE",
-            "        DOMAIN:'domain'  <== mode:DEFAULT_MODE",
-            "        VARIABLE:'lookup'  <== mode:DEFAULT_MODE",
+            "    (s_ip_domain",
+            "      NO:'no'  <== mode:DEFAULT_MODE",
+            "      IP:'ip'  <== mode:DEFAULT_MODE",
+            "      DOMAIN:'domain'  <== mode:DEFAULT_MODE",
+            "      (ip_domain_null",
+            "        LOOKUP:'lookup'  <== mode:DEFAULT_MODE",
             "        NEWLINE:'\\n'  <== mode:DEFAULT_MODE)))",
             "  (stanza",
-            "    (s_null",
-            "      (null_single",
-            "        IP:'ip'  <== mode:DEFAULT_MODE",
-            "        DOMAIN:'domain'  <== mode:DEFAULT_MODE",
+            "    (s_ip_domain",
+            "      IP:'ip'  <== mode:DEFAULT_MODE",
+            "      DOMAIN:'domain'  <== mode:DEFAULT_MODE",
+            "      (ip_domain_name",
             "        NAME:'name'  <== mode:DEFAULT_MODE",
-            "        VARIABLE:'lab.local'  <== mode:M_Name",
+            "        (variable_hostname",
+            "          VARIABLE:'lab.local'  <== mode:M_Name)",
             "        NEWLINE:'\\n'  <== mode:DEFAULT_MODE)))",
             "  (stanza",
             "    (s_null",
@@ -5154,20 +5193,21 @@
             "        CEF:'cef'  <== mode:DEFAULT_MODE",
             "        NEWLINE:'\\n'  <== mode:DEFAULT_MODE)))",
             "  (stanza",
-            "    (s_null",
-            "      (null_single",
-            "        NO:'no'  <== mode:DEFAULT_MODE",
-            "        IP:'ip'  <== mode:DEFAULT_MODE",
-            "        DOMAIN:'domain'  <== mode:DEFAULT_MODE",
-            "        VARIABLE:'lookup'  <== mode:DEFAULT_MODE",
+            "    (s_ip_domain",
+            "      NO:'no'  <== mode:DEFAULT_MODE",
+            "      IP:'ip'  <== mode:DEFAULT_MODE",
+            "      DOMAIN:'domain'  <== mode:DEFAULT_MODE",
+            "      (ip_domain_null",
+            "        LOOKUP:'lookup'  <== mode:DEFAULT_MODE",
             "        NEWLINE:'\\n'  <== mode:DEFAULT_MODE)))",
             "  (stanza",
-            "    (s_null",
-            "      (null_single",
-            "        IP:'ip'  <== mode:DEFAULT_MODE",
-            "        DOMAIN:'domain'  <== mode:DEFAULT_MODE",
+            "    (s_ip_domain",
+            "      IP:'ip'  <== mode:DEFAULT_MODE",
+            "      DOMAIN:'domain'  <== mode:DEFAULT_MODE",
+            "      (ip_domain_name",
             "        NAME:'name'  <== mode:DEFAULT_MODE",
-            "        VARIABLE:'lab.local'  <== mode:M_Name",
+            "        (variable_hostname",
+            "          VARIABLE:'lab.local'  <== mode:M_Name)",
             "        NEWLINE:'\\n'  <== mode:DEFAULT_MODE)))",
             "  (stanza",
             "    (s_null",
@@ -5543,7 +5583,8 @@
             "            MATCH:'match'  <== mode:DEFAULT_MODE",
             "            IP:'ip'  <== mode:DEFAULT_MODE",
             "            ADDRESS:'address'  <== mode:DEFAULT_MODE",
-            "            DEC:'102'  <== mode:DEFAULT_MODE",
+            "            (variable_access_list",
+            "              DEC:'102'  <== mode:DEFAULT_MODE)",
             "            NEWLINE:'\\n'  <== mode:DEFAULT_MODE)))",
             "      (rm_stanza",
             "        (set_rm_stanza",
@@ -5740,20 +5781,21 @@
             "        CEF:'cef'  <== mode:DEFAULT_MODE",
             "        NEWLINE:'\\n'  <== mode:DEFAULT_MODE)))",
             "  (stanza",
-            "    (s_null",
-            "      (null_single",
-            "        NO:'no'  <== mode:DEFAULT_MODE",
-            "        IP:'ip'  <== mode:DEFAULT_MODE",
-            "        DOMAIN:'domain'  <== mode:DEFAULT_MODE",
-            "        VARIABLE:'lookup'  <== mode:DEFAULT_MODE",
+            "    (s_ip_domain",
+            "      NO:'no'  <== mode:DEFAULT_MODE",
+            "      IP:'ip'  <== mode:DEFAULT_MODE",
+            "      DOMAIN:'domain'  <== mode:DEFAULT_MODE",
+            "      (ip_domain_null",
+            "        LOOKUP:'lookup'  <== mode:DEFAULT_MODE",
             "        NEWLINE:'\\n'  <== mode:DEFAULT_MODE)))",
             "  (stanza",
-            "    (s_null",
-            "      (null_single",
-            "        IP:'ip'  <== mode:DEFAULT_MODE",
-            "        DOMAIN:'domain'  <== mode:DEFAULT_MODE",
+            "    (s_ip_domain",
+            "      IP:'ip'  <== mode:DEFAULT_MODE",
+            "      DOMAIN:'domain'  <== mode:DEFAULT_MODE",
+            "      (ip_domain_name",
             "        NAME:'name'  <== mode:DEFAULT_MODE",
-            "        VARIABLE:'lab.local'  <== mode:M_Name",
+            "        (variable_hostname",
+            "          VARIABLE:'lab.local'  <== mode:M_Name)",
             "        NEWLINE:'\\n'  <== mode:DEFAULT_MODE)))",
             "  (stanza",
             "    (s_null",
@@ -6283,7 +6325,8 @@
             "            MATCH:'match'  <== mode:DEFAULT_MODE",
             "            IP:'ip'  <== mode:DEFAULT_MODE",
             "            ADDRESS:'address'  <== mode:DEFAULT_MODE",
-            "            DEC:'105'  <== mode:DEFAULT_MODE",
+            "            (variable_access_list",
+            "              DEC:'105'  <== mode:DEFAULT_MODE)",
             "            NEWLINE:'\\n'  <== mode:DEFAULT_MODE)))",
             "      (rm_stanza",
             "        (set_rm_stanza",
@@ -6317,7 +6360,8 @@
             "            MATCH:'match'  <== mode:DEFAULT_MODE",
             "            IP:'ip'  <== mode:DEFAULT_MODE",
             "            ADDRESS:'address'  <== mode:DEFAULT_MODE",
-            "            DEC:'150'  <== mode:DEFAULT_MODE",
+            "            (variable_access_list",
+            "              DEC:'150'  <== mode:DEFAULT_MODE)",
             "            NEWLINE:'\\n'  <== mode:DEFAULT_MODE)))",
             "      (rm_stanza",
             "        (set_rm_stanza",
@@ -6376,7 +6420,8 @@
             "            MATCH:'match'  <== mode:DEFAULT_MODE",
             "            IP:'ip'  <== mode:DEFAULT_MODE",
             "            ADDRESS:'address'  <== mode:DEFAULT_MODE",
-            "            DEC:'150'  <== mode:DEFAULT_MODE",
+            "            (variable_access_list",
+            "              DEC:'150'  <== mode:DEFAULT_MODE)",
             "            NEWLINE:'\\n'  <== mode:DEFAULT_MODE)))))",
             "  (stanza",
             "    (route_map_stanza",
@@ -6402,7 +6447,8 @@
             "            MATCH:'match'  <== mode:DEFAULT_MODE",
             "            IP:'ip'  <== mode:DEFAULT_MODE",
             "            ADDRESS:'address'  <== mode:DEFAULT_MODE",
-            "            DEC:'151'  <== mode:DEFAULT_MODE",
+            "            (variable_access_list",
+            "              DEC:'151'  <== mode:DEFAULT_MODE)",
             "            NEWLINE:'\\n'  <== mode:DEFAULT_MODE)))))",
             "  (stanza",
             "    (s_control_plane",
@@ -6557,20 +6603,21 @@
             "        CEF:'cef'  <== mode:DEFAULT_MODE",
             "        NEWLINE:'\\n'  <== mode:DEFAULT_MODE)))",
             "  (stanza",
-            "    (s_null",
-            "      (null_single",
-            "        NO:'no'  <== mode:DEFAULT_MODE",
-            "        IP:'ip'  <== mode:DEFAULT_MODE",
-            "        DOMAIN:'domain'  <== mode:DEFAULT_MODE",
-            "        VARIABLE:'lookup'  <== mode:DEFAULT_MODE",
+            "    (s_ip_domain",
+            "      NO:'no'  <== mode:DEFAULT_MODE",
+            "      IP:'ip'  <== mode:DEFAULT_MODE",
+            "      DOMAIN:'domain'  <== mode:DEFAULT_MODE",
+            "      (ip_domain_null",
+            "        LOOKUP:'lookup'  <== mode:DEFAULT_MODE",
             "        NEWLINE:'\\n'  <== mode:DEFAULT_MODE)))",
             "  (stanza",
-            "    (s_null",
-            "      (null_single",
-            "        IP:'ip'  <== mode:DEFAULT_MODE",
-            "        DOMAIN:'domain'  <== mode:DEFAULT_MODE",
+            "    (s_ip_domain",
+            "      IP:'ip'  <== mode:DEFAULT_MODE",
+            "      DOMAIN:'domain'  <== mode:DEFAULT_MODE",
+            "      (ip_domain_name",
             "        NAME:'name'  <== mode:DEFAULT_MODE",
-            "        VARIABLE:'lab.local'  <== mode:M_Name",
+            "        (variable_hostname",
+            "          VARIABLE:'lab.local'  <== mode:M_Name)",
             "        NEWLINE:'\\n'  <== mode:DEFAULT_MODE)))",
             "  (stanza",
             "    (s_null",
@@ -7100,7 +7147,8 @@
             "            MATCH:'match'  <== mode:DEFAULT_MODE",
             "            IP:'ip'  <== mode:DEFAULT_MODE",
             "            ADDRESS:'address'  <== mode:DEFAULT_MODE",
-            "            DEC:'105'  <== mode:DEFAULT_MODE",
+            "            (variable_access_list",
+            "              DEC:'105'  <== mode:DEFAULT_MODE)",
             "            NEWLINE:'\\n'  <== mode:DEFAULT_MODE)))",
             "      (rm_stanza",
             "        (set_rm_stanza",
@@ -7134,7 +7182,8 @@
             "            MATCH:'match'  <== mode:DEFAULT_MODE",
             "            IP:'ip'  <== mode:DEFAULT_MODE",
             "            ADDRESS:'address'  <== mode:DEFAULT_MODE",
-            "            DEC:'150'  <== mode:DEFAULT_MODE",
+            "            (variable_access_list",
+            "              DEC:'150'  <== mode:DEFAULT_MODE)",
             "            NEWLINE:'\\n'  <== mode:DEFAULT_MODE)))",
             "      (rm_stanza",
             "        (set_rm_stanza",
@@ -7193,7 +7242,8 @@
             "            MATCH:'match'  <== mode:DEFAULT_MODE",
             "            IP:'ip'  <== mode:DEFAULT_MODE",
             "            ADDRESS:'address'  <== mode:DEFAULT_MODE",
-            "            DEC:'150'  <== mode:DEFAULT_MODE",
+            "            (variable_access_list",
+            "              DEC:'150'  <== mode:DEFAULT_MODE)",
             "            NEWLINE:'\\n'  <== mode:DEFAULT_MODE)))))",
             "  (stanza",
             "    (route_map_stanza",
@@ -7219,7 +7269,8 @@
             "            MATCH:'match'  <== mode:DEFAULT_MODE",
             "            IP:'ip'  <== mode:DEFAULT_MODE",
             "            ADDRESS:'address'  <== mode:DEFAULT_MODE",
-            "            DEC:'151'  <== mode:DEFAULT_MODE",
+            "            (variable_access_list",
+            "              DEC:'151'  <== mode:DEFAULT_MODE)",
             "            NEWLINE:'\\n'  <== mode:DEFAULT_MODE)))))",
             "  (stanza",
             "    (s_control_plane",
@@ -7374,20 +7425,21 @@
             "        CEF:'cef'  <== mode:DEFAULT_MODE",
             "        NEWLINE:'\\n'  <== mode:DEFAULT_MODE)))",
             "  (stanza",
-            "    (s_null",
-            "      (null_single",
-            "        NO:'no'  <== mode:DEFAULT_MODE",
-            "        IP:'ip'  <== mode:DEFAULT_MODE",
-            "        DOMAIN:'domain'  <== mode:DEFAULT_MODE",
-            "        VARIABLE:'lookup'  <== mode:DEFAULT_MODE",
+            "    (s_ip_domain",
+            "      NO:'no'  <== mode:DEFAULT_MODE",
+            "      IP:'ip'  <== mode:DEFAULT_MODE",
+            "      DOMAIN:'domain'  <== mode:DEFAULT_MODE",
+            "      (ip_domain_null",
+            "        LOOKUP:'lookup'  <== mode:DEFAULT_MODE",
             "        NEWLINE:'\\n'  <== mode:DEFAULT_MODE)))",
             "  (stanza",
-            "    (s_null",
-            "      (null_single",
-            "        IP:'ip'  <== mode:DEFAULT_MODE",
-            "        DOMAIN:'domain'  <== mode:DEFAULT_MODE",
+            "    (s_ip_domain",
+            "      IP:'ip'  <== mode:DEFAULT_MODE",
+            "      DOMAIN:'domain'  <== mode:DEFAULT_MODE",
+            "      (ip_domain_name",
             "        NAME:'name'  <== mode:DEFAULT_MODE",
-            "        VARIABLE:'lab.local'  <== mode:M_Name",
+            "        (variable_hostname",
+            "          VARIABLE:'lab.local'  <== mode:M_Name)",
             "        NEWLINE:'\\n'  <== mode:DEFAULT_MODE)))",
             "  (stanza",
             "    (s_null",
@@ -7642,20 +7694,21 @@
             "        CEF:'cef'  <== mode:DEFAULT_MODE",
             "        NEWLINE:'\\n'  <== mode:DEFAULT_MODE)))",
             "  (stanza",
-            "    (s_null",
-            "      (null_single",
-            "        NO:'no'  <== mode:DEFAULT_MODE",
-            "        IP:'ip'  <== mode:DEFAULT_MODE",
-            "        DOMAIN:'domain'  <== mode:DEFAULT_MODE",
-            "        VARIABLE:'lookup'  <== mode:DEFAULT_MODE",
+            "    (s_ip_domain",
+            "      NO:'no'  <== mode:DEFAULT_MODE",
+            "      IP:'ip'  <== mode:DEFAULT_MODE",
+            "      DOMAIN:'domain'  <== mode:DEFAULT_MODE",
+            "      (ip_domain_null",
+            "        LOOKUP:'lookup'  <== mode:DEFAULT_MODE",
             "        NEWLINE:'\\n'  <== mode:DEFAULT_MODE)))",
             "  (stanza",
-            "    (s_null",
-            "      (null_single",
-            "        IP:'ip'  <== mode:DEFAULT_MODE",
-            "        DOMAIN:'domain'  <== mode:DEFAULT_MODE",
+            "    (s_ip_domain",
+            "      IP:'ip'  <== mode:DEFAULT_MODE",
+            "      DOMAIN:'domain'  <== mode:DEFAULT_MODE",
+            "      (ip_domain_name",
             "        NAME:'name'  <== mode:DEFAULT_MODE",
-            "        VARIABLE:'lab.local'  <== mode:M_Name",
+            "        (variable_hostname",
+            "          VARIABLE:'lab.local'  <== mode:M_Name)",
             "        NEWLINE:'\\n'  <== mode:DEFAULT_MODE)))",
             "  (stanza",
             "    (s_null",
@@ -8169,7 +8222,8 @@
             "            MATCH:'match'  <== mode:DEFAULT_MODE",
             "            IP:'ip'  <== mode:DEFAULT_MODE",
             "            ADDRESS:'address'  <== mode:DEFAULT_MODE",
-            "            DEC:'102'  <== mode:DEFAULT_MODE",
+            "            (variable_access_list",
+            "              DEC:'102'  <== mode:DEFAULT_MODE)",
             "            NEWLINE:'\\n'  <== mode:DEFAULT_MODE)))",
             "      (rm_stanza",
             "        (set_rm_stanza",
@@ -8203,7 +8257,8 @@
             "            MATCH:'match'  <== mode:DEFAULT_MODE",
             "            IP:'ip'  <== mode:DEFAULT_MODE",
             "            ADDRESS:'address'  <== mode:DEFAULT_MODE",
-            "            DEC:'103'  <== mode:DEFAULT_MODE",
+            "            (variable_access_list",
+            "              DEC:'103'  <== mode:DEFAULT_MODE)",
             "            NEWLINE:'\\n'  <== mode:DEFAULT_MODE)))",
             "      (rm_stanza",
             "        (set_rm_stanza",
@@ -8262,7 +8317,8 @@
             "            MATCH:'match'  <== mode:DEFAULT_MODE",
             "            IP:'ip'  <== mode:DEFAULT_MODE",
             "            ADDRESS:'address'  <== mode:DEFAULT_MODE",
-            "            DEC:'101'  <== mode:DEFAULT_MODE",
+            "            (variable_access_list",
+            "              DEC:'101'  <== mode:DEFAULT_MODE)",
             "            NEWLINE:'\\n'  <== mode:DEFAULT_MODE)))",
             "      (rm_stanza",
             "        (set_rm_stanza",
@@ -8296,7 +8352,8 @@
             "            MATCH:'match'  <== mode:DEFAULT_MODE",
             "            IP:'ip'  <== mode:DEFAULT_MODE",
             "            ADDRESS:'address'  <== mode:DEFAULT_MODE",
-            "            DEC:'103'  <== mode:DEFAULT_MODE",
+            "            (variable_access_list",
+            "              DEC:'103'  <== mode:DEFAULT_MODE)",
             "            NEWLINE:'\\n'  <== mode:DEFAULT_MODE)))",
             "      (rm_stanza",
             "        (set_rm_stanza",
@@ -8493,20 +8550,21 @@
             "        CEF:'cef'  <== mode:DEFAULT_MODE",
             "        NEWLINE:'\\n'  <== mode:DEFAULT_MODE)))",
             "  (stanza",
-            "    (s_null",
-            "      (null_single",
-            "        NO:'no'  <== mode:DEFAULT_MODE",
-            "        IP:'ip'  <== mode:DEFAULT_MODE",
-            "        DOMAIN:'domain'  <== mode:DEFAULT_MODE",
-            "        VARIABLE:'lookup'  <== mode:DEFAULT_MODE",
+            "    (s_ip_domain",
+            "      NO:'no'  <== mode:DEFAULT_MODE",
+            "      IP:'ip'  <== mode:DEFAULT_MODE",
+            "      DOMAIN:'domain'  <== mode:DEFAULT_MODE",
+            "      (ip_domain_null",
+            "        LOOKUP:'lookup'  <== mode:DEFAULT_MODE",
             "        NEWLINE:'\\n'  <== mode:DEFAULT_MODE)))",
             "  (stanza",
-            "    (s_null",
-            "      (null_single",
-            "        IP:'ip'  <== mode:DEFAULT_MODE",
-            "        DOMAIN:'domain'  <== mode:DEFAULT_MODE",
+            "    (s_ip_domain",
+            "      IP:'ip'  <== mode:DEFAULT_MODE",
+            "      DOMAIN:'domain'  <== mode:DEFAULT_MODE",
+            "      (ip_domain_name",
             "        NAME:'name'  <== mode:DEFAULT_MODE",
-            "        VARIABLE:'lab.local'  <== mode:M_Name",
+            "        (variable_hostname",
+            "          VARIABLE:'lab.local'  <== mode:M_Name)",
             "        NEWLINE:'\\n'  <== mode:DEFAULT_MODE)))",
             "  (stanza",
             "    (s_null",
@@ -9020,7 +9078,8 @@
             "            MATCH:'match'  <== mode:DEFAULT_MODE",
             "            IP:'ip'  <== mode:DEFAULT_MODE",
             "            ADDRESS:'address'  <== mode:DEFAULT_MODE",
-            "            DEC:'102'  <== mode:DEFAULT_MODE",
+            "            (variable_access_list",
+            "              DEC:'102'  <== mode:DEFAULT_MODE)",
             "            NEWLINE:'\\n'  <== mode:DEFAULT_MODE)))",
             "      (rm_stanza",
             "        (set_rm_stanza",
@@ -9054,7 +9113,8 @@
             "            MATCH:'match'  <== mode:DEFAULT_MODE",
             "            IP:'ip'  <== mode:DEFAULT_MODE",
             "            ADDRESS:'address'  <== mode:DEFAULT_MODE",
-            "            DEC:'103'  <== mode:DEFAULT_MODE",
+            "            (variable_access_list",
+            "              DEC:'103'  <== mode:DEFAULT_MODE)",
             "            NEWLINE:'\\n'  <== mode:DEFAULT_MODE)))",
             "      (rm_stanza",
             "        (set_rm_stanza",
@@ -9113,7 +9173,8 @@
             "            MATCH:'match'  <== mode:DEFAULT_MODE",
             "            IP:'ip'  <== mode:DEFAULT_MODE",
             "            ADDRESS:'address'  <== mode:DEFAULT_MODE",
-            "            DEC:'101'  <== mode:DEFAULT_MODE",
+            "            (variable_access_list",
+            "              DEC:'101'  <== mode:DEFAULT_MODE)",
             "            NEWLINE:'\\n'  <== mode:DEFAULT_MODE)))",
             "      (rm_stanza",
             "        (set_rm_stanza",
@@ -9147,7 +9208,8 @@
             "            MATCH:'match'  <== mode:DEFAULT_MODE",
             "            IP:'ip'  <== mode:DEFAULT_MODE",
             "            ADDRESS:'address'  <== mode:DEFAULT_MODE",
-            "            DEC:'103'  <== mode:DEFAULT_MODE",
+            "            (variable_access_list",
+            "              DEC:'103'  <== mode:DEFAULT_MODE)",
             "            NEWLINE:'\\n'  <== mode:DEFAULT_MODE)))",
             "      (rm_stanza",
             "        (set_rm_stanza",
@@ -9344,20 +9406,21 @@
             "        CEF:'cef'  <== mode:DEFAULT_MODE",
             "        NEWLINE:'\\n'  <== mode:DEFAULT_MODE)))",
             "  (stanza",
-            "    (s_null",
-            "      (null_single",
-            "        NO:'no'  <== mode:DEFAULT_MODE",
-            "        IP:'ip'  <== mode:DEFAULT_MODE",
-            "        DOMAIN:'domain'  <== mode:DEFAULT_MODE",
-            "        VARIABLE:'lookup'  <== mode:DEFAULT_MODE",
+            "    (s_ip_domain",
+            "      NO:'no'  <== mode:DEFAULT_MODE",
+            "      IP:'ip'  <== mode:DEFAULT_MODE",
+            "      DOMAIN:'domain'  <== mode:DEFAULT_MODE",
+            "      (ip_domain_null",
+            "        LOOKUP:'lookup'  <== mode:DEFAULT_MODE",
             "        NEWLINE:'\\n'  <== mode:DEFAULT_MODE)))",
             "  (stanza",
-            "    (s_null",
-            "      (null_single",
-            "        IP:'ip'  <== mode:DEFAULT_MODE",
-            "        DOMAIN:'domain'  <== mode:DEFAULT_MODE",
+            "    (s_ip_domain",
+            "      IP:'ip'  <== mode:DEFAULT_MODE",
+            "      DOMAIN:'domain'  <== mode:DEFAULT_MODE",
+            "      (ip_domain_name",
             "        NAME:'name'  <== mode:DEFAULT_MODE",
-            "        VARIABLE:'lab.local'  <== mode:M_Name",
+            "        (variable_hostname",
+            "          VARIABLE:'lab.local'  <== mode:M_Name)",
             "        NEWLINE:'\\n'  <== mode:DEFAULT_MODE)))",
             "  (stanza",
             "    (s_null",
@@ -9709,93 +9772,137 @@
             "  EOF:<EOF>  <== mode:DEFAULT_MODE)"
           ]
         }
-      }
+      },
+      "version" : "0.14.0"
     },
     {
       "class" : "org.batfish.datamodel.answers.ConvertConfigurationAnswerElement",
       "unusedStructures" : {
         "as1border1" : {
-          "bgp group" : [
-            "as3"
-          ],
-          "community-list" : [
-            "as1_community"
-          ],
-          "ipv4 prefix-list" : [
-            "inbound_route_filter"
-          ]
+          "bgp group" : {
+            "as3" : [
+              77
+            ]
+          },
+          "expanded community-list" : {
+            "as1_community" : [
+              105
+            ]
+          },
+          "ipv4 prefix-list" : {
+            "inbound_route_filter" : [
+              113
+            ]
+          }
         },
         "as1border2" : {
-          "bgp group" : [
-            "as2"
-          ],
-          "community-list" : [
-            "as1_community"
-          ],
-          "ipv4 prefix-list" : [
-            "inbound_route_filter"
-          ]
+          "bgp group" : {
+            "as2" : [
+              75
+            ]
+          },
+          "expanded community-list" : {
+            "as1_community" : [
+              105
+            ]
+          },
+          "ipv4 prefix-list" : {
+            "inbound_route_filter" : [
+              113
+            ]
+          }
         },
         "as2border1" : {
-          "bgp group" : [
-            "as3"
-          ],
-          "community-list" : [
-            "as2_community"
-          ],
-          "ipv4 prefix-list" : [
-            "inbound_route_filter"
-          ]
+          "bgp group" : {
+            "as3" : [
+              84
+            ]
+          },
+          "expanded community-list" : {
+            "as2_community" : [
+              115
+            ]
+          },
+          "ipv4 prefix-list" : {
+            "inbound_route_filter" : [
+              123
+            ]
+          }
         },
         "as2border2" : {
-          "bgp group" : [
-            "as1"
-          ],
-          "community-list" : [
-            "as2_community"
-          ],
-          "ipv4 prefix-list" : [
-            "inbound_route_filter"
-          ]
+          "bgp group" : {
+            "as1" : [
+              80
+            ]
+          },
+          "expanded community-list" : {
+            "as2_community" : [
+              115
+            ]
+          },
+          "ipv4 prefix-list" : {
+            "inbound_route_filter" : [
+              122
+            ]
+          }
         },
         "as2dept1" : {
-          "ip acl" : [
-            "105"
-          ]
+          "extended ip access-list" : {
+            "105" : [
+              99
+            ]
+          }
         },
         "as2dist1" : {
-          "ip acl" : [
-            "102"
-          ]
+          "extended ip access-list" : {
+            "102" : [
+              122
+            ]
+          }
         },
         "as2dist2" : {
-          "ip acl" : [
-            "102"
-          ]
+          "extended ip access-list" : {
+            "102" : [
+              122
+            ]
+          }
         },
         "as3border1" : {
-          "bgp group" : [
-            "as1"
-          ],
-          "community-list" : [
-            "as3_community"
-          ],
-          "ipv4 prefix-list" : [
-            "inbound_route_filter"
-          ]
+          "bgp group" : {
+            "as1" : [
+              74
+            ]
+          },
+          "expanded community-list" : {
+            "as3_community" : [
+              108
+            ]
+          },
+          "ipv4 prefix-list" : {
+            "inbound_route_filter" : [
+              114
+            ]
+          }
         },
         "as3border2" : {
-          "bgp group" : [
-            "as2"
-          ],
-          "community-list" : [
-            "as3_community"
-          ],
-          "ipv4 prefix-list" : [
-            "inbound_route_filter"
-          ]
+          "bgp group" : {
+            "as2" : [
+              77
+            ]
+          },
+          "expanded community-list" : {
+            "as3_community" : [
+              109
+            ]
+          },
+          "ipv4 prefix-list" : {
+            "inbound_route_filter" : [
+              115
+            ]
+          }
         }
-      }
+      },
+      "version" : "0.14.0"
     },
     {
       "class" : "org.batfish.datamodel.answers.InitInfoAnswerElement",

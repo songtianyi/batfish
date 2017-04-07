@@ -2,12 +2,14 @@ package org.batfish.main;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.Serializable;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -42,7 +44,9 @@ import org.batfish.bdp.BdpDataPlanePlugin;
 import org.batfish.common.Answerer;
 import org.batfish.common.BatfishException;
 import org.batfish.common.CleanBatfishException;
+import org.batfish.common.Directory;
 import org.batfish.common.Pair;
+import org.batfish.common.Version;
 import org.batfish.common.Warning;
 import org.batfish.common.plugin.DataPlanePlugin;
 import org.batfish.common.plugin.IBatfish;
@@ -69,6 +73,7 @@ import org.batfish.datamodel.IpAccessList;
 import org.batfish.datamodel.IpAccessListLine;
 import org.batfish.datamodel.IpsecVpn;
 import org.batfish.datamodel.OspfArea;
+import org.batfish.datamodel.OspfNeighbor;
 import org.batfish.datamodel.OspfProcess;
 import org.batfish.datamodel.Route;
 import org.batfish.datamodel.Prefix;
@@ -81,6 +86,7 @@ import org.batfish.datamodel.answers.Answer;
 import org.batfish.datamodel.answers.AnswerElement;
 import org.batfish.datamodel.answers.AnswerStatus;
 import org.batfish.datamodel.answers.ConvertConfigurationAnswerElement;
+import org.batfish.datamodel.answers.DataPlaneAnswerElement;
 import org.batfish.datamodel.answers.EnvironmentCreationAnswerElement;
 import org.batfish.datamodel.answers.FlattenVendorConfigurationAnswerElement;
 import org.batfish.datamodel.answers.InitInfoAnswerElement;
@@ -109,7 +115,10 @@ import org.batfish.datamodel.collections.RoleSet;
 import org.batfish.datamodel.collections.RouteSet;
 import org.batfish.datamodel.collections.TreeMultiSet;
 import org.batfish.datamodel.questions.Question;
+import org.batfish.datamodel.questions.Question.InstanceData;
+import org.batfish.datamodel.questions.Question.InstanceData.Variable;
 import org.batfish.grammar.BatfishCombinedParser;
+import org.batfish.grammar.GrammarSettings;
 import org.batfish.grammar.ParseTreePrettyPrinter;
 import org.batfish.grammar.assertion.AssertionCombinedParser;
 import org.batfish.grammar.assertion.AssertionExtractor;
@@ -159,6 +168,8 @@ import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
@@ -203,6 +214,8 @@ public class Batfish extends PluginConsumer implements AutoCloseable, IBatfish {
             envSettings.setEnvironmentBasePath(envPath);
             envSettings.setDataPlanePath(
                   envPath.resolve(BfConsts.RELPATH_DATA_PLANE_DIR));
+            envSettings.setDataPlaneAnswerPath(
+                  envPath.resolve(BfConsts.RELPATH_DATA_PLANE_ANSWER_PATH));
             Path envDirPath = envPath.resolve(BfConsts.RELPATH_ENV_DIR);
             envSettings.setEnvPath(envDirPath);
             envSettings.setNodeBlacklistPath(
@@ -361,13 +374,15 @@ public class Batfish extends PluginConsumer implements AutoCloseable, IBatfish {
 
    private final Map<TestrigSettings, Map<String, Configuration>> _cachedConfigurations;
 
-   private DataPlanePlugin _dataPlanePlugin;
+   private final Map<TestrigSettings, DataPlane> _cachedDataPlanes;
 
-   private final Map<TestrigSettings, DataPlane> _dataPlanes;
+   private DataPlanePlugin _dataPlanePlugin;
 
    private TestrigSettings _deltaTestrigSettings;
 
    private BatfishLogger _logger;
+
+   private SortedMap<String, String> _questionMap;
 
    private Settings _settings;
 
@@ -381,11 +396,13 @@ public class Batfish extends PluginConsumer implements AutoCloseable, IBatfish {
 
    private long _timerCount;
 
-   public Batfish(Settings settings) {
+   public Batfish(Settings settings,
+         Map<TestrigSettings, Map<String, Configuration>> cachedConfigurations,
+         Map<TestrigSettings, DataPlane> cachedDataPlanes) {
       super(settings.getSerializeToText(), settings.getPluginDirs());
       _settings = settings;
-      _cachedConfigurations = new HashMap<>();
-      _dataPlanes = new HashMap<>();
+      _cachedConfigurations = cachedConfigurations;
+      _cachedDataPlanes = cachedDataPlanes;
       _testrigSettings = settings.getActiveTestrigSettings();
       _baseTestrigSettings = settings.getBaseTestrigSettings();
       _deltaTestrigSettings = settings.getDeltaTestrigSettings();
@@ -393,6 +410,7 @@ public class Batfish extends PluginConsumer implements AutoCloseable, IBatfish {
       _terminatedWithException = false;
       _answererCreators = new HashMap<>();
       _testrigSettingsStack = new ArrayList<>();
+      _questionMap = new TreeMap<>();
    }
 
    private void anonymizeConfigurations() {
@@ -1153,7 +1171,8 @@ public class Batfish extends PluginConsumer implements AutoCloseable, IBatfish {
 
    private boolean dataPlaneDependenciesExist(TestrigSettings testrigSettings) {
       checkConfigurations();
-      Path dpPath = testrigSettings.getEnvironmentSettings().getDataPlanePath();
+      Path dpPath = testrigSettings.getEnvironmentSettings()
+            .getDataPlaneAnswerPath();
       return Files.exists(dpPath);
    }
 
@@ -1185,6 +1204,37 @@ public class Batfish extends PluginConsumer implements AutoCloseable, IBatfish {
             namesByPath, Configuration.class);
       printElapsedTime();
       return configurations;
+   }
+
+   public <S extends Serializable> Map<String, S> deserializeObjects(
+         Map<Path, String> namesByPath, Class<S> outputClass) {
+      String outputClassName = outputClass.getName();
+      BatfishLogger logger = getLogger();
+      Map<String, byte[]> dataByName = new TreeMap<>();
+      AtomicInteger readCompleted = newBatch(
+            "Reading and unpacking files containg '" + outputClassName
+                  + "' instances",
+            namesByPath.size());
+      namesByPath.forEach((inputPath, name) -> {
+         logger.debug("Reading and gunzipping: " + outputClassName + " '" + name
+               + "' from '" + inputPath.toString() + "'");
+         byte[] data = fromGzipFile(inputPath);
+         logger.debug(" ...OK\n");
+         dataByName.put(name, data);
+         readCompleted.incrementAndGet();
+      });
+      Map<String, S> unsortedOutput = new ConcurrentHashMap<>();
+      AtomicInteger deserializeCompleted = newBatch(
+            "Deserializing '" + outputClassName + "' instances",
+            dataByName.size());
+      dataByName.keySet().parallelStream().forEach(name -> {
+         byte[] data = dataByName.get(name);
+         S object = deserializeObject(data, outputClass);
+         unsortedOutput.put(name, object);
+         deserializeCompleted.incrementAndGet();
+      });
+      Map<String, S> output = new TreeMap<>(unsortedOutput);
+      return output;
    }
 
    public Map<String, GenericConfigObject> deserializeVendorConfigurations(
@@ -1567,13 +1617,8 @@ public class Batfish extends PluginConsumer implements AutoCloseable, IBatfish {
             serializedVendorConfigPath);
       Map<String, Configuration> configurations = convertConfigurations(
             vendorConfigurations, answerElement);
+      postProcessConfigurations(configurations.values());
       return configurations;
-   }
-
-   @Override
-   public ConvertConfigurationAnswerElement getConvertConfigurationAnswerElement() {
-      return deserializeObject(_testrigSettings.getConvertAnswerPath(),
-            ConvertConfigurationAnswerElement.class);
    }
 
    public DataPlanePlugin getDataPlanePlugin() {
@@ -1656,6 +1701,11 @@ public class Batfish extends PluginConsumer implements AutoCloseable, IBatfish {
    }
 
    @Override
+   public GrammarSettings getGrammarSettings() {
+      return _settings;
+   }
+
+   @Override
    public FlowHistory getHistory() {
       FlowHistory flowHistory = new FlowHistory();
       if (_settings.getDiffQuestion()) {
@@ -1718,22 +1768,6 @@ public class Batfish extends PluginConsumer implements AutoCloseable, IBatfish {
       return blacklistNodes;
    }
 
-   @Override
-   public ParseVendorConfigurationAnswerElement getParseVendorConfigurationAnswerElement() {
-      return deserializeObject(_testrigSettings.getParseAnswerPath(),
-            ParseVendorConfigurationAnswerElement.class);
-   }
-
-   public Path getPrecomputedRoutesPath() {
-      return _testrigSettings.getEnvironmentSettings()
-            .getPrecomputedRoutesPath();
-   }
-
-   public Path getSerializedTopologyPath() {
-      return _testrigSettings.getEnvironmentSettings()
-            .getSerializedTopologyPath();
-   }
-
    public Settings getSettings() {
       return _settings;
    }
@@ -1754,6 +1788,13 @@ public class Batfish extends PluginConsumer implements AutoCloseable, IBatfish {
 
    public boolean getTerminatedWithException() {
       return _terminatedWithException;
+   }
+
+   @Override
+   public Directory getTestrigFileTree() {
+      Path trPath = _testrigSettings.getTestRigPath();
+      Directory dir = new Directory(trPath);
+      return dir;
    }
 
    public String getTestrigName() {
@@ -1964,8 +2005,8 @@ public class Batfish extends PluginConsumer implements AutoCloseable, IBatfish {
    public InitInfoAnswerElement initInfo(boolean summary) {
       checkConfigurations();
       InitInfoAnswerElement answerElement = new InitInfoAnswerElement();
-      ParseVendorConfigurationAnswerElement parseAnswer = getParseVendorConfigurationAnswerElement();
-      ConvertConfigurationAnswerElement convertAnswer = getConvertConfigurationAnswerElement();
+      ParseVendorConfigurationAnswerElement parseAnswer = loadParseVendorConfigurationAnswerElement();
+      ConvertConfigurationAnswerElement convertAnswer = loadConvertConfigurationAnswerElement();
       if (!summary) {
          SortedMap<String, org.batfish.common.Warnings> warnings = answerElement
                .getWarnings();
@@ -1989,6 +2030,7 @@ public class Batfish extends PluginConsumer implements AutoCloseable, IBatfish {
       for (String failed : convertAnswer.getFailed()) {
          answerElement.getParseStatus().put(failed, ParseStatus.FAILED);
       }
+      _logger.info(answerElement.prettyPrint());
       return answerElement;
    }
 
@@ -2135,6 +2177,111 @@ public class Batfish extends PluginConsumer implements AutoCloseable, IBatfish {
    }
 
    @Override
+   public void initRemoteOspfNeighbors(
+         Map<String, Configuration> configurations,
+         Map<Ip, Set<String>> ipOwners, Topology topology) {
+      for (Entry<String, Configuration> e : configurations.entrySet()) {
+         String hostname = e.getKey();
+         Configuration c = e.getValue();
+         for (Entry<String, Vrf> e2 : c.getVrfs().entrySet()) {
+            Vrf vrf = e2.getValue();
+            OspfProcess proc = vrf.getOspfProcess();
+            if (proc != null) {
+               proc.setOspfNeighbors(new TreeMap<>());
+               if (proc != null) {
+                  String vrfName = e2.getKey();
+                  for (Entry<Long, OspfArea> e3 : proc.getAreas().entrySet()) {
+                     long areaNum = e3.getKey();
+                     OspfArea area = e3.getValue();
+                     for (Interface iface : area.getInterfaces()) {
+                        String ifaceName = iface.getName();
+                        EdgeSet ifaceEdges = topology.getInterfaceEdges()
+                              .get(new NodeInterfacePair(hostname, ifaceName));
+                        boolean hasNeighbor = false;
+                        Ip localIp = iface.getPrefix().getAddress();
+                        if (ifaceEdges != null) {
+                           for (Edge edge : ifaceEdges) {
+                              if (edge.getNode1().equals(hostname)) {
+                                 String remoteHostname = edge.getNode2();
+                                 String remoteIfaceName = edge.getInt2();
+                                 Configuration remoteNode = configurations
+                                       .get(remoteHostname);
+                                 Interface remoteIface = remoteNode
+                                       .getInterfaces().get(remoteIfaceName);
+                                 Vrf remoteVrf = remoteIface.getVrf();
+                                 String remoteVrfName = remoteVrf.getName();
+                                 OspfProcess remoteProc = remoteVrf
+                                       .getOspfProcess();
+                                 if (remoteProc.getOspfNeighbors() == null) {
+                                    remoteProc
+                                          .setOspfNeighbors(new TreeMap<>());
+                                 }
+                                 if (remoteProc != null) {
+                                    OspfArea remoteArea = remoteProc.getAreas()
+                                          .get(areaNum);
+                                    if (remoteArea != null
+                                          && remoteArea.getInterfaceNames()
+                                                .contains(remoteIfaceName)) {
+                                       Ip remoteIp = remoteIface.getPrefix()
+                                             .getAddress();
+                                       Pair<Ip, Ip> localKey = new Pair<>(
+                                             localIp, remoteIp);
+                                       OspfNeighbor neighbor = proc
+                                             .getOspfNeighbors().get(localKey);
+                                       if (neighbor == null) {
+                                          hasNeighbor = true;
+
+                                          // initialize local neighbor
+                                          neighbor = new OspfNeighbor(localKey);
+                                          neighbor.setArea(areaNum);
+                                          neighbor.setVrf(vrfName);
+                                          neighbor.setOwner(c);
+                                          neighbor.setInterface(iface);
+                                          proc.getOspfNeighbors().put(localKey,
+                                                neighbor);
+
+                                          // initialize remote neighbor
+                                          Pair<Ip, Ip> remoteKey = new Pair<>(
+                                                remoteIp, localIp);
+                                          OspfNeighbor remoteNeighbor = new OspfNeighbor(
+                                                remoteKey);
+                                          remoteNeighbor.setArea(areaNum);
+                                          remoteNeighbor.setVrf(remoteVrfName);
+                                          remoteNeighbor.setOwner(remoteNode);
+                                          remoteNeighbor
+                                                .setInterface(remoteIface);
+                                          remoteProc.getOspfNeighbors()
+                                                .put(remoteKey, remoteNeighbor);
+
+                                          // link neighbors
+                                          neighbor.setRemoteOspfNeighbor(
+                                                remoteNeighbor);
+                                          remoteNeighbor.setRemoteOspfNeighbor(
+                                                neighbor);
+                                       }
+                                    }
+                                 }
+                              }
+                           }
+                        }
+                        if (!hasNeighbor) {
+                           Pair<Ip, Ip> key = new Pair<>(localIp, Ip.ZERO);
+                           OspfNeighbor neighbor = new OspfNeighbor(key);
+                           neighbor.setArea(areaNum);
+                           neighbor.setVrf(vrfName);
+                           neighbor.setOwner(c);
+                           neighbor.setInterface(iface);
+                           proc.getOspfNeighbors().put(key, neighbor);
+                        }
+                     }
+                  }
+               }
+            }
+         }
+      }
+   }
+
+   @Override
    public void initRoutes(Map<String, Configuration> configurations) {
       Set<Route> globalRoutes = _dataPlanePlugin.getRoutes();
       for (Configuration node : configurations.values()) {
@@ -2169,6 +2316,11 @@ public class Batfish extends PluginConsumer implements AutoCloseable, IBatfish {
       Map<String, Configuration> configurations = _cachedConfigurations
             .get(_testrigSettings);
       if (configurations == null) {
+         ConvertConfigurationAnswerElement ccae = loadConvertConfigurationAnswerElement();
+         if (!Version.isCompatibleVersion("Service",
+               "Old processed configurations", ccae.getVersion())) {
+            repairConfigurations();
+         }
          configurations = deserializeConfigurations(
                _testrigSettings.getSerializeIndependentPath());
          _cachedConfigurations.put(_testrigSettings, configurations);
@@ -2181,15 +2333,102 @@ public class Batfish extends PluginConsumer implements AutoCloseable, IBatfish {
    }
 
    @Override
+   public ConvertConfigurationAnswerElement loadConvertConfigurationAnswerElement() {
+      return loadConvertConfigurationAnswerElement(true);
+   }
+
+   private ConvertConfigurationAnswerElement loadConvertConfigurationAnswerElement(
+         boolean firstAttempt) {
+      ConvertConfigurationAnswerElement ccae = deserializeObject(
+            _testrigSettings.getConvertAnswerPath(),
+            ConvertConfigurationAnswerElement.class);
+      if (!Version.isCompatibleVersion("Service",
+            "Old processed configurations", ccae.getVersion())) {
+         if (firstAttempt) {
+            repairConfigurations();
+            return loadConvertConfigurationAnswerElement(false);
+         }
+         else {
+            throw new BatfishException(
+                  "Version error repairing configurations for convert configuration answer element");
+         }
+      }
+      else {
+         return ccae;
+      }
+   }
+
+   @Override
    public DataPlane loadDataPlane() {
-      DataPlane dp = _dataPlanes.get(_testrigSettings);
+      DataPlane dp = _cachedDataPlanes.get(_testrigSettings);
       if (dp == null) {
-         dp = deserializeObject(
-               _testrigSettings.getEnvironmentSettings().getDataPlanePath(),
-               DataPlane.class);
-         _dataPlanes.put(_testrigSettings, dp);
+         /*
+          * Data plane should exist after loading answer element, as it triggers
+          * repair if necessary. However, it might not be cached if it was not
+          * repaired, so we still might need to load it from disk.
+          */
+         loadDataPlaneAnswerElement();
+         dp = _cachedDataPlanes.get(_testrigSettings);
+         if (dp == null) {
+            newBatch("Loading data plane from disk", 0);
+            dp = deserializeObject(
+                  _testrigSettings.getEnvironmentSettings().getDataPlanePath(),
+                  DataPlane.class);
+            _cachedDataPlanes.put(_testrigSettings, dp);
+         }
       }
       return dp;
+   }
+
+   private DataPlaneAnswerElement loadDataPlaneAnswerElement() {
+      return loadDataPlaneAnswerElement(true);
+   }
+
+   private DataPlaneAnswerElement loadDataPlaneAnswerElement(
+         boolean firstAttempt) {
+      DataPlaneAnswerElement bae = deserializeObject(
+            _testrigSettings.getEnvironmentSettings().getDataPlaneAnswerPath(),
+            DataPlaneAnswerElement.class);
+      if (!Version.isCompatibleVersion("Service", "Old data plane",
+            bae.getVersion())) {
+         if (firstAttempt) {
+            repairDataPlane();
+            return loadDataPlaneAnswerElement(false);
+         }
+         else {
+            throw new BatfishException(
+                  "Version error repairing data plane for data plane answer element");
+         }
+      }
+      else {
+         return bae;
+      }
+   }
+
+   @Override
+   public ParseVendorConfigurationAnswerElement loadParseVendorConfigurationAnswerElement() {
+      return loadParseVendorConfigurationAnswerElement(true);
+   }
+
+   private ParseVendorConfigurationAnswerElement loadParseVendorConfigurationAnswerElement(
+         boolean firstAttempt) {
+      ParseVendorConfigurationAnswerElement pvcae = deserializeObject(
+            _testrigSettings.getParseAnswerPath(),
+            ParseVendorConfigurationAnswerElement.class);
+      if (!Version.isCompatibleVersion("Service",
+            "Old processed configurations", pvcae.getVersion())) {
+         if (firstAttempt) {
+            repairVendorConfigurations();
+            return loadParseVendorConfigurationAnswerElement(false);
+         }
+         else {
+            throw new BatfishException(
+                  "Version error repairing vendor configurations for parse configuration answer element");
+         }
+      }
+      else {
+         return pvcae;
+      }
    }
 
    public Topology loadTopology() {
@@ -2386,9 +2625,9 @@ public class Batfish extends PluginConsumer implements AutoCloseable, IBatfish {
    private Question parseQuestion() {
       Path questionPath = _settings.getQuestionPath();
       _logger.info("Reading question file: \"" + questionPath + "\"...");
-      String questionText = CommonUtil.readFile(questionPath);
+      String rawQuestionText = CommonUtil.readFile(questionPath);
       _logger.info("OK\n");
-
+      String questionText = preprocessQuestion(rawQuestionText);
       try {
          ObjectMapper mapper = new BatfishObjectMapper(getCurrentClassLoader());
          Question question = mapper.readValue(questionText, Question.class);
@@ -2624,6 +2863,104 @@ public class Batfish extends PluginConsumer implements AutoCloseable, IBatfish {
       }
    }
 
+   private void postProcessConfigurations(
+         Collection<Configuration> configurations) {
+      // ComputeOSPF interface costs where they are missing
+      for (Configuration c : configurations) {
+         for (Vrf vrf : c.getVrfs().values()) {
+            OspfProcess proc = vrf.getOspfProcess();
+            if (proc != null) {
+               proc.initInterfaceCosts();
+            }
+         }
+      }
+   }
+
+   private String preprocessQuestion(String rawQuestionText) {
+      try {
+         JSONObject jobj = new JSONObject(rawQuestionText);
+         // first preprocess inner questions
+         if (jobj.has(Question.INNER_QUESTION_VAR)) {
+            JSONObject innerQuestion = jobj
+                  .getJSONObject(Question.INNER_QUESTION_VAR);
+            String innerQuestionStr = innerQuestion.toString();
+            String preprocessedInnerQuestionStr = preprocessQuestion(
+                  innerQuestionStr);
+            JSONObject preprocessedInnerQuestion = new JSONObject(
+                  preprocessedInnerQuestionStr);
+            jobj.put(Question.INNER_QUESTION_VAR, preprocessedInnerQuestion);
+         }
+         if (jobj.has(Question.INSTANCE_VAR)
+               && !jobj.isNull(Question.INSTANCE_VAR)) {
+            JSONObject instanceDataObj = jobj
+                  .getJSONObject(Question.INSTANCE_VAR);
+            String instanceDataStr = instanceDataObj.toString();
+            BatfishObjectMapper mapper = new BatfishObjectMapper();
+            InstanceData instanceData = mapper.<InstanceData> readValue(
+                  instanceDataStr, new TypeReference<InstanceData>() {
+                  });
+            for (Entry<String, Variable> e : instanceData.getVariables()
+                  .entrySet()) {
+               String varName = e.getKey();
+               Variable variable = e.getValue();
+               JsonNode value = variable.getValue();
+               boolean optional = variable.getOptional();
+               if (value == null && optional) {
+                  /*
+                   * For now we assume optional values are top-level variables
+                   * and single-line. Otherwise it's not really clear what to
+                   * do.
+                   */
+                  jobj.remove(varName);
+               }
+            }
+            String questionText = jobj.toString();
+            for (Entry<String, Variable> e : instanceData.getVariables()
+                  .entrySet()) {
+               String varName = e.getKey();
+               Variable variable = e.getValue();
+               JsonNode value = variable.getValue();
+               String valueJsonString = new ObjectMapper()
+                     .writeValueAsString(value);
+               boolean stringType = variable.getType().getStringType();
+               boolean setType = variable.getMinElements() != null;
+               if (value != null) {
+                  String topLevelVarNameRegex = Pattern
+                        .quote("\"${" + varName + "}\"");
+                  String inlineVarNameRegex = Pattern
+                        .quote("${" + varName + "}");
+                  String topLevelReplacement = valueJsonString;
+                  String inlineReplacement;
+                  if (stringType && !setType) {
+                     inlineReplacement = valueJsonString.substring(1,
+                           valueJsonString.length() - 1);
+                  }
+                  else {
+                     String quotedValueJsonString = JSONObject
+                           .quote(valueJsonString);
+                     inlineReplacement = quotedValueJsonString.substring(1,
+                           quotedValueJsonString.length() - 1);
+                  }
+                  String inlineReplacementRegex = Matcher
+                        .quoteReplacement(inlineReplacement);
+                  String topLevelReplacementRegex = Matcher
+                        .quoteReplacement(topLevelReplacement);
+                  questionText = questionText.replaceAll(topLevelVarNameRegex,
+                        topLevelReplacementRegex);
+                  questionText = questionText.replaceAll(inlineVarNameRegex,
+                        inlineReplacementRegex);
+               }
+            }
+            return questionText;
+         }
+         return rawQuestionText;
+      }
+      catch (JSONException | IOException e) {
+         throw new BatfishException(
+               "Could not convert raw question text to JSON", e);
+      }
+   }
+
    @Override
    public void printElapsedTime() {
       double seconds = getElapsedTime(_timerCount);
@@ -2816,12 +3153,15 @@ public class Batfish extends PluginConsumer implements AutoCloseable, IBatfish {
             .filter(path -> !path.getFileName().toString().startsWith("."))
             .collect(Collectors.toList()).toArray(new Path[] {});
       Arrays.sort(configFilePaths);
+      AtomicInteger completed = newBatch("Reading network configuration files",
+            configFilePaths.length);
       for (Path file : configFilePaths) {
          _logger.debug("Reading: \"" + file.toString() + "\"\n");
          String fileTextRaw = CommonUtil.readFile(file.toAbsolutePath());
          String fileText = fileTextRaw
                + ((fileTextRaw.length() != 0) ? "\n" : "");
          configurationData.put(file, fileText);
+         completed.incrementAndGet();
       }
       printElapsedTime();
       return configurationData;
@@ -2909,9 +3249,39 @@ public class Batfish extends PluginConsumer implements AutoCloseable, IBatfish {
    }
 
    @Override
-   public void registerAnswerer(String questionClassName,
+   public void registerAnswerer(String questionName, String questionClassName,
          BiFunction<Question, IBatfish, Answerer> answererCreator) {
-      _answererCreators.put(questionClassName, answererCreator);
+      _questionMap.put(questionName, questionClassName);
+      _answererCreators.put(questionName, answererCreator);
+   }
+
+   private void repairConfigurations() {
+      Path outputPath = _testrigSettings.getSerializeIndependentPath();
+      CommonUtil.deleteDirectory(outputPath);
+      ParseVendorConfigurationAnswerElement pvcae = loadParseVendorConfigurationAnswerElement();
+      if (!Version.isCompatibleVersion("Service", "Old parsed configurations",
+            pvcae.getVersion())) {
+         repairVendorConfigurations();
+      }
+      Path inputPath = _testrigSettings.getSerializeVendorPath();
+      serializeIndependentConfigs(inputPath, outputPath);
+   }
+
+   private void repairDataPlane() {
+      Path dataPlanePath = _testrigSettings.getEnvironmentSettings()
+            .getDataPlanePath();
+      Path dataPlaneAnswerPath = _testrigSettings.getEnvironmentSettings()
+            .getDataPlaneAnswerPath();
+      CommonUtil.delete(dataPlanePath);
+      CommonUtil.delete(dataPlaneAnswerPath);
+      computeDataPlane(false);
+   }
+
+   private void repairVendorConfigurations() {
+      Path outputPath = _testrigSettings.getSerializeVendorPath();
+      CommonUtil.deleteDirectory(outputPath);
+      Path testRigPath = _testrigSettings.getTestRigPath();
+      serializeVendorConfigs(testRigPath, outputPath);
    }
 
    private AnswerElement report() {
@@ -2959,6 +3329,7 @@ public class Batfish extends PluginConsumer implements AutoCloseable, IBatfish {
    }
 
    public Answer run() {
+      newBatch("Begin job", 0);
       loadPlugins();
       if (_dataPlanePlugin == null) {
          _dataPlanePlugin = new BdpDataPlanePlugin();
@@ -3220,9 +3591,9 @@ public class Batfish extends PluginConsumer implements AutoCloseable, IBatfish {
       resetTimer();
       outputPath.toFile().mkdirs();
       Map<Path, Configuration> output = new TreeMap<>();
-      configurations.forEach((name, vc) -> {
+      configurations.forEach((name, c) -> {
          Path currentOutputPath = outputPath.resolve(name);
-         output.put(currentOutputPath, vc);
+         output.put(currentOutputPath, c);
       });
       serializeObjects(output);
       printElapsedTime();
@@ -3232,6 +3603,7 @@ public class Batfish extends PluginConsumer implements AutoCloseable, IBatfish {
          Path outputPath) {
       Answer answer = new Answer();
       ConvertConfigurationAnswerElement answerElement = new ConvertConfigurationAnswerElement();
+      answerElement.setVersion(Version.getVersion());
       if (_settings.getVerboseParse()) {
          answer.addAnswerElement(answerElement);
       }
@@ -3296,6 +3668,40 @@ public class Batfish extends PluginConsumer implements AutoCloseable, IBatfish {
       printElapsedTime();
    }
 
+   public <S extends Serializable> void serializeObjects(
+         Map<Path, S> objectsByPath) {
+      if (objectsByPath.isEmpty()) {
+         return;
+      }
+      BatfishLogger logger = getLogger();
+      Map<Path, byte[]> dataByPath = new ConcurrentHashMap<>();
+      int size = objectsByPath.size();
+      String className = objectsByPath.values().iterator().next().getClass()
+            .getName();
+      AtomicInteger serializeCompleted = newBatch(
+            "Serializing '" + className + "' instances", size);
+      objectsByPath.keySet().parallelStream().forEach(outputPath -> {
+         S object = objectsByPath.get(outputPath);
+         byte[] gzipData = toGzipData(object);
+         dataByPath.put(outputPath, gzipData);
+         serializeCompleted.incrementAndGet();
+      });
+      AtomicInteger writeCompleted = newBatch(
+            "Packing and writing '" + className + "' instances to disk", size);
+      dataByPath.forEach((outputPath, data) -> {
+         logger.debug("Writing: \"" + outputPath.toString() + "\"...");
+         try {
+            Files.write(outputPath, data);
+         }
+         catch (IOException e) {
+            throw new BatfishException(
+                  "Failed to write: '" + outputPath.toString() + "'");
+         }
+         logger.debug("OK\n");
+         writeCompleted.incrementAndGet();
+      });
+   }
+
    private Answer serializeVendorConfigs(Path testRigPath, Path outputPath) {
       Answer answer = new Answer();
       boolean configsFound = false;
@@ -3304,6 +3710,7 @@ public class Batfish extends PluginConsumer implements AutoCloseable, IBatfish {
       Path networkConfigsPath = testRigPath
             .resolve(BfConsts.RELPATH_CONFIGURATIONS_DIR);
       ParseVendorConfigurationAnswerElement answerElement = new ParseVendorConfigurationAnswerElement();
+      answerElement.setVersion(Version.getVersion());
       if (_settings.getVerboseParse()) {
          answer.addAnswerElement(answerElement);
       }
@@ -3484,7 +3891,9 @@ public class Batfish extends PluginConsumer implements AutoCloseable, IBatfish {
       EdgeSet edges = new EdgeSet();
       Map<Prefix, Set<NodeInterfacePair>> prefixInterfaces = new HashMap<>();
       configurations.forEach((nodeName, node) -> {
-         node.getInterfaces().forEach((ifaceName, iface) -> {
+         for (Entry<String, Interface> e : node.getInterfaces().entrySet()) {
+            String ifaceName = e.getKey();
+            Interface iface = e.getValue();
             if (!iface.isLoopback(node.getConfigurationFormat())
                   && iface.getActive()) {
                for (Prefix prefix : iface.getAllPrefixes()) {
@@ -3503,7 +3912,7 @@ public class Batfish extends PluginConsumer implements AutoCloseable, IBatfish {
                   }
                }
             }
-         });
+         }
       });
       for (Set<NodeInterfacePair> bucket : prefixInterfaces.values()) {
          for (NodeInterfacePair p1 : bucket) {
@@ -3528,9 +3937,12 @@ public class Batfish extends PluginConsumer implements AutoCloseable, IBatfish {
    }
 
    @Override
-   public void writeDataPlane(DataPlane dp) {
+   public void writeDataPlane(DataPlane dp, DataPlaneAnswerElement ae) {
+      _cachedDataPlanes.put(_testrigSettings, dp);
       serializeObject(dp,
             _testrigSettings.getEnvironmentSettings().getDataPlanePath());
+      serializeObject(ae,
+            _testrigSettings.getEnvironmentSettings().getDataPlaneAnswerPath());
    }
 
    private void writeIbgpNeighbors(Path ibgpTopologyPath) {

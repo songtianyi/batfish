@@ -1,24 +1,31 @@
 {
-"answerElements" : [
-{
-  "class" : "org.batfish.datamodel.answers.ParseVendorConfigurationAnswerElement",
-  "parseStatus" : {
-    "R1" : "PASSED",
-    "R2" : "PASSED",
-    "R3" : "PASSED"
-  }
-},
-{
-  "class" : "org.batfish.datamodel.answers.ConvertConfigurationAnswerElement"
-},
-{
-  "class" : "org.batfish.datamodel.answers.InitInfoAnswerElement",
-  "parseStatus" : {
-    "R1" : "PASSED",
-    "R2" : "PASSED",
-    "R3" : "PASSED"
-  }
-}
-],
-"status" : "SUCCESS"
+  "answerElements" : [
+    {
+      "class" : "org.batfish.datamodel.answers.ParseVendorConfigurationAnswerElement",
+      "fileMap" : {
+        "R1" : "R1.cfg",
+        "R2" : "R2.cfg",
+        "R3" : "R3.cfg"
+      },
+      "parseStatus" : {
+        "R1" : "PASSED",
+        "R2" : "PASSED",
+        "R3" : "PASSED"
+      },
+      "version" : "0.14.0"
+    },
+    {
+      "class" : "org.batfish.datamodel.answers.ConvertConfigurationAnswerElement",
+      "version" : "0.14.0"
+    },
+    {
+      "class" : "org.batfish.datamodel.answers.InitInfoAnswerElement",
+      "parseStatus" : {
+        "R1" : "PASSED",
+        "R2" : "PASSED",
+        "R3" : "PASSED"
+      }
+    }
+  ],
+  "status" : "SUCCESS"
 }

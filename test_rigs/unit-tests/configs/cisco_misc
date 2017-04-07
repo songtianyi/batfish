@@ -45,8 +45,6 @@ load-balance policies
     distribution symmetric-hash mac-ip
 no lldp run
 load-interval default 5
-ip domain-name my.domain.name use-vrf blip
-domain-name my.domain.name
 nv
  satellite 100
   type asr9000v
@@ -279,6 +277,8 @@ mirror location 0/RSP0/CPU0 disk0:disk1:
 map-class dialer swiRZ2
  dialer idle-timeout 360
  dialer fast-idle 5
+!
+config-register 0x2102
 !
 dialer watch-list 76 ip 130.59.53.128 255.255.255.192
 !

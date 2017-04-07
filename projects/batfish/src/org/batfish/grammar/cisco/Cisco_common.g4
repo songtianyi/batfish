@@ -189,6 +189,12 @@ interface_name
    )
 ;
 
+ip_hostname
+:
+   IP_ADDRESS
+   | IPV6_ADDRESS
+;
+
 isis_level
 :
    LEVEL_1
@@ -287,6 +293,7 @@ port
    | LPD
    | LOGIN
    | LOTUSNOTES
+   | MICROSOFT_DS
    | MLAG
    | MOBILE_IP
    | MSRPC
@@ -452,6 +459,11 @@ unrecognized_line
 variable
 :
    ~NEWLINE
+;
+
+variable_hostname
+:
+   ~( USE_VRF | NEWLINE | VRF )+
 ;
 
 variable_permissive

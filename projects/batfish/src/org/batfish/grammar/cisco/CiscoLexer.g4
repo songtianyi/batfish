@@ -15,6 +15,7 @@ private boolean enableIP_ADDRESS = true;
 private boolean enableDEC = true;
 private boolean enableACL_NUM = false;
 private boolean enableCOMMUNITY_LIST_NUM = false;
+private boolean _inAccessList = false;
 private boolean inCommunitySet = false;
 private boolean _foundry = false;
 
@@ -69,6 +70,7 @@ tokens {
    RAW_TEXT,
    SELF_SIGNED,
    SLIP_PPP,
+   TEXT,
    VALUE
 } // Cisco Keywords
 
@@ -135,7 +137,7 @@ ACCESS_GROUP
 ACCESS_LIST
 :
    'access-list'
-   {enableACL_NUM = true; enableDEC = false;}
+   {enableACL_NUM = true; enableDEC = false;_inAccessList = true;}
 
 ;
 
@@ -182,6 +184,11 @@ ACCT_PORT
 ACK
 :
    'ack'
+;
+
+ACL
+:
+   'acl'
 ;
 
 ACL_POLICY
@@ -499,6 +506,11 @@ ALLOW_DEFAULT
    'allow-default'
 ;
 
+ALLOW_NOPASSWORD_REMOTE_LOGIN
+:
+   'allow-nopassword-remote-login'
+;
+
 ALLOW_SELF_PING
 :
    'allow-self-ping'
@@ -532,6 +544,11 @@ ALWAYS_COMPARE_MED
 ALWAYS_ON_VPN
 :
    'always-on-vpn'
+;
+
+AM_DISABLE
+:
+   'am-disable'
 ;
 
 AND
@@ -714,6 +731,11 @@ ASYNC
 ASYNC_BOOTP
 :
    'async-bootp'
+;
+
+ASYNCHRONOUS
+:
+   'asynchronous'
 ;
 
 ATM
@@ -986,6 +1008,11 @@ BIDIR_OFFER_LIMIT
    'bidir-offer-limit'
 ;
 
+BIDIR_RP_LIMIT
+:
+   'bidir-rp-limit'
+;
+
 BIFF
 :
    'biff'
@@ -1136,6 +1163,11 @@ BUFFERED
    'buffered'
 ;
 
+BUILDING_CONFIGURATION
+:
+   'Building configuration'
+;
+
 BUNDLE
 :
    'bundle'
@@ -1266,6 +1298,11 @@ CGMP
    'cgmp'
 ;
 
+CHAIN
+:
+   'chain'
+;
+
 CHANGES
 :
    'changes'
@@ -1309,6 +1346,11 @@ CHASSIS_ID
 CHAT_SCRIPT
 :
    'chat-script'
+;
+
+CHECK
+:
+   'check'
 ;
 
 CIPC
@@ -1404,6 +1446,11 @@ CLOCK
 CLOCK_PERIOD
 :
    'clock-period'
+;
+
+CLOSED
+:
+   'closed'
 ;
 
 CLUSTER
@@ -1519,6 +1566,11 @@ CON
 CONFDCONFIG
 :
    'confdConfig'
+;
+
+CONFIG
+:
+   'config'
 ;
 
 CONFIG_COMMANDS
@@ -1785,6 +1837,11 @@ CTL_FILE
 CTS
 :
    'cts'
+;
+
+CURRENT_CONFIGURATION
+:
+   'Current configuration'
 ;
 
 CUSTOMER_ID
@@ -2102,6 +2159,11 @@ DF
    'df'
 ;
 
+DF_BIT
+:
+   'df-bit'
+;
+
 DFA_REGEX
 :
    'dfa-regex'
@@ -2160,6 +2222,11 @@ DIRECT
 DIRECTED_BROADCAST
 :
    'directed-broadcast'
+;
+
+DIRECTED_REQUEST
+:
+   'directed-request'
 ;
 
 DISABLE
@@ -2587,6 +2654,11 @@ END_SET
 ENFORCE_FIRST_AS
 :
    'enforce-first-as'
+;
+
+ENGINE
+:
+   'engine'
 ;
 
 ENGINEID
@@ -3221,6 +3293,11 @@ GE
    'ge'
 ;
 
+GENERATE
+:
+   'generate'
+;
+
 GID
 :
    'gid'
@@ -3496,6 +3573,11 @@ HOST_INFO
    'host-info'
 ;
 
+HOST_PROXY
+:
+   'host-proxy'
+;
+
 HOST_ROUTING
 :
    'host-routing'
@@ -3671,6 +3753,11 @@ IKEV1
    'ikev1'
 ;
 
+IKEV2
+:
+   'ikev2'
+;
+
 ILMI_KEEPALIVE
 :
    'ilmi-keepalive'
@@ -3808,10 +3895,9 @@ INTERAREA
 
 INTERFACE
 :
-   'interface'
-   { enableIPV6_ADDRESS = false; }
+   'int' 'erface'?
+   { enableIPV6_ADDRESS = false; if (!_inAccessList) {pushMode(M_Interface);}}
 
-   -> pushMode ( M_Interface )
 ;
 
 INTERNAL
@@ -3877,6 +3963,21 @@ IPINIP
 IPSEC
 :
    'ipsec'
+;
+
+IPSEC_ISAKMP
+:
+   'ipsec-isakmp'
+;
+
+IPSEC_OVER_TCP
+:
+   'ipsec-over-tcp'
+;
+
+IPSEC_PROPOSAL
+:
+   'ipsec-proposal'
 ;
 
 IPSEC_UDP
@@ -4137,6 +4238,16 @@ LAPB
 LAST_AS
 :
    'last-as'
+;
+
+LAST_MEMBER_QUERY_COUNT
+:
+   'last-member-query-count'
+;
+
+LAST_MEMBER_QUERY_INTERVAL
+:
+   'last-member-query-interval'
 ;
 
 LDAP
@@ -4407,6 +4518,11 @@ LOGIN_ATTEMPTS
 LOGOUT_WARNING
 :
    'logout-warning'
+;
+
+LOOKUP
+:
+   'lookup'
 ;
 
 LOOPBACK
@@ -4809,6 +4925,11 @@ MICROCODE
    'microcode'
 ;
 
+MICROSOFT_DS
+:
+   'microsoft-ds'
+;
+
 MINIMAL
 :
    'minimal'
@@ -5079,6 +5200,11 @@ NAME_SERVER
    'name-server'
 ;
 
+NAMED_KEY
+:
+   'named-key'
+;
+
 NAMEIF
 :
    'nameif'
@@ -5107,6 +5233,11 @@ NAT
 NAT_CONTROL
 :
    'nat-control'
+;
+
+NAT_TRAVERSAL
+:
+   'nat-traversal'
 ;
 
 NATIVE
@@ -5494,6 +5625,16 @@ ON
    'on'
 ;
 
+ON_FAILURE
+:
+   'on-failure'
+;
+
+ON_SUCCESS
+:
+   'on-success'
+;
+
 ONE
 :
    'one'
@@ -5634,6 +5775,11 @@ OUT_OF_BAND
    'out-of-band'
 ;
 
+OUTBOUND_ACL_CHECK
+:
+   'outbound-acl-check'
+;
+
 OUTPUT
 :
    'output'
@@ -5682,6 +5828,11 @@ PACKET_TOO_BIG
 PAGER
 :
    'pager'
+;
+
+PARAM
+:
+   'param'
 ;
 
 PARAMETER_PROBLEM
@@ -6339,6 +6490,11 @@ PROXY_SERVER
    'proxy-server'
 ;
 
+PSEUDO_INFORMATION
+:
+   'pseudo-information'
+;
+
 PSEUDOWIRE
 :
    'pseudowire'
@@ -6397,6 +6553,11 @@ QOS_POLICY_OUTPUT
 QUERY_INTERVAL
 :
    'query-interval'
+;
+
+QUERY_MAX_RESPONSE_TIME
+:
+   'query-max-response-time'
 ;
 
 QUERY_ONLY
@@ -6574,6 +6735,11 @@ REDIRECT_FQDN
    'redirect-fqdn'
 ;
 
+REDIRECT_LIST
+:
+   'redirect-list'
+;
+
 REDIRECTS
 :
    'redirects'
@@ -6657,6 +6823,11 @@ REMARK
 REMOTE
 :
    'remote'
+;
+
+REMOTE_ACCESS
+:
+   'remote-access'
 ;
 
 REMOTE_AS
@@ -6909,6 +7080,11 @@ ROUTER_ADVERTISEMENT
    'router-advertisement'
 ;
 
+ROUTER_ALERT
+:
+   'router-alert'
+;
+
 ROUTER_ID
 :
    'router-id'
@@ -7149,6 +7325,11 @@ SECURITY
    'security'
 ;
 
+SECURITY_ASSOCIATION
+:
+   'security-association'
+;
+
 SECURITY_LEVEL
 :
    'security-level'
@@ -7279,6 +7460,11 @@ SERVICE_CLASS
    'service-class'
 ;
 
+SERVICE_LIST
+:
+   'service-list'
+;
+
 SERVICE_MODULE
 :
    'service-module'
@@ -7379,6 +7565,11 @@ SFTP
    'sftp'
 ;
 
+SG_EXPIRY_TIMER
+:
+   'sg-expiry-timer'
+;
+
 SGBP
 :
    'sgbp'
@@ -7409,14 +7600,9 @@ SHOW
    'show'
 ;
 
-SHUT
-:
-   'shut'
-;
-
 SHUTDOWN
 :
-   'shutdown'
+   'shut' 'down'?
 ;
 
 SIGNAL
@@ -7556,7 +7742,7 @@ SOFT_PREEMPTION
 
 SOFT_RECONFIGURATION
 :
-   'soft-reconfiguration'
+   'soft' '-reconfiguration'?
 ;
 
 SONET
@@ -7726,6 +7912,16 @@ START_TIME
    'start-time'
 ;
 
+STARTUP_QUERY_COUNT
+:
+   'startup-query-count'
+;
+
+STARTUP_QUERY_INTERVAL
+:
+   'startup-query-interval'
+;
+
 STATE
 :
    'state'
@@ -7739,6 +7935,11 @@ STATE_REFRESH
 STATIC
 :
    'static'
+;
+
+STATIC_GROUP
+:
+   'static-group'
 ;
 
 STATION_ROLE
@@ -8166,6 +8367,11 @@ TERMINAL_TYPE
    'terminal-type'
 ;
 
+TEST
+:
+   'test'
+;
+
 TFTP
 :
    'tftp'
@@ -8281,6 +8487,11 @@ TM_VOQ_COLLECTION
    'tm-voq-collection'
 ;
 
+TOKEN
+:
+   'token'
+;
+
 TOOL
 :
    'tool'
@@ -8334,6 +8545,11 @@ TRAFFIC_ENG
 TRAFFIC_INDEX
 :
    'traffic-index'
+;
+
+TRANSFORM_SET
+:
+   'transform-set'
 ;
 
 TRANSCEIVER
@@ -8626,6 +8842,11 @@ USE_ACL
    'use-acl'
 ;
 
+USE_BIA
+:
+   'use-bia'
+;
+
 USE_IPV4_ACL
 :
    'use-ipv4-acl'
@@ -8841,6 +9062,11 @@ VMPS
    'vmps'
 ;
 
+VMTRACER
+:
+   'vmtracer'
+;
+
 VOICE
 :
    'voice'
@@ -8986,6 +9212,16 @@ WATCH_LIST
 WAVELENGTH
 :
    'wavelength'
+;
+
+WCCP
+:
+   'wccp'
+;
+
+WEB_CACHE
+:
+   'web-cache'
 ;
 
 WEBVPN
@@ -9504,6 +9740,7 @@ NEWLINE
    	enableIP_ADDRESS = true;
       enableDEC = true;
       enableACL_NUM = false;
+      _inAccessList = false;
   }
 
 ;
@@ -9669,7 +9906,7 @@ F_UpperCaseLetter
 fragment
 F_Variable_RequiredVarChar
 :
-   ~( '0' .. '9' | '-' | [ \t\n\r(),!+$'*#] | '[' | ']' | [/.] | ':' )
+   ~( '0' .. '9' | '-' | [ \t\n\r(),!+$'"*#] | '[' | ']' | [/.] | ':' )
 ;
 
 fragment
@@ -9681,13 +9918,13 @@ F_Variable
 fragment
 F_Variable_VarChar
 :
-   ~( [ \t\n\r(),!+$'*#] | '[' | ']' )
+   ~( [ \t\n\r(),!+$'"*#] | '[' | ']' )
 ;
 
 fragment
 F_Variable_VarChar_Ipv6
 :
-   ~( [ \t\n\r(),!+$'*#] | '[' | ']' | ':' )
+   ~( [ \t\n\r(),!+$'"*#] | '[' | ']' | ':' )
 ;
 
 fragment
@@ -9891,6 +10128,11 @@ M_Authentication_PASSWORD_PROMPT
    'password-prompt' -> type ( PASSWORD_PROMPT ) , popMode
 ;
 
+M_Authentication_POLICY
+:
+   'policy' -> type ( POLICY ) , popMode
+;
+
 M_Authentication_PPP
 :
    'ppp' -> type ( PPP ) , popMode
@@ -9926,9 +10168,15 @@ M_Authentication_TELNET
    'telnet' -> type ( TELNET ) , popMode
 ;
 
+M_Authentication_TEXT
+:
+   'text' -> type ( TEXT ) , popMode
+;
+
 M_Authentication_USERNAME_PROMPT
 :
-   'username-prompt' -> type ( USERNAME_PROMPT ) , popMode
+   'username-prompt' -> type ( USERNAME_PROMPT ) , mode (
+   M_AuthenticationUsernamePrompt )
 ;
 
 M_Authentication_VARIABLE
@@ -9939,6 +10187,30 @@ M_Authentication_VARIABLE
 M_Authentication_WS
 :
    F_Whitespace+ -> channel ( HIDDEN )
+;
+
+mode M_AuthenticationUsernamePrompt;
+
+M_AuthenticationUsernamePrompt_DOUBLE_QUOTE
+:
+   '"' -> type ( DOUBLE_QUOTE ) , mode ( M_AuthenticationUsernamePromptText )
+;
+
+M_AuthenticationUsernamePrompt_WS
+:
+   F_Whitespace+ -> channel ( HIDDEN )
+;
+
+mode M_AuthenticationUsernamePromptText;
+
+M_AuthenticationUsernamePromptText_RAW_TEXT
+:
+   ~'"'+ -> type ( RAW_TEXT )
+;
+
+M_AuthenticationUsernamePromptText_DOUBLE_QUOTE
+:
+   '"' -> type ( DOUBLE_QUOTE ) , popMode
 ;
 
 mode M_Banner;

@@ -2,6 +2,15 @@
   "answerElements" : [
     {
       "class" : "org.batfish.datamodel.answers.ParseVendorConfigurationAnswerElement",
+      "fileMap" : {
+        "as2border1" : "as2border1.cfg",
+        "as2border2" : "as2border2.cfg",
+        "as2core1" : "as2core1.cfg",
+        "as2core2" : "as2core2.cfg",
+        "as2dept1" : "as2dept1.cfg",
+        "as2dist1" : "as2dist1.cfg",
+        "as2dist2" : "as2dist2.cfg"
+      },
       "parseStatus" : {
         "as2border1" : "PASSED",
         "as2border2" : "PASSED",
@@ -10,57 +19,83 @@
         "as2dept1" : "PASSED",
         "as2dist1" : "PASSED",
         "as2dist2" : "PASSED"
-      }
+      },
+      "version" : "0.14.0"
     },
     {
       "class" : "org.batfish.datamodel.answers.ConvertConfigurationAnswerElement",
       "undefinedReferences" : {
         "as2core2" : {
-          "route-map" : [
-            "filter-bogons"
-          ]
+          "route-map" : {
+            "filter-bogons" : {
+              "bgp inbound route-map" : [
+                90
+              ]
+            }
+          }
         }
       },
       "unusedStructures" : {
         "as2border1" : {
-          "bgp group" : [
-            "as3"
-          ],
-          "community-list" : [
-            "as2_community"
-          ],
-          "ipv4 prefix-list" : [
-            "inbound_route_filter"
-          ]
+          "bgp group" : {
+            "as3" : [
+              88
+            ]
+          },
+          "expanded community-list" : {
+            "as2_community" : [
+              119
+            ]
+          },
+          "ipv4 prefix-list" : {
+            "inbound_route_filter" : [
+              134
+            ]
+          }
         },
         "as2border2" : {
-          "bgp group" : [
-            "as1"
-          ],
-          "community-list" : [
-            "as2_community"
-          ],
-          "ipv4 prefix-list" : [
-            "inbound_route_filter"
-          ]
+          "bgp group" : {
+            "as1" : [
+              82
+            ]
+          },
+          "expanded community-list" : {
+            "as2_community" : [
+              117
+            ]
+          },
+          "ipv4 prefix-list" : {
+            "inbound_route_filter" : [
+              132
+            ]
+          }
         },
         "as2dept1" : {
-          "ip acl" : [
-            "105",
-            "RESTRICT_HOST_TRAFFIC_OUT"
-          ]
+          "extended ip access-list" : {
+            "105" : [
+              118
+            ],
+            "RESTRICT_HOST_TRAFFIC_OUT" : [
+              104
+            ]
+          }
         },
         "as2dist1" : {
-          "ip acl" : [
-            "102"
-          ]
+          "extended ip access-list" : {
+            "102" : [
+              117
+            ]
+          }
         },
         "as2dist2" : {
-          "ip acl" : [
-            "102"
-          ]
+          "extended ip access-list" : {
+            "102" : [
+              117
+            ]
+          }
         }
-      }
+      },
+      "version" : "0.14.0"
     },
     {
       "class" : "org.batfish.datamodel.answers.InitInfoAnswerElement",

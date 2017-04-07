@@ -8,8 +8,6 @@ import org.batfish.common.ParseTreeSentences;
 import org.batfish.common.Warning;
 import org.batfish.common.Warnings;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-
 public class ParseVendorConfigurationAnswerElement
       implements AnswerElement, Serializable {
 
@@ -18,13 +16,18 @@ public class ParseVendorConfigurationAnswerElement
     */
    private static final long serialVersionUID = 1L;
 
+   private SortedMap<String, String> _fileMap;
+
    private SortedMap<String, ParseStatus> _parseStatus;
 
    private SortedMap<String, ParseTreeSentences> _parseTrees;
 
+   private String _version;
+
    private SortedMap<String, Warnings> _warnings;
 
    public ParseVendorConfigurationAnswerElement() {
+      _fileMap = new TreeMap<>();
       _parseStatus = new TreeMap<>();
       _parseTrees = new TreeMap<>();
       _warnings = new TreeMap<>();
@@ -37,6 +40,10 @@ public class ParseVendorConfigurationAnswerElement
       _warnings.get(name).getRedFlagWarnings().add(warning);
    }
 
+   public SortedMap<String, String> getFileMap() {
+      return _fileMap;
+   }
+
    public SortedMap<String, ParseStatus> getParseStatus() {
       return _parseStatus;
    }
@@ -45,12 +52,16 @@ public class ParseVendorConfigurationAnswerElement
       return _parseTrees;
    }
 
+   public String getVersion() {
+      return _version;
+   }
+
    public SortedMap<String, Warnings> getWarnings() {
       return _warnings;
    }
 
    @Override
-   public String prettyPrint() throws JsonProcessingException {
+   public String prettyPrint() {
       StringBuilder retString = new StringBuilder(
             "Results of parsing vendor configurations\n");
 
@@ -80,12 +91,20 @@ public class ParseVendorConfigurationAnswerElement
       return retString.toString();
    }
 
+   public void setFileMap(SortedMap<String, String> fileMap) {
+      _fileMap = fileMap;
+   }
+
    public void setParseStatus(SortedMap<String, ParseStatus> parseStatus) {
       _parseStatus = parseStatus;
    }
 
    public void setParseTrees(SortedMap<String, ParseTreeSentences> parseTrees) {
       _parseTrees = parseTrees;
+   }
+
+   public void setVersion(String version) {
+      _version = version;
    }
 
    public void setWarnings(SortedMap<String, Warnings> warnings) {

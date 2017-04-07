@@ -17,7 +17,7 @@ public class SmtOneAnswerElement implements AnswerElement {
     }
 
     @Override
-    public String prettyPrint() throws JsonProcessingException {
+    public String prettyPrint() {
         return _result.prettyPrint(null);
     }
 }

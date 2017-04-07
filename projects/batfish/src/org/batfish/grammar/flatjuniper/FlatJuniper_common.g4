@@ -129,10 +129,16 @@ interface_id
 :
    (
       node = variable COLON
-   )? name = VARIABLE
-   (
-      PERIOD unit = DEC
    )?
+   (
+      name = VARIABLE
+      (
+         COLON suffix = DEC
+      )?
+      (
+         PERIOD unit = DEC
+      )?
+   )
 ;
 
 ip_option
@@ -309,6 +315,12 @@ standard_community
 :
    sc_literal
    | sc_named
+;
+
+string
+:
+   DOUBLE_QUOTED_STRING
+   | variable
 ;
 
 subrange

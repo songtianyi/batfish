@@ -478,7 +478,7 @@ public class HeaderQuestion extends Question implements IQuestion {
 
     @JsonProperty(NOT_IP_PROTOCOLS_VAR)
     public void setNotIpProtocols(Set<IpProtocol> notIpProtocols) {
-        _headerSpace.setNotIpProtocols(notIpProtocols);
+        _headerSpace.setNotIpProtocols(new TreeSet<>(notIpProtocols));
     }
 
     @JsonProperty(NOT_SRC_IPS_VAR)
@@ -533,7 +533,7 @@ public class HeaderQuestion extends Question implements IQuestion {
 
     @JsonProperty(IP_PROTOCOLS_VAR)
     public void setIpProtocols(Set<IpProtocol> ipProtocols) {
-        _headerSpace.setIpProtocols(ipProtocols);
+        _headerSpace.setIpProtocols(new TreeSet<>(ipProtocols));
     }
 
     @JsonProperty(FAILURES_VAR)

@@ -2,6 +2,11 @@
   "answerElements" : [
     {
       "class" : "org.batfish.datamodel.answers.ParseVendorConfigurationAnswerElement",
+      "fileMap" : {
+        "n1" : "n1",
+        "n2" : "n2",
+        "n3" : "n3"
+      },
       "parseStatus" : {
         "n1" : "PASSED",
         "n2" : "PASSED",
@@ -31,7 +36,7 @@
             "          (s_interfaces",
             "            INTERFACES:'interfaces'  <== mode:DEFAULT_MODE",
             "            (int_named",
-            "              (variable",
+            "              (interface_id",
             "                VARIABLE:'ge-0/0/0'  <== mode:M_Interface)",
             "              (i_unit",
             "                UNIT:'unit'  <== mode:DEFAULT_MODE",
@@ -545,7 +550,7 @@
             "          (s_interfaces",
             "            INTERFACES:'interfaces'  <== mode:DEFAULT_MODE",
             "            (int_named",
-            "              (variable",
+            "              (interface_id",
             "                VARIABLE:'ge-0/0/0'  <== mode:M_Interface)",
             "              (i_unit",
             "                UNIT:'unit'  <== mode:DEFAULT_MODE",
@@ -567,7 +572,7 @@
             "          (s_interfaces",
             "            INTERFACES:'interfaces'  <== mode:DEFAULT_MODE",
             "            (int_named",
-            "              (variable",
+            "              (interface_id",
             "                VARIABLE:'ge-0/0/0'  <== mode:M_Interface)",
             "              (i_unit",
             "                UNIT:'unit'  <== mode:DEFAULT_MODE",
@@ -938,10 +943,12 @@
             "  EOF:<EOF>  <== mode:DEFAULT_MODE)"
           ]
         }
-      }
+      },
+      "version" : "0.14.0"
     },
     {
-      "class" : "org.batfish.datamodel.answers.ConvertConfigurationAnswerElement"
+      "class" : "org.batfish.datamodel.answers.ConvertConfigurationAnswerElement",
+      "version" : "0.14.0"
     },
     {
       "class" : "org.batfish.datamodel.answers.InitInfoAnswerElement",

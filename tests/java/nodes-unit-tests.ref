@@ -61,7 +61,7 @@
               "aaa" : {
                 "accounting" : {
                   "commands" : {
-                    "default" : null
+                    "default" : { }
                   }
                 },
                 "newModel" : false
@@ -554,7 +554,9 @@
           "vendorFamily" : {
             "cisco" : {
               "hostname" : "arista_logging",
-              "logging" : { }
+              "logging" : {
+                "on" : true
+              }
             }
           },
           "vrfs" : {
@@ -725,6 +727,7 @@
               },
               "hostname" : "banner",
               "logging" : {
+                "on" : true,
                 "trap" : {
                   "severity" : "informational",
                   "severityNum" : 6
@@ -1363,10 +1366,10 @@
               "aaa" : {
                 "accounting" : {
                   "commands" : {
-                    "0" : null,
-                    "1" : null,
-                    "15" : null,
-                    "default" : null
+                    "0" : { },
+                    "1" : { },
+                    "15" : { },
+                    "default" : { }
                   }
                 },
                 "authentication" : {
@@ -1381,6 +1384,322 @@
                 "newModel" : true
               },
               "hostname" : "cisco_aaa"
+            }
+          },
+          "vrfs" : {
+            "default" : {
+              "name" : "default"
+            }
+          }
+        },
+        "cisco_acl" : {
+          "name" : "cisco_acl",
+          "configurationFormat" : "CISCO_NX",
+          "defaultCrossZoneAction" : "ACCEPT",
+          "defaultInboundAction" : "ACCEPT",
+          "ipAccessLists" : {
+            "BLAH-BLAH" : {
+              "name" : "BLAH-BLAH",
+              "lines" : [
+                {
+                  "action" : "ACCEPT",
+                  "dstIps" : [
+                    "0.0.0.0/0"
+                  ],
+                  "ipProtocols" : [
+                    "ICMP"
+                  ],
+                  "name" : "10 permit icmp any any",
+                  "negate" : false,
+                  "srcIps" : [
+                    "0.0.0.0/0"
+                  ]
+                },
+                {
+                  "action" : "ACCEPT",
+                  "dstIps" : [
+                    "0.0.0.0/0"
+                  ],
+                  "name" : "20 permit ip any any tracked",
+                  "negate" : false,
+                  "srcIps" : [
+                    "0.0.0.0/0"
+                  ],
+                  "states" : [
+                    "ESTABLISHED"
+                  ]
+                },
+                {
+                  "action" : "ACCEPT",
+                  "dstIps" : [
+                    "0.0.0.0/0"
+                  ],
+                  "ipProtocols" : [
+                    "OSPF"
+                  ],
+                  "name" : "30 permit ospf any any",
+                  "negate" : false,
+                  "srcIps" : [
+                    "0.0.0.0/0"
+                  ]
+                },
+                {
+                  "action" : "ACCEPT",
+                  "dstIps" : [
+                    "0.0.0.0/0"
+                  ],
+                  "dstPorts" : [
+                    "179-179"
+                  ],
+                  "ipProtocols" : [
+                    "TCP"
+                  ],
+                  "name" : "40 permit tcp any any eq bgp",
+                  "negate" : false,
+                  "srcIps" : [
+                    "0.0.0.0/0"
+                  ]
+                },
+                {
+                  "action" : "ACCEPT",
+                  "dstIps" : [
+                    "0.0.0.0/0"
+                  ],
+                  "dstPorts" : [
+                    "67-67",
+                    "68-68",
+                    "123-123"
+                  ],
+                  "ipProtocols" : [
+                    "UDP"
+                  ],
+                  "name" : "50 permit udp any any eq bootps bootpc ntp",
+                  "negate" : false,
+                  "srcIps" : [
+                    "0.0.0.0/0"
+                  ]
+                },
+                {
+                  "action" : "ACCEPT",
+                  "dstIps" : [
+                    "0.0.0.0/0"
+                  ],
+                  "dstPorts" : [
+                    "6784-6784"
+                  ],
+                  "ipProtocols" : [
+                    "TCP"
+                  ],
+                  "name" : "60 permit tcp any any eq mlag ttl eq 255",
+                  "negate" : false,
+                  "srcIps" : [
+                    "0.0.0.0/0"
+                  ]
+                },
+                {
+                  "action" : "ACCEPT",
+                  "dstIps" : [
+                    "0.0.0.0/0"
+                  ],
+                  "dstPorts" : [
+                    "6784-6784"
+                  ],
+                  "ipProtocols" : [
+                    "UDP"
+                  ],
+                  "name" : "70 permit udp any any eq mlag ttl eq 255",
+                  "negate" : false,
+                  "srcIps" : [
+                    "0.0.0.0/0"
+                  ]
+                },
+                {
+                  "action" : "ACCEPT",
+                  "dstIps" : [
+                    "0.0.0.0/0"
+                  ],
+                  "ipProtocols" : [
+                    "VRRP"
+                  ],
+                  "name" : "80 permit vrrp any any",
+                  "negate" : false,
+                  "srcIps" : [
+                    "0.0.0.0/0"
+                  ]
+                },
+                {
+                  "action" : "ACCEPT",
+                  "dstIps" : [
+                    "0.0.0.0/0"
+                  ],
+                  "ipProtocols" : [
+                    "AHP"
+                  ],
+                  "name" : "90 permit ahp any any",
+                  "negate" : false,
+                  "srcIps" : [
+                    "0.0.0.0/0"
+                  ]
+                },
+                {
+                  "action" : "ACCEPT",
+                  "dstIps" : [
+                    "0.0.0.0/0"
+                  ],
+                  "ipProtocols" : [
+                    "PIM"
+                  ],
+                  "name" : "100 permit pim any any",
+                  "negate" : false,
+                  "srcIps" : [
+                    "0.0.0.0/0"
+                  ]
+                },
+                {
+                  "action" : "ACCEPT",
+                  "dstIps" : [
+                    "0.0.0.0/0"
+                  ],
+                  "ipProtocols" : [
+                    "IGMP"
+                  ],
+                  "name" : "110 permit igmp any any",
+                  "negate" : false,
+                  "srcIps" : [
+                    "0.0.0.0/0"
+                  ]
+                },
+                {
+                  "action" : "ACCEPT",
+                  "dstIps" : [
+                    "0.0.0.0/0"
+                  ],
+                  "dstPorts" : [
+                    "1-10"
+                  ],
+                  "ipProtocols" : [
+                    "TCP"
+                  ],
+                  "name" : "120 permit tcp any any range 1 10",
+                  "negate" : false,
+                  "srcIps" : [
+                    "0.0.0.0/0"
+                  ]
+                },
+                {
+                  "action" : "ACCEPT",
+                  "dstIps" : [
+                    "0.0.0.0/0"
+                  ],
+                  "dstPorts" : [
+                    "161-161"
+                  ],
+                  "ipProtocols" : [
+                    "UDP"
+                  ],
+                  "name" : "140 permit udp 10.0.0.0/19 any eq snmp",
+                  "negate" : false,
+                  "srcIps" : [
+                    "10.0.0.0/19"
+                  ]
+                },
+                {
+                  "action" : "ACCEPT",
+                  "dstIps" : [
+                    "0.0.0.0/0"
+                  ],
+                  "dstPorts" : [
+                    "161-161"
+                  ],
+                  "ipProtocols" : [
+                    "UDP"
+                  ],
+                  "name" : "180 permit udp host 10.0.0.0 any eq snmp",
+                  "negate" : false,
+                  "srcIps" : [
+                    "10.0.0.0"
+                  ]
+                },
+                {
+                  "action" : "ACCEPT",
+                  "dstIps" : [
+                    "0.0.0.0/0"
+                  ],
+                  "dstPorts" : [
+                    "22-22"
+                  ],
+                  "ipProtocols" : [
+                    "TCP"
+                  ],
+                  "name" : "220 permit tcp 10.0.0.0/19 any eq ssh",
+                  "negate" : false,
+                  "srcIps" : [
+                    "10.0.0.0/19"
+                  ]
+                },
+                {
+                  "action" : "ACCEPT",
+                  "dstIps" : [
+                    "0.0.0.0/0"
+                  ],
+                  "dstPorts" : [
+                    "22-22"
+                  ],
+                  "ipProtocols" : [
+                    "TCP"
+                  ],
+                  "name" : "260 permit tcp host 10.0.0.0 any eq ssh",
+                  "negate" : false,
+                  "srcIps" : [
+                    "10.0.0.0"
+                  ]
+                },
+                {
+                  "action" : "ACCEPT",
+                  "dstIps" : [
+                    "0.0.0.0/0"
+                  ],
+                  "dstPorts" : [
+                    "445-445",
+                    "5432-5432"
+                  ],
+                  "ipProtocols" : [
+                    "TCP"
+                  ],
+                  "name" : "270 permit tcp any any eq microsoft-ds 5432",
+                  "negate" : false,
+                  "srcIps" : [
+                    "0.0.0.0/0"
+                  ]
+                }
+              ]
+            },
+            "blah" : {
+              "name" : "blah",
+              "lines" : [
+                {
+                  "action" : "ACCEPT",
+                  "dstIps" : [
+                    "0.0.0.0/0"
+                  ],
+                  "name" : "10 permit ip any any",
+                  "negate" : false,
+                  "srcIps" : [
+                    "0.0.0.0/0"
+                  ]
+                }
+              ]
+            },
+            "extended" : {
+              "name" : "extended"
+            },
+            "standard" : {
+              "name" : "standard"
+            }
+          },
+          "vendorFamily" : {
+            "cisco" : {
+              "hostname" : "cisco_acl"
             }
           },
           "vrfs" : {
@@ -1571,6 +1890,27 @@
             }
           }
         },
+        "cisco_domain" : {
+          "name" : "cisco_domain",
+          "configurationFormat" : "CISCO_NX",
+          "defaultCrossZoneAction" : "ACCEPT",
+          "defaultInboundAction" : "ACCEPT",
+          "dnsServers" : [
+            "1.2.3.4",
+            "2.3.4.5"
+          ],
+          "domainName" : "my.domain.name",
+          "vendorFamily" : {
+            "cisco" : {
+              "hostname" : "cisco_domain"
+            }
+          },
+          "vrfs" : {
+            "default" : {
+              "name" : "default"
+            }
+          }
+        },
         "cisco_dot11" : {
           "name" : "cisco_dot11",
           "configurationFormat" : "CISCO_NX",
@@ -1635,6 +1975,136 @@
             }
           }
         },
+        "cisco_eigrp" : {
+          "name" : "cisco_eigrp",
+          "configurationFormat" : "CISCO_NX",
+          "defaultCrossZoneAction" : "ACCEPT",
+          "defaultInboundAction" : "ACCEPT",
+          "ipAccessLists" : {
+            "bippety" : {
+              "name" : "bippety",
+              "lines" : [
+                {
+                  "action" : "ACCEPT",
+                  "dstIps" : [
+                    "1.1.1.1"
+                  ],
+                  "dstPorts" : [
+                    "48000-48060"
+                  ],
+                  "ipProtocols" : [
+                    "TCP"
+                  ],
+                  "name" : "permit tcp 30.9.132.0 0.0.1.255 host 1.1.1.1 range 48000 48060",
+                  "negate" : false,
+                  "srcIps" : [
+                    "30.9.132.0/23"
+                  ]
+                },
+                {
+                  "action" : "ACCEPT",
+                  "dstIps" : [
+                    "0.0.0.0/0"
+                  ],
+                  "dstPorts" : [
+                    "27401-27401"
+                  ],
+                  "ipProtocols" : [
+                    "TCP"
+                  ],
+                  "name" : "permit tcp host 1.1.1.1 any eq 27401",
+                  "negate" : false,
+                  "srcIps" : [
+                    "1.1.1.1"
+                  ]
+                },
+                {
+                  "action" : "ACCEPT",
+                  "dstIps" : [
+                    "1.1.1.1"
+                  ],
+                  "dstPorts" : [
+                    "65001-65001"
+                  ],
+                  "ipProtocols" : [
+                    "TCP"
+                  ],
+                  "name" : "permit tcp any host 1.1.1.1 eq 65001",
+                  "negate" : false,
+                  "srcIps" : [
+                    "0.0.0.0/0"
+                  ]
+                },
+                {
+                  "action" : "ACCEPT",
+                  "dstIps" : [
+                    "0.0.0.0/0"
+                  ],
+                  "dstPorts" : [
+                    "20000-20000"
+                  ],
+                  "ipProtocols" : [
+                    "TCP"
+                  ],
+                  "name" : "permit tcp host 1.1.1.1 any eq 20000",
+                  "negate" : false,
+                  "srcIps" : [
+                    "1.1.1.1"
+                  ]
+                },
+                {
+                  "action" : "ACCEPT",
+                  "dstIps" : [
+                    "1.1.1.1"
+                  ],
+                  "dstPorts" : [
+                    "65111-65111"
+                  ],
+                  "ipProtocols" : [
+                    "TCP"
+                  ],
+                  "name" : "permit tcp any host 1.1.1.1 eq 65111",
+                  "negate" : false,
+                  "srcIps" : [
+                    "0.0.0.0/0"
+                  ]
+                }
+              ]
+            },
+            "bloop_blop" : {
+              "name" : "bloop_blop",
+              "lines" : [
+                {
+                  "action" : "ACCEPT",
+                  "dstIps" : [
+                    "0.0.0.0/0"
+                  ],
+                  "dstPorts" : [
+                    "13000-13000"
+                  ],
+                  "ipProtocols" : [
+                    "TCP"
+                  ],
+                  "name" : "permit tcp addrgroup bleep_blorp any eq 13000",
+                  "negate" : false,
+                  "srcIps" : [
+                    "0.0.0.0/0"
+                  ]
+                }
+              ]
+            }
+          },
+          "vendorFamily" : {
+            "cisco" : {
+              "hostname" : "cisco_eigrp"
+            }
+          },
+          "vrfs" : {
+            "default" : {
+              "name" : "default"
+            }
+          }
+        },
         "cisco_flow" : {
           "name" : "cisco_flow",
           "configurationFormat" : "CISCO_NX",
@@ -1667,6 +2137,45 @@
             }
           }
         },
+        "cisco_hsrp" : {
+          "name" : "cisco_hsrp",
+          "configurationFormat" : "CISCO_NX",
+          "defaultCrossZoneAction" : "ACCEPT",
+          "defaultInboundAction" : "ACCEPT",
+          "interfaces" : {
+            "TenGigabitEthernet0/0/2/2" : {
+              "name" : "TenGigabitEthernet0/0/2/2",
+              "accessVlan" : 0,
+              "active" : true,
+              "bandwidth" : 1.0E10,
+              "isisL1InterfaceMode" : "unset",
+              "isisL2InterfaceMode" : "unset",
+              "mtu" : 1500,
+              "nativeVlan" : 1,
+              "ospfDeadInterval" : 0,
+              "ospfEnabled" : false,
+              "ospfHelloMultiplier" : 0,
+              "ospfPassive" : false,
+              "proxyArp" : false,
+              "switchportMode" : "NONE",
+              "switchportTrunkEncapsulation" : "DOT1Q",
+              "vrf" : "default"
+            }
+          },
+          "vendorFamily" : {
+            "cisco" : {
+              "hostname" : "cisco_hsrp"
+            }
+          },
+          "vrfs" : {
+            "default" : {
+              "name" : "default",
+              "interfaces" : [
+                "TenGigabitEthernet0/0/2/2"
+              ]
+            }
+          }
+        },
         "cisco_interface" : {
           "name" : "cisco_interface",
           "configurationFormat" : "CISCO_NX",
@@ -1686,6 +2195,7 @@
               "ospfEnabled" : false,
               "ospfHelloMultiplier" : 0,
               "ospfPassive" : false,
+              "proxyArp" : false,
               "switchportMode" : "NONE",
               "switchportTrunkEncapsulation" : "DOT1Q",
               "vrf" : "default"
@@ -1703,6 +2213,7 @@
               "ospfEnabled" : false,
               "ospfHelloMultiplier" : 0,
               "ospfPassive" : false,
+              "proxyArp" : false,
               "switchportMode" : "NONE",
               "switchportTrunkEncapsulation" : "DOT1Q",
               "vrf" : "default"
@@ -1720,6 +2231,7 @@
               "ospfEnabled" : false,
               "ospfHelloMultiplier" : 0,
               "ospfPassive" : false,
+              "proxyArp" : false,
               "switchportMode" : "NONE",
               "switchportTrunkEncapsulation" : "DOT1Q",
               "vrf" : "default"
@@ -1737,6 +2249,7 @@
               "ospfEnabled" : false,
               "ospfHelloMultiplier" : 0,
               "ospfPassive" : false,
+              "proxyArp" : false,
               "switchportMode" : "NONE",
               "switchportTrunkEncapsulation" : "DOT1Q",
               "vrf" : "default"
@@ -1759,6 +2272,7 @@
               "ospfHelloMultiplier" : 0,
               "ospfPassive" : false,
               "prefix" : "13.9.2.2/32",
+              "proxyArp" : false,
               "switchportMode" : "NONE",
               "switchportTrunkEncapsulation" : "DOT1Q",
               "vrf" : "default"
@@ -1776,6 +2290,87 @@
               "ospfEnabled" : false,
               "ospfHelloMultiplier" : 0,
               "ospfPassive" : false,
+              "proxyArp" : false,
+              "switchportMode" : "NONE",
+              "switchportTrunkEncapsulation" : "DOT1Q",
+              "vrf" : "default"
+            },
+            "Vlan111" : {
+              "name" : "Vlan111",
+              "accessVlan" : 0,
+              "active" : true,
+              "bandwidth" : 1.0E12,
+              "isisL1InterfaceMode" : "unset",
+              "isisL2InterfaceMode" : "unset",
+              "mtu" : 1500,
+              "nativeVlan" : 1,
+              "ospfDeadInterval" : 0,
+              "ospfEnabled" : false,
+              "ospfHelloMultiplier" : 0,
+              "ospfPassive" : false,
+              "proxyArp" : false,
+              "switchportMode" : "NONE",
+              "switchportTrunkEncapsulation" : "DOT1Q",
+              "vrf" : "default"
+            },
+            "Vlan112" : {
+              "name" : "Vlan112",
+              "accessVlan" : 0,
+              "active" : true,
+              "allPrefixes" : [
+                "2.3.4.0/29"
+              ],
+              "bandwidth" : 1.0E12,
+              "isisL1InterfaceMode" : "unset",
+              "isisL2InterfaceMode" : "unset",
+              "mtu" : 1500,
+              "nativeVlan" : 1,
+              "ospfDeadInterval" : 0,
+              "ospfEnabled" : false,
+              "ospfHelloMultiplier" : 0,
+              "ospfPassive" : false,
+              "prefix" : "2.3.4.0/29",
+              "proxyArp" : false,
+              "switchportMode" : "NONE",
+              "switchportTrunkEncapsulation" : "DOT1Q",
+              "vrf" : "default"
+            },
+            "Vlan113" : {
+              "name" : "Vlan113",
+              "accessVlan" : 0,
+              "active" : true,
+              "allPrefixes" : [
+                "3.4.5.0/24"
+              ],
+              "bandwidth" : 1.0E12,
+              "isisL1InterfaceMode" : "unset",
+              "isisL2InterfaceMode" : "unset",
+              "mtu" : 1500,
+              "nativeVlan" : 1,
+              "ospfDeadInterval" : 0,
+              "ospfEnabled" : false,
+              "ospfHelloMultiplier" : 0,
+              "ospfPassive" : false,
+              "prefix" : "3.4.5.0/24",
+              "proxyArp" : false,
+              "switchportMode" : "NONE",
+              "switchportTrunkEncapsulation" : "DOT1Q",
+              "vrf" : "default"
+            },
+            "Vxlan1" : {
+              "name" : "Vxlan1",
+              "accessVlan" : 0,
+              "active" : true,
+              "bandwidth" : 1.0E12,
+              "isisL1InterfaceMode" : "unset",
+              "isisL2InterfaceMode" : "unset",
+              "mtu" : 1500,
+              "nativeVlan" : 1,
+              "ospfDeadInterval" : 0,
+              "ospfEnabled" : false,
+              "ospfHelloMultiplier" : 0,
+              "ospfPassive" : false,
+              "proxyArp" : false,
               "switchportMode" : "NONE",
               "switchportTrunkEncapsulation" : "DOT1Q",
               "vrf" : "default"
@@ -1797,6 +2392,7 @@
               "ospfHelloMultiplier" : 0,
               "ospfPassive" : false,
               "prefix" : "1.2.3.4/30",
+              "proxyArp" : false,
               "switchportMode" : "NONE",
               "switchportTrunkEncapsulation" : "DOT1Q",
               "vrf" : "default"
@@ -1817,6 +2413,10 @@
                 "Ethernet1/11",
                 "Loopback0",
                 "Null0",
+                "Vlan111",
+                "Vlan112",
+                "Vlan113",
+                "Vxlan1",
                 "tunnel-ip6"
               ]
             }
@@ -2223,6 +2823,7 @@
               "ospfHelloMultiplier" : 0,
               "ospfPassive" : false,
               "prefix" : "137.164.25.57/30",
+              "proxyArp" : true,
               "switchportMode" : "NONE",
               "switchportTrunkEncapsulation" : "DOT1Q",
               "vrf" : "default"
@@ -2240,6 +2841,7 @@
               "ospfEnabled" : false,
               "ospfHelloMultiplier" : 0,
               "ospfPassive" : false,
+              "proxyArp" : true,
               "switchportMode" : "NONE",
               "switchportTrunkEncapsulation" : "DOT1Q",
               "vrf" : "default"
@@ -2257,6 +2859,7 @@
               "ospfEnabled" : false,
               "ospfHelloMultiplier" : 0,
               "ospfPassive" : false,
+              "proxyArp" : true,
               "switchportMode" : "NONE",
               "switchportTrunkEncapsulation" : "DOT1Q",
               "vrf" : "default"
@@ -2274,6 +2877,7 @@
               "ospfEnabled" : false,
               "ospfHelloMultiplier" : 0,
               "ospfPassive" : false,
+              "proxyArp" : true,
               "switchportMode" : "NONE",
               "switchportTrunkEncapsulation" : "DOT1Q",
               "vrf" : "default"
@@ -2311,8 +2915,9 @@
               "lines" : {
                 "<UNNAMED>0/0/0" : {
                   "name" : "<UNNAMED>0/0/0",
+                  "execTimeoutMinutes" : 0,
+                  "execTimeoutSeconds" : 0,
                   "inputAccessList" : "40",
-                  "loginAuthentication" : "SecurID",
                   "transportInput" : [
                     "telnet"
                   ],
@@ -2325,8 +2930,9 @@
                 },
                 "<UNNAMED>0/0/1" : {
                   "name" : "<UNNAMED>0/0/1",
+                  "execTimeoutMinutes" : 0,
+                  "execTimeoutSeconds" : 0,
                   "inputAccessList" : "40",
-                  "loginAuthentication" : "SecurID",
                   "transportInput" : [
                     "telnet"
                   ],
@@ -2339,8 +2945,9 @@
                 },
                 "<UNNAMED>0/0/10" : {
                   "name" : "<UNNAMED>0/0/10",
+                  "execTimeoutMinutes" : 0,
+                  "execTimeoutSeconds" : 0,
                   "inputAccessList" : "40",
-                  "loginAuthentication" : "SecurID",
                   "transportInput" : [
                     "telnet"
                   ],
@@ -2353,8 +2960,9 @@
                 },
                 "<UNNAMED>0/0/11" : {
                   "name" : "<UNNAMED>0/0/11",
+                  "execTimeoutMinutes" : 0,
+                  "execTimeoutSeconds" : 0,
                   "inputAccessList" : "40",
-                  "loginAuthentication" : "SecurID",
                   "transportInput" : [
                     "telnet"
                   ],
@@ -2367,8 +2975,9 @@
                 },
                 "<UNNAMED>0/0/12" : {
                   "name" : "<UNNAMED>0/0/12",
+                  "execTimeoutMinutes" : 0,
+                  "execTimeoutSeconds" : 0,
                   "inputAccessList" : "40",
-                  "loginAuthentication" : "SecurID",
                   "transportInput" : [
                     "telnet"
                   ],
@@ -2381,8 +2990,9 @@
                 },
                 "<UNNAMED>0/0/13" : {
                   "name" : "<UNNAMED>0/0/13",
+                  "execTimeoutMinutes" : 0,
+                  "execTimeoutSeconds" : 0,
                   "inputAccessList" : "40",
-                  "loginAuthentication" : "SecurID",
                   "transportInput" : [
                     "telnet"
                   ],
@@ -2395,8 +3005,9 @@
                 },
                 "<UNNAMED>0/0/14" : {
                   "name" : "<UNNAMED>0/0/14",
+                  "execTimeoutMinutes" : 0,
+                  "execTimeoutSeconds" : 0,
                   "inputAccessList" : "40",
-                  "loginAuthentication" : "SecurID",
                   "transportInput" : [
                     "telnet"
                   ],
@@ -2409,8 +3020,9 @@
                 },
                 "<UNNAMED>0/0/15" : {
                   "name" : "<UNNAMED>0/0/15",
+                  "execTimeoutMinutes" : 0,
+                  "execTimeoutSeconds" : 0,
                   "inputAccessList" : "40",
-                  "loginAuthentication" : "SecurID",
                   "transportInput" : [
                     "telnet"
                   ],
@@ -2423,8 +3035,9 @@
                 },
                 "<UNNAMED>0/0/2" : {
                   "name" : "<UNNAMED>0/0/2",
+                  "execTimeoutMinutes" : 0,
+                  "execTimeoutSeconds" : 0,
                   "inputAccessList" : "40",
-                  "loginAuthentication" : "SecurID",
                   "transportInput" : [
                     "telnet"
                   ],
@@ -2437,8 +3050,9 @@
                 },
                 "<UNNAMED>0/0/3" : {
                   "name" : "<UNNAMED>0/0/3",
+                  "execTimeoutMinutes" : 0,
+                  "execTimeoutSeconds" : 0,
                   "inputAccessList" : "40",
-                  "loginAuthentication" : "SecurID",
                   "transportInput" : [
                     "telnet"
                   ],
@@ -2451,8 +3065,9 @@
                 },
                 "<UNNAMED>0/0/4" : {
                   "name" : "<UNNAMED>0/0/4",
+                  "execTimeoutMinutes" : 0,
+                  "execTimeoutSeconds" : 0,
                   "inputAccessList" : "40",
-                  "loginAuthentication" : "SecurID",
                   "transportInput" : [
                     "telnet"
                   ],
@@ -2465,8 +3080,9 @@
                 },
                 "<UNNAMED>0/0/5" : {
                   "name" : "<UNNAMED>0/0/5",
+                  "execTimeoutMinutes" : 0,
+                  "execTimeoutSeconds" : 0,
                   "inputAccessList" : "40",
-                  "loginAuthentication" : "SecurID",
                   "transportInput" : [
                     "telnet"
                   ],
@@ -2479,8 +3095,9 @@
                 },
                 "<UNNAMED>0/0/6" : {
                   "name" : "<UNNAMED>0/0/6",
+                  "execTimeoutMinutes" : 0,
+                  "execTimeoutSeconds" : 0,
                   "inputAccessList" : "40",
-                  "loginAuthentication" : "SecurID",
                   "transportInput" : [
                     "telnet"
                   ],
@@ -2493,8 +3110,9 @@
                 },
                 "<UNNAMED>0/0/7" : {
                   "name" : "<UNNAMED>0/0/7",
+                  "execTimeoutMinutes" : 0,
+                  "execTimeoutSeconds" : 0,
                   "inputAccessList" : "40",
-                  "loginAuthentication" : "SecurID",
                   "transportInput" : [
                     "telnet"
                   ],
@@ -2507,8 +3125,9 @@
                 },
                 "<UNNAMED>0/0/8" : {
                   "name" : "<UNNAMED>0/0/8",
+                  "execTimeoutMinutes" : 0,
+                  "execTimeoutSeconds" : 0,
                   "inputAccessList" : "40",
-                  "loginAuthentication" : "SecurID",
                   "transportInput" : [
                     "telnet"
                   ],
@@ -2521,8 +3140,9 @@
                 },
                 "<UNNAMED>0/0/9" : {
                   "name" : "<UNNAMED>0/0/9",
+                  "execTimeoutMinutes" : 0,
+                  "execTimeoutSeconds" : 0,
                   "inputAccessList" : "40",
-                  "loginAuthentication" : "SecurID",
                   "transportInput" : [
                     "telnet"
                   ],
@@ -2544,84 +3164,112 @@
                 },
                 "<UNNAMED>35" : {
                   "name" : "<UNNAMED>35",
+                  "execTimeoutMinutes" : 0,
+                  "execTimeoutSeconds" : 0,
                   "transportInput" : [
                     "all"
                   ]
                 },
                 "<UNNAMED>36" : {
                   "name" : "<UNNAMED>36",
+                  "execTimeoutMinutes" : 0,
+                  "execTimeoutSeconds" : 0,
                   "transportInput" : [
                     "all"
                   ]
                 },
                 "<UNNAMED>37" : {
                   "name" : "<UNNAMED>37",
+                  "execTimeoutMinutes" : 0,
+                  "execTimeoutSeconds" : 0,
                   "transportInput" : [
                     "all"
                   ]
                 },
                 "<UNNAMED>38" : {
                   "name" : "<UNNAMED>38",
+                  "execTimeoutMinutes" : 0,
+                  "execTimeoutSeconds" : 0,
                   "transportInput" : [
                     "all"
                   ]
                 },
                 "<UNNAMED>39" : {
                   "name" : "<UNNAMED>39",
+                  "execTimeoutMinutes" : 0,
+                  "execTimeoutSeconds" : 0,
                   "transportInput" : [
                     "all"
                   ]
                 },
                 "<UNNAMED>40" : {
                   "name" : "<UNNAMED>40",
+                  "execTimeoutMinutes" : 0,
+                  "execTimeoutSeconds" : 0,
                   "transportInput" : [
                     "all"
                   ]
                 },
                 "<UNNAMED>41" : {
                   "name" : "<UNNAMED>41",
+                  "execTimeoutMinutes" : 0,
+                  "execTimeoutSeconds" : 0,
                   "transportInput" : [
                     "all"
                   ]
                 },
                 "<UNNAMED>42" : {
                   "name" : "<UNNAMED>42",
+                  "execTimeoutMinutes" : 0,
+                  "execTimeoutSeconds" : 0,
                   "transportInput" : [
                     "all"
                   ]
                 },
                 "<UNNAMED>43" : {
                   "name" : "<UNNAMED>43",
+                  "execTimeoutMinutes" : 0,
+                  "execTimeoutSeconds" : 0,
                   "transportInput" : [
                     "all"
                   ]
                 },
                 "<UNNAMED>44" : {
                   "name" : "<UNNAMED>44",
+                  "execTimeoutMinutes" : 0,
+                  "execTimeoutSeconds" : 0,
                   "transportInput" : [
                     "all"
                   ]
                 },
                 "<UNNAMED>45" : {
                   "name" : "<UNNAMED>45",
+                  "execTimeoutMinutes" : 0,
+                  "execTimeoutSeconds" : 0,
                   "transportInput" : [
                     "all"
                   ]
                 },
                 "<UNNAMED>46" : {
                   "name" : "<UNNAMED>46",
+                  "execTimeoutMinutes" : 0,
+                  "execTimeoutSeconds" : 0,
                   "transportInput" : [
                     "all"
                   ]
                 },
                 "<UNNAMED>47" : {
                   "name" : "<UNNAMED>47",
+                  "execTimeoutMinutes" : 0,
+                  "execTimeoutSeconds" : 0,
                   "transportInput" : [
                     "all"
                   ]
                 },
                 "<UNNAMED>48" : {
                   "name" : "<UNNAMED>48",
+                  "execTimeoutMinutes" : 0,
+                  "execTimeoutSeconds" : 0,
                   "transportInput" : [
                     "all"
                   ]
@@ -2633,6 +3281,8 @@
                 },
                 "vty" : {
                   "name" : "vty",
+                  "execTimeoutMinutes" : 0,
+                  "execTimeoutSeconds" : 0,
                   "inputAccessList" : "vty-acl"
                 },
                 "vty0" : {
@@ -2641,7 +3291,6 @@
                   "execTimeoutSeconds" : 0,
                   "inputAccessList" : "99",
                   "inputIpv6AccessList" : "ipv6-vty-acl",
-                  "loginAuthentication" : "blah",
                   "transportPreferred" : [
                     "none"
                   ]
@@ -2652,7 +3301,6 @@
                   "execTimeoutSeconds" : 0,
                   "inputAccessList" : "99",
                   "inputIpv6AccessList" : "ipv6-vty-acl",
-                  "loginAuthentication" : "blah",
                   "transportPreferred" : [
                     "none"
                   ]
@@ -2661,43 +3309,37 @@
                   "name" : "vty10",
                   "execTimeoutMinutes" : 15,
                   "execTimeoutSeconds" : 0,
-                  "inputAccessList" : "40",
-                  "loginAuthentication" : "blah"
+                  "inputAccessList" : "40"
                 },
                 "vty11" : {
                   "name" : "vty11",
                   "execTimeoutMinutes" : 15,
                   "execTimeoutSeconds" : 0,
-                  "inputAccessList" : "40",
-                  "loginAuthentication" : "blah"
+                  "inputAccessList" : "40"
                 },
                 "vty12" : {
                   "name" : "vty12",
                   "execTimeoutMinutes" : 15,
                   "execTimeoutSeconds" : 0,
-                  "inputAccessList" : "40",
-                  "loginAuthentication" : "blah"
+                  "inputAccessList" : "40"
                 },
                 "vty13" : {
                   "name" : "vty13",
                   "execTimeoutMinutes" : 15,
                   "execTimeoutSeconds" : 0,
-                  "inputAccessList" : "40",
-                  "loginAuthentication" : "blah"
+                  "inputAccessList" : "40"
                 },
                 "vty14" : {
                   "name" : "vty14",
                   "execTimeoutMinutes" : 15,
                   "execTimeoutSeconds" : 0,
-                  "inputAccessList" : "40",
-                  "loginAuthentication" : "blah"
+                  "inputAccessList" : "40"
                 },
                 "vty15" : {
                   "name" : "vty15",
                   "execTimeoutMinutes" : 15,
                   "execTimeoutSeconds" : 0,
-                  "inputAccessList" : "40",
-                  "loginAuthentication" : "blah"
+                  "inputAccessList" : "40"
                 },
                 "vty2" : {
                   "name" : "vty2",
@@ -2705,7 +3347,6 @@
                   "execTimeoutSeconds" : 0,
                   "inputAccessList" : "99",
                   "inputIpv6AccessList" : "ipv6-vty-acl",
-                  "loginAuthentication" : "blah",
                   "transportPreferred" : [
                     "none"
                   ]
@@ -2716,7 +3357,6 @@
                   "execTimeoutSeconds" : 0,
                   "inputAccessList" : "99",
                   "inputIpv6AccessList" : "ipv6-vty-acl",
-                  "loginAuthentication" : "blah",
                   "transportPreferred" : [
                     "none"
                   ]
@@ -2727,7 +3367,6 @@
                   "execTimeoutSeconds" : 0,
                   "inputAccessList" : "99",
                   "inputIpv6AccessList" : "ipv6-vty-acl",
-                  "loginAuthentication" : "blah",
                   "transportPreferred" : [
                     "none"
                   ]
@@ -2736,36 +3375,31 @@
                   "name" : "vty5",
                   "execTimeoutMinutes" : 15,
                   "execTimeoutSeconds" : 0,
-                  "inputAccessList" : "40",
-                  "loginAuthentication" : "blah"
+                  "inputAccessList" : "40"
                 },
                 "vty6" : {
                   "name" : "vty6",
                   "execTimeoutMinutes" : 15,
                   "execTimeoutSeconds" : 0,
-                  "inputAccessList" : "40",
-                  "loginAuthentication" : "blah"
+                  "inputAccessList" : "40"
                 },
                 "vty7" : {
                   "name" : "vty7",
                   "execTimeoutMinutes" : 15,
                   "execTimeoutSeconds" : 0,
-                  "inputAccessList" : "40",
-                  "loginAuthentication" : "blah"
+                  "inputAccessList" : "40"
                 },
                 "vty8" : {
                   "name" : "vty8",
                   "execTimeoutMinutes" : 15,
                   "execTimeoutSeconds" : 0,
-                  "inputAccessList" : "40",
-                  "loginAuthentication" : "blah"
+                  "inputAccessList" : "40"
                 },
                 "vty9" : {
                   "name" : "vty9",
                   "execTimeoutMinutes" : 15,
                   "execTimeoutSeconds" : 0,
-                  "inputAccessList" : "40",
-                  "loginAuthentication" : "blah"
+                  "inputAccessList" : "40"
                 }
               }
             }
@@ -2781,6 +3415,14 @@
           "configurationFormat" : "CISCO_NX",
           "defaultCrossZoneAction" : "ACCEPT",
           "defaultInboundAction" : "ACCEPT",
+          "loggingServers" : [
+            "1.2.3.4",
+            "10.246.131.130",
+            "10.246.131.138",
+            "11.2.3.4",
+            "137.164.80.152",
+            "dead:beef::1"
+          ],
           "vendorFamily" : {
             "cisco" : {
               "hostname" : "cisco_logging",
@@ -2791,17 +3433,27 @@
                 },
                 "console" : { },
                 "hosts" : {
+                  "1.2.3.4" : {
+                    "name" : "1.2.3.4"
+                  },
                   "10.246.131.130" : {
                     "name" : "10.246.131.130"
                   },
                   "10.246.131.138" : {
                     "name" : "10.246.131.138"
                   },
+                  "11.2.3.4" : {
+                    "name" : "11.2.3.4"
+                  },
                   "137.164.80.152" : {
                     "name" : "137.164.80.152"
+                  },
+                  "dead:beef::1" : {
+                    "name" : "dead:beef::1"
                   }
                 },
-                "sourceInterface" : "Vlan1",
+                "on" : true,
+                "sourceInterface" : "Management0",
                 "trap" : {
                   "severity" : "errors",
                   "severityNum" : 3
@@ -2836,7 +3488,6 @@
           "configurationFormat" : "CISCO_NX",
           "defaultCrossZoneAction" : "ACCEPT",
           "defaultInboundAction" : "ACCEPT",
-          "domainName" : "my.domain.name",
           "vendorFamily" : {
             "cisco" : {
               "aaa" : {
@@ -2909,11 +3560,13 @@
               "mtu" : 1500,
               "nativeVlan" : 1,
               "ospfArea" : 0,
+              "ospfCost" : 1,
               "ospfDeadInterval" : 0,
               "ospfEnabled" : true,
               "ospfHelloMultiplier" : 0,
               "ospfPassive" : false,
               "prefix" : "3.3.3.0/24",
+              "proxyArp" : true,
               "switchportMode" : "NONE",
               "switchportTrunkEncapsulation" : "DOT1Q",
               "vrf" : "default"
@@ -2935,6 +3588,7 @@
               "ospfHelloMultiplier" : 0,
               "ospfPassive" : false,
               "prefix" : "1.1.1.1/32",
+              "proxyArp" : true,
               "switchportMode" : "NONE",
               "switchportTrunkEncapsulation" : "DOT1Q",
               "vrf" : "default"
@@ -3123,7 +3777,7 @@
               "statements" : [
                 {
                   "class" : "org.batfish.datamodel.routing_policy.statement.Statements$StaticStatement",
-                  "type" : "ReturnFalse"
+                  "type" : "ReturnLocalDefaultAction"
                 }
               ]
             },
@@ -3170,6 +3824,15 @@
             },
             "mgmt" : {
               "name" : "mgmt",
+              "statements" : [
+                {
+                  "class" : "org.batfish.datamodel.routing_policy.statement.Statements$StaticStatement",
+                  "type" : "ReturnTrue"
+                }
+              ]
+            },
+            "multicaststuff" : {
+              "name" : "multicaststuff",
               "statements" : [
                 {
                   "class" : "org.batfish.datamodel.routing_policy.statement.Statements$StaticStatement",
@@ -3235,9 +3898,17 @@
           "configurationFormat" : "CISCO_NX",
           "defaultCrossZoneAction" : "ACCEPT",
           "defaultInboundAction" : "ACCEPT",
+          "snmpTrapServers" : [
+            "10.1.2.3"
+          ],
           "vendorFamily" : {
             "cisco" : {
-              "hostname" : "cisco_snmp",
+              "hostname" : "cisco_snmp"
+            }
+          },
+          "vrfs" : {
+            "default" : {
+              "name" : "default",
               "snmpServer" : {
                 "communities" : {
                   "dummycommunity" : {
@@ -3339,13 +4010,9 @@
                     "vlancreate",
                     "vlandelete"
                   ]
-                }
+                },
+                "vrf" : "default"
               }
-            }
-          },
-          "vrfs" : {
-            "default" : {
-              "name" : "default"
             }
           }
         },
@@ -3457,6 +4124,30 @@
           },
           "vendorFamily" : {
             "cisco" : { }
+          },
+          "vrfs" : {
+            "default" : {
+              "name" : "default"
+            }
+          }
+        },
+        "cisco_tacacs" : {
+          "name" : "cisco_tacacs",
+          "configurationFormat" : "CISCO_NX",
+          "defaultCrossZoneAction" : "ACCEPT",
+          "defaultInboundAction" : "ACCEPT",
+          "tacacsServers" : [
+            "1.2.3.4",
+            "EACACS",
+            "example.com"
+          ],
+          "vendorFamily" : {
+            "cisco" : {
+              "features" : {
+                "tacacs+" : true
+              },
+              "hostname" : "cisco_tacacs"
+            }
           },
           "vrfs" : {
             "default" : {
@@ -3972,136 +4663,6 @@
             }
           }
         },
-        "eigrp" : {
-          "name" : "eigrp",
-          "configurationFormat" : "CISCO_NX",
-          "defaultCrossZoneAction" : "ACCEPT",
-          "defaultInboundAction" : "ACCEPT",
-          "ipAccessLists" : {
-            "bippety" : {
-              "name" : "bippety",
-              "lines" : [
-                {
-                  "action" : "ACCEPT",
-                  "dstIps" : [
-                    "1.1.1.1"
-                  ],
-                  "dstPorts" : [
-                    "48000-48060"
-                  ],
-                  "ipProtocols" : [
-                    "TCP"
-                  ],
-                  "name" : "permit tcp 30.9.132.0 0.0.1.255 host 1.1.1.1 range 48000 48060",
-                  "negate" : false,
-                  "srcIps" : [
-                    "30.9.132.0/23"
-                  ]
-                },
-                {
-                  "action" : "ACCEPT",
-                  "dstIps" : [
-                    "0.0.0.0/0"
-                  ],
-                  "dstPorts" : [
-                    "27401-27401"
-                  ],
-                  "ipProtocols" : [
-                    "TCP"
-                  ],
-                  "name" : "permit tcp host 1.1.1.1 any eq 27401",
-                  "negate" : false,
-                  "srcIps" : [
-                    "1.1.1.1"
-                  ]
-                },
-                {
-                  "action" : "ACCEPT",
-                  "dstIps" : [
-                    "1.1.1.1"
-                  ],
-                  "dstPorts" : [
-                    "65001-65001"
-                  ],
-                  "ipProtocols" : [
-                    "TCP"
-                  ],
-                  "name" : "permit tcp any host 1.1.1.1 eq 65001",
-                  "negate" : false,
-                  "srcIps" : [
-                    "0.0.0.0/0"
-                  ]
-                },
-                {
-                  "action" : "ACCEPT",
-                  "dstIps" : [
-                    "0.0.0.0/0"
-                  ],
-                  "dstPorts" : [
-                    "20000-20000"
-                  ],
-                  "ipProtocols" : [
-                    "TCP"
-                  ],
-                  "name" : "permit tcp host 1.1.1.1 any eq 20000",
-                  "negate" : false,
-                  "srcIps" : [
-                    "1.1.1.1"
-                  ]
-                },
-                {
-                  "action" : "ACCEPT",
-                  "dstIps" : [
-                    "1.1.1.1"
-                  ],
-                  "dstPorts" : [
-                    "65111-65111"
-                  ],
-                  "ipProtocols" : [
-                    "TCP"
-                  ],
-                  "name" : "permit tcp any host 1.1.1.1 eq 65111",
-                  "negate" : false,
-                  "srcIps" : [
-                    "0.0.0.0/0"
-                  ]
-                }
-              ]
-            },
-            "bloop_blop" : {
-              "name" : "bloop_blop",
-              "lines" : [
-                {
-                  "action" : "ACCEPT",
-                  "dstIps" : [
-                    "0.0.0.0/0"
-                  ],
-                  "dstPorts" : [
-                    "13000-13000"
-                  ],
-                  "ipProtocols" : [
-                    "TCP"
-                  ],
-                  "name" : "permit tcp addrgroup bleep_blorp any eq 13000",
-                  "negate" : false,
-                  "srcIps" : [
-                    "0.0.0.0/0"
-                  ]
-                }
-              ]
-            }
-          },
-          "vendorFamily" : {
-            "cisco" : {
-              "hostname" : "eigrp"
-            }
-          },
-          "vrfs" : {
-            "default" : {
-              "name" : "default"
-            }
-          }
-        },
         "foundry_access_list" : {
           "name" : "foundry_access_list",
           "configurationFormat" : "FOUNDRY",
@@ -4355,6 +4916,7 @@
               "ospfEnabled" : false,
               "ospfHelloMultiplier" : 0,
               "ospfPassive" : false,
+              "proxyArp" : false,
               "switchportMode" : "NONE",
               "switchportTrunkEncapsulation" : "DOT1Q",
               "vrf" : "default"
@@ -4385,7 +4947,8 @@
               "logging" : {
                 "buffered" : {
                   "size" : 1000
-                }
+                },
+                "on" : true
               }
             }
           },
@@ -4924,6 +5487,7 @@
               "ospfHelloMultiplier" : 0,
               "ospfPassive" : false,
               "prefix" : "10.22.33.10/29",
+              "proxyArp" : false,
               "switchportMode" : "NONE",
               "switchportTrunkEncapsulation" : "DOT1Q",
               "vrf" : "default"
@@ -4945,6 +5509,7 @@
               "ospfHelloMultiplier" : 0,
               "ospfPassive" : false,
               "prefix" : "10.12.12.1/23",
+              "proxyArp" : false,
               "switchportMode" : "NONE",
               "switchportTrunkEncapsulation" : "DOT1Q",
               "vrf" : "default"
@@ -4984,6 +5549,7 @@
               "ospfEnabled" : false,
               "ospfHelloMultiplier" : 0,
               "ospfPassive" : false,
+              "proxyArp" : false,
               "switchportMode" : "NONE",
               "switchportTrunkEncapsulation" : "DOT1Q",
               "vrf" : "default"
@@ -5001,6 +5567,7 @@
               "ospfEnabled" : false,
               "ospfHelloMultiplier" : 0,
               "ospfPassive" : false,
+              "proxyArp" : false,
               "switchportMode" : "NONE",
               "switchportTrunkEncapsulation" : "DOT1Q",
               "vrf" : "default"
@@ -5018,6 +5585,7 @@
               "ospfEnabled" : false,
               "ospfHelloMultiplier" : 0,
               "ospfPassive" : false,
+              "proxyArp" : false,
               "switchportMode" : "NONE",
               "switchportTrunkEncapsulation" : "DOT1Q",
               "vrf" : "default"
@@ -5035,6 +5603,7 @@
               "ospfEnabled" : false,
               "ospfHelloMultiplier" : 0,
               "ospfPassive" : false,
+              "proxyArp" : false,
               "switchportMode" : "NONE",
               "switchportTrunkEncapsulation" : "DOT1Q",
               "vrf" : "default"
@@ -5081,6 +5650,7 @@
               "ospfHelloMultiplier" : 0,
               "ospfPassive" : false,
               "prefix" : "137.164.16.80/32",
+              "proxyArp" : false,
               "switchportMode" : "NONE",
               "switchportTrunkEncapsulation" : "DOT1Q",
               "vrf" : "default"
@@ -5272,23 +5842,23 @@
               "name" : "default",
               "bgpProcess" : {
                 "neighbors" : {
-                  "1.2.1.3/32" : {
-                    "name" : "1.2.1.3/32",
-                    "address" : "1.2.1.3",
+                  "1.2.1.1/32" : {
+                    "name" : "1.2.1.1/32",
+                    "address" : "1.2.1.1",
                     "advertiseExternal" : false,
                     "advertiseInactive" : false,
                     "allowLocalAsIn" : false,
                     "allowRemoteAsOut" : false,
                     "clusterId" : 0,
                     "defaultMetric" : 0,
-                    "description" : "bafjewoifj",
+                    "description" : "htegiofnoirwejhg",
                     "dynamic" : false,
                     "ebgpMultihop" : false,
-                    "exportPolicy" : "~BGP_PEER_EXPORT_POLICY:default:1.2.1.3~",
-                    "group" : "foobar-iBGP_border_ipv4",
+                    "exportPolicy" : "~BGP_PEER_EXPORT_POLICY:default:1.2.1.1~",
+                    "group" : "foobar-iBGP_ipv4",
                     "localAs" : 5555,
                     "remoteAs" : 5555,
-                    "remotePrefix" : "1.2.1.3/32",
+                    "remotePrefix" : "1.2.1.1/32",
                     "routeReflectorClient" : false,
                     "sendCommunity" : false,
                     "vrf" : "default"
@@ -5314,23 +5884,23 @@
                     "sendCommunity" : false,
                     "vrf" : "default"
                   },
-                  "1.2.1.1/32" : {
-                    "name" : "1.2.1.1/32",
-                    "address" : "1.2.1.1",
+                  "1.2.1.3/32" : {
+                    "name" : "1.2.1.3/32",
+                    "address" : "1.2.1.3",
                     "advertiseExternal" : false,
                     "advertiseInactive" : false,
                     "allowLocalAsIn" : false,
                     "allowRemoteAsOut" : false,
                     "clusterId" : 0,
                     "defaultMetric" : 0,
-                    "description" : "htegiofnoirwejhg",
+                    "description" : "bafjewoifj",
                     "dynamic" : false,
                     "ebgpMultihop" : false,
-                    "exportPolicy" : "~BGP_PEER_EXPORT_POLICY:default:1.2.1.1~",
-                    "group" : "foobar-iBGP_ipv4",
+                    "exportPolicy" : "~BGP_PEER_EXPORT_POLICY:default:1.2.1.3~",
+                    "group" : "foobar-iBGP_border_ipv4",
                     "localAs" : 5555,
                     "remoteAs" : 5555,
-                    "remotePrefix" : "1.2.1.1/32",
+                    "remotePrefix" : "1.2.1.3/32",
                     "routeReflectorClient" : false,
                     "sendCommunity" : false,
                     "vrf" : "default"
@@ -5360,6 +5930,7 @@
               "ospfEnabled" : false,
               "ospfHelloMultiplier" : 0,
               "ospfPassive" : false,
+              "proxyArp" : false,
               "switchportMode" : "NONE",
               "switchportTrunkEncapsulation" : "DOT1Q",
               "vrf" : "default"
@@ -5406,6 +5977,9 @@
           "configurationFormat" : "CISCO_NX",
           "defaultCrossZoneAction" : "ACCEPT",
           "defaultInboundAction" : "ACCEPT",
+          "ntpServers" : [
+            "1.2.3.4"
+          ],
           "vendorFamily" : {
             "cisco" : {
               "hostname" : "ios_xr_ntp",
@@ -5443,6 +6017,7 @@
               "ospfEnabled" : false,
               "ospfHelloMultiplier" : 0,
               "ospfPassive" : false,
+              "proxyArp" : false,
               "switchportMode" : "NONE",
               "switchportTrunkEncapsulation" : "DOT1Q",
               "vrf" : "default"
@@ -5460,6 +6035,7 @@
               "ospfEnabled" : false,
               "ospfHelloMultiplier" : 0,
               "ospfPassive" : false,
+              "proxyArp" : false,
               "switchportMode" : "NONE",
               "switchportTrunkEncapsulation" : "DOT1Q",
               "vrf" : "default"
@@ -5473,10 +6049,12 @@
               "isisL2InterfaceMode" : "unset",
               "mtu" : 1500,
               "nativeVlan" : 1,
+              "ospfCost" : 1,
               "ospfDeadInterval" : 0,
               "ospfEnabled" : false,
               "ospfHelloMultiplier" : 0,
               "ospfPassive" : false,
+              "proxyArp" : false,
               "switchportMode" : "NONE",
               "switchportTrunkEncapsulation" : "DOT1Q",
               "vrf" : "default"
@@ -5494,6 +6072,7 @@
               "ospfEnabled" : false,
               "ospfHelloMultiplier" : 0,
               "ospfPassive" : false,
+              "proxyArp" : false,
               "switchportMode" : "NONE",
               "switchportTrunkEncapsulation" : "DOT1Q",
               "vrf" : "default"
@@ -5511,6 +6090,7 @@
               "ospfEnabled" : false,
               "ospfHelloMultiplier" : 0,
               "ospfPassive" : false,
+              "proxyArp" : false,
               "switchportMode" : "NONE",
               "switchportTrunkEncapsulation" : "DOT1Q",
               "vrf" : "default"
@@ -5528,6 +6108,7 @@
               "ospfEnabled" : false,
               "ospfHelloMultiplier" : 0,
               "ospfPassive" : false,
+              "proxyArp" : false,
               "switchportMode" : "NONE",
               "switchportTrunkEncapsulation" : "DOT1Q",
               "vrf" : "default"
@@ -5545,6 +6126,7 @@
               "ospfEnabled" : false,
               "ospfHelloMultiplier" : 0,
               "ospfPassive" : false,
+              "proxyArp" : false,
               "switchportMode" : "NONE",
               "switchportTrunkEncapsulation" : "DOT1Q",
               "vrf" : "default"
@@ -5562,6 +6144,7 @@
               "ospfEnabled" : false,
               "ospfHelloMultiplier" : 0,
               "ospfPassive" : false,
+              "proxyArp" : false,
               "switchportMode" : "NONE",
               "switchportTrunkEncapsulation" : "DOT1Q",
               "vrf" : "default"
@@ -5579,9 +6162,27 @@
               "ospfEnabled" : false,
               "ospfHelloMultiplier" : 0,
               "ospfPassive" : false,
+              "proxyArp" : false,
               "switchportMode" : "NONE",
               "switchportTrunkEncapsulation" : "DOT1Q",
               "vrf" : "default"
+            }
+          },
+          "routeFilterLists" : {
+            "~OSPF_SUMMARY_FILTER:default:0~" : {
+              "name" : "~OSPF_SUMMARY_FILTER:default:0~",
+              "lines" : [
+                {
+                  "action" : "REJECT",
+                  "lengthRange" : "16-32",
+                  "prefix" : "10.0.0.0/15"
+                },
+                {
+                  "action" : "ACCEPT",
+                  "lengthRange" : "0-32",
+                  "prefix" : "0.0.0.0/0"
+                }
+              ]
             }
           },
           "routingPolicies" : {
@@ -5644,6 +6245,15 @@
                 "TenGigabitEthernet0/0/0/5"
               ],
               "ospfProcess" : {
+                "areas" : {
+                  "0" : {
+                    "name" : 0,
+                    "summaries" : {
+                      "10.0.0.0/15" : true
+                    },
+                    "summaryFilter" : "~OSPF_SUMMARY_FILTER:default:0~"
+                  }
+                },
                 "exportPolicy" : "~OSPF_EXPORT_POLICY:default~",
                 "referenceBandwidth" : 1.0E9,
                 "routerId" : "169.232.1.4"
@@ -5663,7 +6273,81 @@
           },
           "vrfs" : {
             "default" : {
-              "name" : "default"
+              "name" : "default",
+              "staticRoutes" : [
+                {
+                  "class" : "org.batfish.datamodel.StaticRoute",
+                  "network" : "1.2.0.0/16",
+                  "nextHopInterface" : "null_interface",
+                  "tag" : 64725,
+                  "administrativeCost" : 1
+                },
+                {
+                  "class" : "org.batfish.datamodel.StaticRoute",
+                  "network" : "1.2.11.251/32",
+                  "nextHopInterface" : "null_interface",
+                  "tag" : 64725,
+                  "administrativeCost" : 1
+                },
+                {
+                  "class" : "org.batfish.datamodel.StaticRoute",
+                  "network" : "1.2.16.0/24",
+                  "nextHopInterface" : "null_interface",
+                  "tag" : 64725,
+                  "administrativeCost" : 1
+                },
+                {
+                  "class" : "org.batfish.datamodel.StaticRoute",
+                  "network" : "1.2.16.255/32",
+                  "nextHopInterface" : "null_interface",
+                  "tag" : -1,
+                  "administrativeCost" : 1
+                },
+                {
+                  "class" : "org.batfish.datamodel.StaticRoute",
+                  "network" : "1.2.42.185/32",
+                  "nextHopIp" : "1.2.42.186",
+                  "tag" : -1,
+                  "administrativeCost" : 1
+                },
+                {
+                  "class" : "org.batfish.datamodel.StaticRoute",
+                  "network" : "1.2.220.0/24",
+                  "nextHopInterface" : "TenGigE0/0/2/3",
+                  "nextHopIp" : "1.2.220.245",
+                  "tag" : 64666,
+                  "administrativeCost" : 1
+                },
+                {
+                  "class" : "org.batfish.datamodel.StaticRoute",
+                  "network" : "2.3.0.0/16",
+                  "nextHopInterface" : "null_interface",
+                  "tag" : 64725,
+                  "administrativeCost" : 1
+                },
+                {
+                  "class" : "org.batfish.datamodel.StaticRoute",
+                  "network" : "4.5.0.0/16",
+                  "nextHopInterface" : "null_interface",
+                  "tag" : 64725,
+                  "administrativeCost" : 1
+                },
+                {
+                  "class" : "org.batfish.datamodel.StaticRoute",
+                  "network" : "6.7.165.2/32",
+                  "nextHopIp" : "198.188.255.22",
+                  "tag" : -1,
+                  "administrativeCost" : 1
+                },
+                {
+                  "class" : "org.batfish.datamodel.StaticRoute",
+                  "network" : "9.8.192.32/29",
+                  "nextHopInterface" : "GigabitEthernet0/2/1/5.290",
+                  "nextHopIp" : "1.2.24.98",
+                  "tag" : 64906,
+                  "administrativeCost" : 1
+                }
+              ]
             }
           }
         },
@@ -5699,282 +6383,6 @@
             }
           }
         },
-        "ip_access_list_with_seq" : {
-          "name" : "ip_access_list_with_seq",
-          "configurationFormat" : "CISCO_NX",
-          "defaultCrossZoneAction" : "ACCEPT",
-          "defaultInboundAction" : "ACCEPT",
-          "ipAccessLists" : {
-            "BLAH-BLAH" : {
-              "name" : "BLAH-BLAH",
-              "lines" : [
-                {
-                  "action" : "ACCEPT",
-                  "dstIps" : [
-                    "0.0.0.0/0"
-                  ],
-                  "ipProtocols" : [
-                    "ICMP"
-                  ],
-                  "name" : "10 permit icmp any any",
-                  "negate" : false,
-                  "srcIps" : [
-                    "0.0.0.0/0"
-                  ]
-                },
-                {
-                  "action" : "ACCEPT",
-                  "dstIps" : [
-                    "0.0.0.0/0"
-                  ],
-                  "name" : "20 permit ip any any tracked",
-                  "negate" : false,
-                  "srcIps" : [
-                    "0.0.0.0/0"
-                  ],
-                  "states" : [
-                    "ESTABLISHED"
-                  ]
-                },
-                {
-                  "action" : "ACCEPT",
-                  "dstIps" : [
-                    "0.0.0.0/0"
-                  ],
-                  "ipProtocols" : [
-                    "OSPF"
-                  ],
-                  "name" : "30 permit ospf any any",
-                  "negate" : false,
-                  "srcIps" : [
-                    "0.0.0.0/0"
-                  ]
-                },
-                {
-                  "action" : "ACCEPT",
-                  "dstIps" : [
-                    "0.0.0.0/0"
-                  ],
-                  "dstPorts" : [
-                    "179-179"
-                  ],
-                  "ipProtocols" : [
-                    "TCP"
-                  ],
-                  "name" : "40 permit tcp any any eq bgp",
-                  "negate" : false,
-                  "srcIps" : [
-                    "0.0.0.0/0"
-                  ]
-                },
-                {
-                  "action" : "ACCEPT",
-                  "dstIps" : [
-                    "0.0.0.0/0"
-                  ],
-                  "dstPorts" : [
-                    "67-67",
-                    "68-68",
-                    "123-123"
-                  ],
-                  "ipProtocols" : [
-                    "UDP"
-                  ],
-                  "name" : "50 permit udp any any eq bootps bootpc ntp",
-                  "negate" : false,
-                  "srcIps" : [
-                    "0.0.0.0/0"
-                  ]
-                },
-                {
-                  "action" : "ACCEPT",
-                  "dstIps" : [
-                    "0.0.0.0/0"
-                  ],
-                  "dstPorts" : [
-                    "6784-6784"
-                  ],
-                  "ipProtocols" : [
-                    "TCP"
-                  ],
-                  "name" : "60 permit tcp any any eq mlag ttl eq 255",
-                  "negate" : false,
-                  "srcIps" : [
-                    "0.0.0.0/0"
-                  ]
-                },
-                {
-                  "action" : "ACCEPT",
-                  "dstIps" : [
-                    "0.0.0.0/0"
-                  ],
-                  "dstPorts" : [
-                    "6784-6784"
-                  ],
-                  "ipProtocols" : [
-                    "UDP"
-                  ],
-                  "name" : "70 permit udp any any eq mlag ttl eq 255",
-                  "negate" : false,
-                  "srcIps" : [
-                    "0.0.0.0/0"
-                  ]
-                },
-                {
-                  "action" : "ACCEPT",
-                  "dstIps" : [
-                    "0.0.0.0/0"
-                  ],
-                  "ipProtocols" : [
-                    "VRRP"
-                  ],
-                  "name" : "80 permit vrrp any any",
-                  "negate" : false,
-                  "srcIps" : [
-                    "0.0.0.0/0"
-                  ]
-                },
-                {
-                  "action" : "ACCEPT",
-                  "dstIps" : [
-                    "0.0.0.0/0"
-                  ],
-                  "ipProtocols" : [
-                    "AHP"
-                  ],
-                  "name" : "90 permit ahp any any",
-                  "negate" : false,
-                  "srcIps" : [
-                    "0.0.0.0/0"
-                  ]
-                },
-                {
-                  "action" : "ACCEPT",
-                  "dstIps" : [
-                    "0.0.0.0/0"
-                  ],
-                  "ipProtocols" : [
-                    "PIM"
-                  ],
-                  "name" : "100 permit pim any any",
-                  "negate" : false,
-                  "srcIps" : [
-                    "0.0.0.0/0"
-                  ]
-                },
-                {
-                  "action" : "ACCEPT",
-                  "dstIps" : [
-                    "0.0.0.0/0"
-                  ],
-                  "ipProtocols" : [
-                    "IGMP"
-                  ],
-                  "name" : "110 permit igmp any any",
-                  "negate" : false,
-                  "srcIps" : [
-                    "0.0.0.0/0"
-                  ]
-                },
-                {
-                  "action" : "ACCEPT",
-                  "dstIps" : [
-                    "0.0.0.0/0"
-                  ],
-                  "dstPorts" : [
-                    "1-10"
-                  ],
-                  "ipProtocols" : [
-                    "TCP"
-                  ],
-                  "name" : "120 permit tcp any any range 1 10",
-                  "negate" : false,
-                  "srcIps" : [
-                    "0.0.0.0/0"
-                  ]
-                },
-                {
-                  "action" : "ACCEPT",
-                  "dstIps" : [
-                    "0.0.0.0/0"
-                  ],
-                  "dstPorts" : [
-                    "161-161"
-                  ],
-                  "ipProtocols" : [
-                    "UDP"
-                  ],
-                  "name" : "140 permit udp 10.0.0.0/19 any eq snmp",
-                  "negate" : false,
-                  "srcIps" : [
-                    "10.0.0.0/19"
-                  ]
-                },
-                {
-                  "action" : "ACCEPT",
-                  "dstIps" : [
-                    "0.0.0.0/0"
-                  ],
-                  "dstPorts" : [
-                    "161-161"
-                  ],
-                  "ipProtocols" : [
-                    "UDP"
-                  ],
-                  "name" : "180 permit udp host 10.0.0.0 any eq snmp",
-                  "negate" : false,
-                  "srcIps" : [
-                    "10.0.0.0"
-                  ]
-                },
-                {
-                  "action" : "ACCEPT",
-                  "dstIps" : [
-                    "0.0.0.0/0"
-                  ],
-                  "dstPorts" : [
-                    "22-22"
-                  ],
-                  "ipProtocols" : [
-                    "TCP"
-                  ],
-                  "name" : "220 permit tcp 10.0.0.0/19 any eq ssh",
-                  "negate" : false,
-                  "srcIps" : [
-                    "10.0.0.0/19"
-                  ]
-                },
-                {
-                  "action" : "ACCEPT",
-                  "dstIps" : [
-                    "0.0.0.0/0"
-                  ],
-                  "dstPorts" : [
-                    "22-22"
-                  ],
-                  "ipProtocols" : [
-                    "TCP"
-                  ],
-                  "name" : "260 permit tcp host 10.0.0.0 any eq ssh",
-                  "negate" : false,
-                  "srcIps" : [
-                    "10.0.0.0"
-                  ]
-                }
-              ]
-            }
-          },
-          "vendorFamily" : {
-            "cisco" : {
-              "hostname" : "ip_access_list_with_seq"
-            }
-          },
-          "vrfs" : {
-            "default" : {
-              "name" : "default"
-            }
-          }
-        },
         "ip_prefix_list_single_line" : {
           "name" : "ip_prefix_list_single_line",
           "configurationFormat" : "CISCO_NX",
@@ -6000,6 +6408,124 @@
           "vrfs" : {
             "default" : {
               "name" : "default"
+            }
+          }
+        },
+        "juniper-ospf" : {
+          "name" : "juniper-ospf",
+          "configurationFormat" : "FLAT_JUNIPER",
+          "defaultCrossZoneAction" : "ACCEPT",
+          "defaultInboundAction" : "ACCEPT",
+          "interfaces" : {
+            "xe-0/0/1.0" : {
+              "name" : "xe-0/0/1.0",
+              "accessVlan" : 0,
+              "active" : true,
+              "bandwidth" : 1.0E10,
+              "isisL1InterfaceMode" : "unset",
+              "isisL2InterfaceMode" : "unset",
+              "mtu" : 1500,
+              "nativeVlan" : 1,
+              "ospfArea" : 66051,
+              "ospfCost" : 1,
+              "ospfDeadInterval" : 0,
+              "ospfEnabled" : true,
+              "ospfHelloMultiplier" : 0,
+              "ospfPassive" : false,
+              "switchportMode" : "NONE",
+              "switchportTrunkEncapsulation" : "DOT1Q",
+              "vrf" : "default"
+            },
+            "xe-0/0/20.0" : {
+              "name" : "xe-0/0/20.0",
+              "accessVlan" : 0,
+              "active" : true,
+              "bandwidth" : 1.0E10,
+              "isisL1InterfaceMode" : "unset",
+              "isisL2InterfaceMode" : "unset",
+              "mtu" : 1500,
+              "nativeVlan" : 1,
+              "ospfArea" : 66051,
+              "ospfCost" : 1,
+              "ospfDeadInterval" : 0,
+              "ospfEnabled" : true,
+              "ospfHelloMultiplier" : 0,
+              "ospfPassive" : false,
+              "switchportMode" : "NONE",
+              "switchportTrunkEncapsulation" : "DOT1Q",
+              "vrf" : "default"
+            },
+            "xe-0/0/21.0" : {
+              "name" : "xe-0/0/21.0",
+              "accessVlan" : 0,
+              "active" : true,
+              "bandwidth" : 1.0E10,
+              "isisL1InterfaceMode" : "unset",
+              "isisL2InterfaceMode" : "unset",
+              "mtu" : 1500,
+              "nativeVlan" : 1,
+              "ospfCost" : 1,
+              "ospfDeadInterval" : 0,
+              "ospfEnabled" : true,
+              "ospfHelloMultiplier" : 0,
+              "ospfPassive" : true,
+              "switchportMode" : "NONE",
+              "switchportTrunkEncapsulation" : "DOT1Q",
+              "vrf" : "default"
+            }
+          },
+          "routingPolicies" : {
+            "~OSPF_EXPORT_POLICY:default~" : {
+              "name" : "~OSPF_EXPORT_POLICY:default~",
+              "statements" : [
+                {
+                  "class" : "org.batfish.datamodel.routing_policy.statement.SetOspfMetricType",
+                  "metricType" : "E2"
+                },
+                {
+                  "class" : "org.batfish.datamodel.routing_policy.statement.If",
+                  "falseStatements" : [
+                    {
+                      "class" : "org.batfish.datamodel.routing_policy.statement.Statements$StaticStatement",
+                      "type" : "ExitReject"
+                    }
+                  ],
+                  "guard" : {
+                    "class" : "org.batfish.datamodel.routing_policy.expr.Disjunction"
+                  },
+                  "trueStatements" : [
+                    {
+                      "class" : "org.batfish.datamodel.routing_policy.statement.Statements$StaticStatement",
+                      "type" : "ExitAccept"
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          "vendorFamily" : { },
+          "vrfs" : {
+            "default" : {
+              "name" : "default",
+              "interfaces" : [
+                "xe-0/0/1.0",
+                "xe-0/0/20.0",
+                "xe-0/0/21.0"
+              ],
+              "ospfProcess" : {
+                "areas" : {
+                  "66051" : {
+                    "name" : 66051,
+                    "interfaces" : [
+                      "xe-0/0/1.0",
+                      "xe-0/0/20.0",
+                      "xe-0/0/21.0"
+                    ]
+                  }
+                },
+                "exportPolicy" : "~OSPF_EXPORT_POLICY:default~",
+                "referenceBandwidth" : 1.0E9
+              }
             }
           }
         },
@@ -6049,6 +6575,18 @@
         },
         "juniper_apply_macro" : {
           "name" : "juniper_apply_macro",
+          "configurationFormat" : "FLAT_JUNIPER",
+          "defaultCrossZoneAction" : "ACCEPT",
+          "defaultInboundAction" : "ACCEPT",
+          "vendorFamily" : { },
+          "vrfs" : {
+            "default" : {
+              "name" : "default"
+            }
+          }
+        },
+        "juniper_bgp" : {
+          "name" : "juniper_bgp",
           "configurationFormat" : "FLAT_JUNIPER",
           "defaultCrossZoneAction" : "ACCEPT",
           "defaultInboundAction" : "ACCEPT",
@@ -6149,8 +6687,8 @@
               "accessVlan" : 0,
               "active" : true,
               "allPrefixes" : [
-                "10.0.0.1/24",
-                "10.161.224.5/24"
+                "1.2.3.0/24",
+                "1.2.3.1/24"
               ],
               "bandwidth" : 1.0E12,
               "isisL1InterfaceMode" : "unset",
@@ -6161,7 +6699,7 @@
               "ospfEnabled" : false,
               "ospfHelloMultiplier" : 0,
               "ospfPassive" : false,
-              "prefix" : "10.0.0.1/24",
+              "prefix" : "1.2.3.1/24",
               "switchportMode" : "NONE",
               "switchportTrunkEncapsulation" : "DOT1Q",
               "vrf" : "default",
@@ -6234,6 +6772,22 @@
             }
           }
         },
+        "juniper_ntp" : {
+          "name" : "juniper_ntp",
+          "configurationFormat" : "FLAT_JUNIPER",
+          "defaultCrossZoneAction" : "ACCEPT",
+          "defaultInboundAction" : "ACCEPT",
+          "ntpServers" : [
+            "1.2.3.4",
+            "2.3.4.5"
+          ],
+          "vendorFamily" : { },
+          "vrfs" : {
+            "default" : {
+              "name" : "default"
+            }
+          }
+        },
         "juniper_routing_options" : {
           "name" : "juniper_routing_options",
           "configurationFormat" : "FLAT_JUNIPER",
@@ -6254,6 +6808,41 @@
           "vendorFamily" : { },
           "vrfs" : {
             "default" : {
+              "name" : "default",
+              "snmpServer" : {
+                "communities" : {
+                  "\"dummycommunity\"" : {
+                    "name" : "\"dummycommunity\"",
+                    "accessList" : "bippetyboo",
+                    "accessList6" : "bippetyboo",
+                    "ro" : true,
+                    "rw" : false
+                  }
+                },
+                "hosts" : {
+                  "1.2.3.4" : {
+                    "name" : "1.2.3.4"
+                  },
+                  "2.3.4.5" : {
+                    "name" : "2.3.4.5"
+                  }
+                },
+                "vrf" : "default"
+              }
+            }
+          }
+        },
+        "juniper_syslog" : {
+          "name" : "juniper_syslog",
+          "configurationFormat" : "FLAT_JUNIPER",
+          "defaultCrossZoneAction" : "ACCEPT",
+          "defaultInboundAction" : "ACCEPT",
+          "loggingServers" : [
+            "1.2.3.4"
+          ],
+          "vendorFamily" : { },
+          "vrfs" : {
+            "default" : {
               "name" : "default"
             }
           }
@@ -6263,6 +6852,21 @@
           "configurationFormat" : "FLAT_JUNIPER",
           "defaultCrossZoneAction" : "ACCEPT",
           "defaultInboundAction" : "ACCEPT",
+          "vendorFamily" : { },
+          "vrfs" : {
+            "default" : {
+              "name" : "default"
+            }
+          }
+        },
+        "juniper_tacplus" : {
+          "name" : "juniper_tacplus",
+          "configurationFormat" : "FLAT_JUNIPER",
+          "defaultCrossZoneAction" : "ACCEPT",
+          "defaultInboundAction" : "ACCEPT",
+          "tacacsServers" : [
+            "1.2.3.4"
+          ],
           "vendorFamily" : { },
           "vrfs" : {
             "default" : {
@@ -7024,22 +7628,22 @@
               "name" : "default",
               "bgpProcess" : {
                 "neighbors" : {
-                  "4.4.4.4/32" : {
-                    "name" : "4.4.4.4/32",
-                    "address" : "4.4.4.4",
+                  "1.1.1.1/32" : {
+                    "name" : "1.1.1.1/32",
+                    "address" : "1.1.1.1",
                     "advertiseExternal" : false,
                     "advertiseInactive" : false,
                     "allowLocalAsIn" : false,
                     "allowRemoteAsOut" : false,
                     "clusterId" : 168430090,
                     "defaultMetric" : 0,
-                    "description" : "neighbor-4-4-4-4-remote-as-4-af-ipv6-desc !nexus",
+                    "description" : "neighbor-1-1-1-1-remote-as-1-af-ipv4-desc !nexus",
                     "dynamic" : false,
                     "ebgpMultihop" : false,
-                    "exportPolicy" : "~BGP_PEER_EXPORT_POLICY:default:4.4.4.4~",
+                    "exportPolicy" : "~BGP_PEER_EXPORT_POLICY:default:1.1.1.1~",
                     "localAs" : 1,
-                    "remoteAs" : 4,
-                    "remotePrefix" : "4.4.4.4/32",
+                    "remoteAs" : 1,
+                    "remotePrefix" : "1.1.1.1/32",
                     "routeReflectorClient" : false,
                     "sendCommunity" : false,
                     "vrf" : "default"
@@ -7064,22 +7668,22 @@
                     "sendCommunity" : false,
                     "vrf" : "default"
                   },
-                  "1.1.1.1/32" : {
-                    "name" : "1.1.1.1/32",
-                    "address" : "1.1.1.1",
+                  "4.4.4.4/32" : {
+                    "name" : "4.4.4.4/32",
+                    "address" : "4.4.4.4",
                     "advertiseExternal" : false,
                     "advertiseInactive" : false,
                     "allowLocalAsIn" : false,
                     "allowRemoteAsOut" : false,
                     "clusterId" : 168430090,
                     "defaultMetric" : 0,
-                    "description" : "neighbor-1-1-1-1-remote-as-1-af-ipv4-desc !nexus",
+                    "description" : "neighbor-4-4-4-4-remote-as-4-af-ipv6-desc !nexus",
                     "dynamic" : false,
                     "ebgpMultihop" : false,
-                    "exportPolicy" : "~BGP_PEER_EXPORT_POLICY:default:1.1.1.1~",
+                    "exportPolicy" : "~BGP_PEER_EXPORT_POLICY:default:4.4.4.4~",
                     "localAs" : 1,
-                    "remoteAs" : 1,
-                    "remotePrefix" : "1.1.1.1/32",
+                    "remoteAs" : 4,
+                    "remotePrefix" : "4.4.4.4/32",
                     "routeReflectorClient" : false,
                     "sendCommunity" : false,
                     "vrf" : "default"
@@ -7501,6 +8105,10 @@
           "configurationFormat" : "CISCO_NX",
           "defaultCrossZoneAction" : "ACCEPT",
           "defaultInboundAction" : "ACCEPT",
+          "ntpServers" : [
+            "1.2.3.4",
+            "10.1.2.3"
+          ],
           "vendorFamily" : {
             "cisco" : {
               "hostname" : "nexus_ntp",
@@ -7693,6 +8301,46 @@
                 },
                 "routerId" : "0.0.0.0"
               }
+            }
+          }
+        },
+        "nxos_acl" : {
+          "name" : "nxos_acl",
+          "configurationFormat" : "CISCO_NX",
+          "defaultCrossZoneAction" : "ACCEPT",
+          "defaultInboundAction" : "ACCEPT",
+          "ipAccessLists" : {
+            "blah" : {
+              "name" : "blah",
+              "lines" : [
+                {
+                  "action" : "ACCEPT",
+                  "dstIps" : [
+                    "0.0.0.0/0"
+                  ],
+                  "name" : "10 permit ip any any",
+                  "negate" : false,
+                  "srcIps" : [
+                    "0.0.0.0/0"
+                  ]
+                }
+              ]
+            },
+            "extended" : {
+              "name" : "extended"
+            },
+            "standard" : {
+              "name" : "standard"
+            }
+          },
+          "vendorFamily" : {
+            "cisco" : {
+              "hostname" : "nxos_acl"
+            }
+          },
+          "vrfs" : {
+            "default" : {
+              "name" : "default"
             }
           }
         },
@@ -7935,6 +8583,7 @@
               "ospfHelloMultiplier" : 0,
               "ospfPassive" : false,
               "prefix" : "137.164.17.8/32",
+              "proxyArp" : false,
               "switchportMode" : "NONE",
               "switchportTrunkEncapsulation" : "DOT1Q",
               "vrf" : "default"
@@ -11224,22 +11873,6 @@
             }
           }
         },
-        "router_hsrp" : {
-          "name" : "router_hsrp",
-          "configurationFormat" : "CISCO_NX",
-          "defaultCrossZoneAction" : "ACCEPT",
-          "defaultInboundAction" : "ACCEPT",
-          "vendorFamily" : {
-            "cisco" : {
-              "hostname" : "router_hsrp"
-            }
-          },
-          "vrfs" : {
-            "default" : {
-              "name" : "default"
-            }
-          }
-        },
         "router_msdp" : {
           "name" : "router_msdp",
           "configurationFormat" : "CISCO_NX",
@@ -11360,6 +11993,7 @@
               "ospfEnabled" : false,
               "ospfHelloMultiplier" : 0,
               "ospfPassive" : false,
+              "proxyArp" : false,
               "switchportMode" : "NONE",
               "switchportTrunkEncapsulation" : "DOT1Q",
               "vrf" : "default"
@@ -11792,6 +12426,7 @@
               "ospfEnabled" : false,
               "ospfHelloMultiplier" : 0,
               "ospfPassive" : false,
+              "proxyArp" : false,
               "switchportMode" : "NONE",
               "switchportTrunkEncapsulation" : "DOT1Q",
               "vrf" : "default"
@@ -11830,6 +12465,7 @@
               "ospfEnabled" : false,
               "ospfHelloMultiplier" : 0,
               "ospfPassive" : false,
+              "proxyArp" : false,
               "switchportMode" : "NONE",
               "switchportTrunkEncapsulation" : "DOT1Q",
               "vrf" : "default"

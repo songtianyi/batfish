@@ -19,7 +19,7 @@ public class SmtManyAnswerElement implements AnswerElement {
     }
 
     @Override
-    public String prettyPrint() throws JsonProcessingException {
+    public String prettyPrint() {
         if (_result != null) {
             for (Map.Entry<String, VerificationResult> e : _result.entrySet()) {
                 VerificationResult r = e.getValue();

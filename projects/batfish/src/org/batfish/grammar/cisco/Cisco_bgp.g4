@@ -250,7 +250,7 @@ filter_list_bgp_tail
 
 inherit_peer_policy_bgp_tail
 :
-   INHERIT PEER_POLICY name = variable NEWLINE
+   INHERIT PEER_POLICY name = variable num = DEC? NEWLINE
 ;
 
 inherit_peer_session_bgp_tail
@@ -566,7 +566,6 @@ null_bgp_tail
       | RECONNECT_INTERVAL
       | SEND_LABEL
       | SESSION_OPEN_MODE
-      | SHUTDOWN
       | SOFT_RECONFIGURATION
       | SUPPRESS_FIB_PENDING
       | SYNCHRONIZATION
@@ -771,10 +770,7 @@ router_bgp_stanza_tail
    | template_peer_rb_stanza
    | template_peer_policy_rb_stanza
    | template_peer_session_rb_stanza
-   |
-   {_multilineBgpNeighbors}?
-
-   vrf_block_rb_stanza
+   | vrf_block_rb_stanza
    | unrecognized_line
 ;
 
@@ -814,10 +810,7 @@ session_group_rb_stanza
 
 shutdown_bgp_tail
 :
-   (
-      SHUTDOWN
-      | SHUT
-   ) NEWLINE
+   SHUTDOWN NEWLINE
 ;
 
 subnet_bgp_tail
@@ -885,6 +878,7 @@ template_peer_policy_rb_stanza
    TEMPLATE PEER_POLICY name = VARIABLE NEWLINE
    (
       bgp_tail
+      | inherit_peer_policy_bgp_tail
    )*
    (
       EXIT_PEER_POLICY NEWLINE

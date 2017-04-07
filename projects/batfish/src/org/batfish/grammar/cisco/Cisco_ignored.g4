@@ -52,7 +52,6 @@ null_block
       | DEVICE
       | DHCPRELAY
       | DO STOP
-      | DOMAIN
       | DOT1X
       | DOT1X_ENABLE
       | DUAL_MODE_DEFAULT_VLAN
@@ -102,7 +101,6 @@ null_block
             | ICMP_ERRORS
             | INSPECT
             | INTERNAL
-            | NAME_SERVER
             | POLICY_LIST
             | RATE_LIMIT
             | RECEIVE
@@ -147,7 +145,6 @@ null_block
             | ROUTING
          )
       )
-      | KEY
       | KEYSTORE
       | KRON
       | L2TP_CLASS
@@ -237,9 +234,6 @@ null_block
       | SYSLOGD
       | SYSTEM_INIT
       | SYSTEM_MAX
-      | TABLE_MAP
-      | TACACS
-      | TACACS_SERVER
       | TAG_TYPE
       | TASKGROUP
       | TCP
@@ -292,7 +286,6 @@ null_inner
       NO?
       (
          ACCEPT_DIALIN
-         | ACCEPT_LIFETIME
          | ACCOUNTING
          | ACTIVE
          | ADD_VLAN
@@ -335,9 +328,7 @@ null_inner
          | CONTEXT
          | CPU_SHARE
          | CREDENTIALS
-         | CRYPTOGRAPHIC_ALGORITHM
          | DEADTIME
-         | DEFAULT
          | DEFAULT_DOMAIN
          | DEFAULT_ROUTER
          | DENY
@@ -419,7 +410,6 @@ null_inner
          )
          | IPSEC_UDP
          | IPX
-         | KEY_STRING
          | KEYPATH
          | LACP_TIMEOUT
          | LEASE
@@ -431,7 +421,6 @@ null_inner
          | LOG
          | LPTS
          | MAC_ADDRESS
-         | MAP
          | MEDIA
          | MEMBER
          | MESH_GROUP
@@ -503,7 +492,6 @@ null_inner
          | SA_FILTER
          | SATELLITE
          | SECRET
-         | SEND_LIFETIME
          | SEQUENCE
          | SERVER
          | SERVERFARM
@@ -513,7 +501,6 @@ null_inner
          | SERVICE_TYPE
          | SESSION
          | SEVERITY
-         | SHUT
          | SIGNING
          | SINGLE_CONNECTION
          | SINGLE_ROUTER_MODE
@@ -604,6 +591,7 @@ null_single
       | BOOT_START_MARKER
       | BRIDGE
       | BRIDGE_DOMAIN
+      | BUILDING_CONFIGURATION
       | CALL
       | CARD
       | CCM_MANAGER
@@ -611,9 +599,11 @@ null_single
       | CFS
       | CLOCK
       | CNS
+      | CONFIG
       | CONFIG_REGISTER
       | CONSOLE
       | CTS
+      | CURRENT_CONFIGURATION
       | DEFAULT
       | DEVICE_SENSOR
       | DHCPD
@@ -672,7 +662,6 @@ null_single
             | CLASSLESS
             | DEFAULT_NETWORK
             | DEVICE
-            | DOMAIN
             | DOMAIN_LIST
             | DOMAIN_LOOKUP
             | DVMRP
@@ -804,7 +793,6 @@ null_single
                   AS_PATH
                )
             )
-            | LOGGING
             |
             (
                SNMP_SERVER

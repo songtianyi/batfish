@@ -2,13 +2,19 @@
   "answerElements" : [
     {
       "class" : "org.batfish.datamodel.answers.ParseVendorConfigurationAnswerElement",
+      "fileMap" : {
+        "R1" : "R1.txt",
+        "R2" : "R2.txt"
+      },
       "parseStatus" : {
         "R1" : "PASSED",
         "R2" : "PASSED"
-      }
+      },
+      "version" : "0.14.0"
     },
     {
-      "class" : "org.batfish.datamodel.answers.ConvertConfigurationAnswerElement"
+      "class" : "org.batfish.datamodel.answers.ConvertConfigurationAnswerElement",
+      "version" : "0.14.0"
     },
     {
       "class" : "org.batfish.datamodel.answers.InitInfoAnswerElement",

@@ -10,8 +10,6 @@ import java.util.TreeSet;
 import org.batfish.common.Warning;
 import org.batfish.common.Warnings;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-
 public class ConvertConfigurationAnswerElement
       implements AnswerElement, Serializable {
 
@@ -22,9 +20,11 @@ public class ConvertConfigurationAnswerElement
 
    private Set<String> _failed;
 
-   private SortedMap<String, SortedMap<String, SortedSet<String>>> _undefinedReferences;
+   private SortedMap<String, SortedMap<String, SortedMap<String, SortedMap<String, SortedSet<Integer>>>>> _undefinedReferences;
 
-   private SortedMap<String, SortedMap<String, SortedSet<String>>> _unusedStructures;
+   private SortedMap<String, SortedMap<String, SortedMap<String, SortedSet<Integer>>>> _unusedStructures;
+
+   private String _version;
 
    private SortedMap<String, Warnings> _warnings;
 
@@ -39,12 +39,16 @@ public class ConvertConfigurationAnswerElement
       return _failed;
    }
 
-   public SortedMap<String, SortedMap<String, SortedSet<String>>> getUndefinedReferences() {
+   public SortedMap<String, SortedMap<String, SortedMap<String, SortedMap<String, SortedSet<Integer>>>>> getUndefinedReferences() {
       return _undefinedReferences;
    }
 
-   public SortedMap<String, SortedMap<String, SortedSet<String>>> getUnusedStructures() {
+   public SortedMap<String, SortedMap<String, SortedMap<String, SortedSet<Integer>>>> getUnusedStructures() {
       return _unusedStructures;
+   }
+
+   public String getVersion() {
+      return _version;
    }
 
    public SortedMap<String, Warnings> getWarnings() {
@@ -52,46 +56,47 @@ public class ConvertConfigurationAnswerElement
    }
 
    @Override
-   public String prettyPrint() throws JsonProcessingException {
-      StringBuilder retString = new StringBuilder(
+   public String prettyPrint() {
+      StringBuilder sb = new StringBuilder(
             "Results from converting vendor configurations\n");
-
-      for (String name : _warnings.keySet()) {
-         retString.append("\n  " + name + "[Conversion warnings]\n");
-         for (Warning warning : _warnings.get(name).getRedFlagWarnings()) {
-            retString.append("    RedFlag " + warning.getTag() + " : "
+      _warnings.forEach((name, warnings) -> {
+         sb.append("\n  " + name + "[Conversion warnings]\n");
+         for (Warning warning : warnings.getRedFlagWarnings()) {
+            sb.append("    RedFlag " + warning.getTag() + " : "
                   + warning.getText() + "\n");
          }
-         for (Warning warning : _warnings.get(name)
-               .getUnimplementedWarnings()) {
-            retString.append("    Unimplemented " + warning.getTag() + " : "
+         for (Warning warning : warnings.getUnimplementedWarnings()) {
+            sb.append("    Unimplemented " + warning.getTag() + " : "
                   + warning.getText() + "\n");
          }
-         for (Warning warning : _warnings.get(name).getPedanticWarnings()) {
-            retString.append("    Pedantic " + warning.getTag() + " : "
+         for (Warning warning : warnings.getPedanticWarnings()) {
+            sb.append("    Pedantic " + warning.getTag() + " : "
                   + warning.getText() + "\n");
          }
-      }
-      for (String name : _undefinedReferences.keySet()) {
-         retString.append("\n  " + name + "[Undefined references]\n");
-         for (String structType : _undefinedReferences.get(name).keySet()) {
-            for (String structName : _undefinedReferences.get(name)
-                  .get(structType)) {
-               retString.append("    " + structType + ": " + structName + "\n");
-            }
-         }
-      }
-      for (String name : _unusedStructures.keySet()) {
-         retString.append("\n  " + name + "[Unused structures]\n");
-         for (String structType : _unusedStructures.get(name).keySet()) {
-            for (String structName : _unusedStructures.get(name)
-                  .get(structType)) {
-               retString.append("    " + structType + ": " + structName + "\n");
-            }
-         }
-      }
-
-      return retString.toString();
+      });
+      _undefinedReferences.forEach((hostname, byType) -> {
+         sb.append("\n  " + hostname + "[Undefined references]\n");
+         byType.forEach((type, byName) -> {
+            sb.append("  " + type + ":\n");
+            byName.forEach((name, byUsage) -> {
+               sb.append("    " + name + ":\n");
+               byUsage.forEach((usage, lines) -> {
+                  sb.append("      " + usage + ": lines " + lines.toString()
+                        + "\n");
+               });
+            });
+         });
+      });
+      _unusedStructures.forEach((hostname, byType) -> {
+         sb.append("\n  " + hostname + "[Unused structures]\n");
+         byType.forEach((structureType, byName) -> {
+            byName.forEach((name, lines) -> {
+               sb.append("    " + structureType + ": " + name + ":"
+                     + lines.toString() + "\n");
+            });
+         });
+      });
+      return sb.toString();
    }
 
    public void setFailed(Set<String> failed) {
@@ -99,13 +104,17 @@ public class ConvertConfigurationAnswerElement
    }
 
    public void setUndefinedReferences(
-         SortedMap<String, SortedMap<String, SortedSet<String>>> undefinedReferences) {
+         SortedMap<String, SortedMap<String, SortedMap<String, SortedMap<String, SortedSet<Integer>>>>> undefinedReferences) {
       _undefinedReferences = undefinedReferences;
    }
 
    public void setUnusedStructures(
-         SortedMap<String, SortedMap<String, SortedSet<String>>> unusedStructures) {
+         SortedMap<String, SortedMap<String, SortedMap<String, SortedSet<Integer>>>> unusedStructures) {
       _unusedStructures = unusedStructures;
+   }
+
+   public void setVersion(String version) {
+      _version = version;
    }
 
    public void setWarnings(SortedMap<String, Warnings> warnings) {

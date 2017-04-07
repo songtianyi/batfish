@@ -148,7 +148,6 @@ ro_null
       )
       | AUTO_COST
       | BFD
-      | COST
       | DEAD_INTERVAL
       | DISCARD_ROUTE
       | DISTRIBUTE_LIST
@@ -322,7 +321,7 @@ ro6_distribute_list
 
 ro6_log_adjacency_changes
 :
-   LOG_ADJACENCY_CHANGES NEWLINE
+   LOG_ADJACENCY_CHANGES DETAIL? NEWLINE
 ;
 
 ro6_maximum_paths
@@ -356,6 +355,7 @@ roa_interface
    INTERFACE iname = interface_name NEWLINE
    (
       ro_common
+      | roi_cost
       | roi_network
       | roi_priority
       | roi_passive
@@ -364,12 +364,21 @@ roa_interface
 
 roa_range
 :
-   RANGE ~NEWLINE* NEWLINE
+   RANGE prefix = IP_PREFIX
+   (
+      ADVERTISE
+      | NOT_ADVERTISE
+   ) NEWLINE
 ;
 
 roa_network_null
 :
    NETWORK POINT_TO_POINT NEWLINE
+;
+
+roi_cost
+:
+   COST cost = DEC NEWLINE
 ;
 
 roi_network
