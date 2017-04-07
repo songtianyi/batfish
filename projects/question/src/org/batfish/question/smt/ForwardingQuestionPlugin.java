@@ -42,6 +42,11 @@ public class ForwardingQuestionPlugin extends QuestionPlugin {
         }
 
         @Override
+        public boolean getDataPlane() {
+            return false;
+        }
+
+        @Override
         public String getName() {
             return "smt-forwarding";
         }

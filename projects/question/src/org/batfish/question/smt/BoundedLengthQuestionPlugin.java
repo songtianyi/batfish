@@ -82,6 +82,11 @@ public class BoundedLengthQuestionPlugin extends QuestionPlugin {
         }
 
         @Override
+        public boolean getDataPlane() {
+            return false;
+        }
+
+        @Override
         public String getName() {
             return "smt-bounded-length";
         }

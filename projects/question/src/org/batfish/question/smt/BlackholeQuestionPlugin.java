@@ -44,11 +44,6 @@ public class BlackholeQuestionPlugin extends QuestionPlugin {
         }
 
         @Override
-        public boolean getDataPlane() {
-            return false;
-        }
-
-        @Override
         public String getName() {
             return "smt-blackhole";
         }
