@@ -5,6 +5,6 @@
 .idea
 *.iml
 *.eml
-*.testout
 *.swp
 *.dylib
+*.testout

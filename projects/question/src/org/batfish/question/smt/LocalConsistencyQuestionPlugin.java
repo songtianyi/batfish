@@ -57,38 +57,6 @@ public class LocalConsistencyQuestionPlugin extends QuestionPlugin {
             _strict = false;
         }
 
-        @Override
-        public void setJsonParameters(JSONObject parameters) {
-            super.setJsonParameters(parameters);
-
-            Iterator<?> paramKeys = parameters.keys();
-
-            while (paramKeys.hasNext()) {
-                String paramKey = (String) paramKeys.next();
-
-                if (isBaseKey(paramKey)) {
-                    continue;
-                }
-
-                try {
-                    switch (paramKey) {
-                        case NODE_REGEX_VAR:
-                            setRouterRegex(parameters.getString(paramKey));
-                            break;
-                        case STRICT_VAR:
-                            setStrict(parameters.getBoolean(paramKey));
-                            break;
-                        default:
-                            throw new BatfishException("Unknown key in "
-                                    + getClass().getSimpleName() + ": " + paramKey);
-                    }
-                }
-                catch (JSONException e) {
-                    throw new BatfishException("JSONException in parameters", e);
-                }
-            }
-        }
-
         @JsonProperty(NODE_REGEX_VAR)
         public String getRouterRegex() {
             return _routerRegex;
@@ -99,10 +67,12 @@ public class LocalConsistencyQuestionPlugin extends QuestionPlugin {
             return _strict;
         }
 
+        @JsonProperty(NODE_REGEX_VAR)
         public void setRouterRegex(String _routerRegex) {
             this._routerRegex = _routerRegex;
         }
 
+        @JsonProperty(STRICT_VAR)
         public void setStrict(boolean _strict) {
             this._strict = _strict;
         }

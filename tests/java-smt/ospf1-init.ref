@@ -12,11 +12,11 @@
         "R2" : "PASSED",
         "R3" : "PASSED"
       },
-      "version" : "0.14.0"
+      "version" : "0.18.0"
     },
     {
       "class" : "org.batfish.datamodel.answers.ConvertConfigurationAnswerElement",
-      "version" : "0.14.0"
+      "version" : "0.18.0"
     },
     {
       "class" : "org.batfish.datamodel.answers.InitInfoAnswerElement",

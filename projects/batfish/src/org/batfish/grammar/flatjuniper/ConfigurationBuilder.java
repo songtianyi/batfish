@@ -43,7 +43,7 @@ import org.batfish.datamodel.SnmpServer;
 import org.batfish.datamodel.SubRange;
 import org.batfish.datamodel.TcpFlags;
 import org.batfish.datamodel.VrrpGroup;
-import org.batfish.main.Warnings;
+import org.batfish.common.Warnings;
 import org.batfish.representation.juniper.*;
 import org.batfish.representation.juniper.BaseApplication.Term;
 import org.batfish.representation.juniper.BgpGroup.BgpGroupType;
@@ -1244,6 +1244,15 @@ public class ConfigurationBuilder extends FlatJuniperParserBaseListener {
       else {
          throw new BatfishException("invalid ipsec protocol: " + ctx.getText());
       }
+   }
+
+   private static List<SubRange> toRange(RangeContext ctx) {
+      List<SubRange> range = new ArrayList<>();
+      for (SubrangeContext sc : ctx.range_list) {
+         SubRange sr = toSubRange(sc);
+         range.add(sr);
+      }
+      return range;
    }
 
    private static RoutingProtocol toRoutingProtocol(
@@ -2584,6 +2593,21 @@ public class ConfigurationBuilder extends FlatJuniperParserBaseListener {
    public void exitFftf_is_fragment(Fftf_is_fragmentContext ctx) {
       SubRange subRange = new SubRange(0, 0);
       FwFrom from = new FwFromFragmentOffset(subRange, true);
+      _currentFwTerm.getFroms().add(from);
+   }
+
+   @Override
+   public void exitFftf_packet_length(Fftf_packet_lengthContext ctx) {
+      List<SubRange> range = toRange(ctx.range());
+      FwFrom from = new FwFromPacketLength(range, false);
+      _currentFwTerm.getFroms().add(from);
+   }
+
+   @Override
+   public void exitFftf_packet_length_except(
+         Fftf_packet_length_exceptContext ctx) {
+      List<SubRange> range = toRange(ctx.range());
+      FwFrom from = new FwFromPacketLength(range, true);
       _currentFwTerm.getFroms().add(from);
    }
 

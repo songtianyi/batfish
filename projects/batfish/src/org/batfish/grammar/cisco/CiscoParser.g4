@@ -523,7 +523,10 @@ ip_route_tail
    (
       nexthopip = IP_ADDRESS
       | nexthopprefix = IP_PREFIX
-      | distance = DEC
+      | nexthopint = interface_name
+   )*
+   (
+      distance = DEC
       |
       (
          TAG tag = DEC
@@ -537,9 +540,6 @@ ip_route_tail
       (
          NAME variable
       )
-      // do not move interface_name up
-
-      | nexthopint = interface_name
    )* NEWLINE
 ;
 
@@ -1867,6 +1867,7 @@ s_vrf_context
    VRF CONTEXT name = variable NEWLINE
    (
       vrfc_ip_route
+      | vrfc_null
    )*
 ;
 
@@ -2218,6 +2219,7 @@ t_server
    SERVER hostname = variable_hostname NEWLINE
    (
       t_server_address
+      | t_key
       | t_server_null
    )*
 ;
@@ -2242,6 +2244,11 @@ t_server_null
    (
       SINGLE_CONNECTION
    ) ~NEWLINE* NEWLINE
+;
+
+t_key
+:
+   KEY DEC? variable_permissive NEWLINE
 ;
 
 tap_null
@@ -2283,7 +2290,7 @@ ts_host
    (
       IP_ADDRESS
       | IPV6_ADDRESS
-   ) ~NEWLINE* NEWLINE
+   ) ~NEWLINE* NEWLINE t_key?
 ;
 
 ts_null
@@ -2435,6 +2442,20 @@ vpn_null
 vrfc_ip_route
 :
    IP ROUTE ip_route_tail
+;
+
+vrfc_null
+:
+   NO?
+   (
+      (
+         IP
+         (
+            PIM
+         )
+      )
+      | MDT
+   ) ~NEWLINE* NEWLINE
 ;
 
 vrfd_address_family

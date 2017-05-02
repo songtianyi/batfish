@@ -8,6 +8,9 @@ import org.batfish.common.BaseSettings;
 import org.batfish.common.BatfishLogger;
 import org.batfish.common.BfConsts;
 import org.batfish.common.CoordConsts;
+import org.batfish.common.PedanticBatfishException;
+import org.batfish.common.RedFlagBatfishException;
+import org.batfish.common.UnimplementedBatfishException;
 import org.batfish.common.util.CommonUtil;
 import org.batfish.config.ConfigurationLocator;
 import org.batfish.grammar.GrammarSettings;
@@ -30,6 +33,10 @@ public final class Settings extends BaseSettings implements GrammarSettings {
 
       private Path _environmentBasePath;
 
+      private Path _environmentBgpTablesPath;
+
+      private Path _environmentRoutingTablesPath;
+
       private Path _envPath;
 
       private Path _externalBgpAnnouncementsPath;
@@ -40,11 +47,17 @@ public final class Settings extends BaseSettings implements GrammarSettings {
 
       private Path _nodeBlacklistPath;
 
+      private Path _parseEnvironmentBgpTablesAnswerPath;
+
+      private Path _parseEnvironmentRoutingTablesAnswerPath;
+
       private Path _precomputedRoutesPath;
 
       private Path _serializedTopologyPath;
 
-      private Path _trafficFactsDir;
+      private Path _serializeEnvironmentBgpTablesPath;
+
+      private Path _serializeEnvironmentRoutingTablesPath;
 
       public Path getDataPlaneAnswerPath() {
          return _dataPlaneAnswerPath;
@@ -74,6 +87,14 @@ public final class Settings extends BaseSettings implements GrammarSettings {
          return _environmentBasePath;
       }
 
+      public Path getEnvironmentBgpTablesPath() {
+         return _environmentBgpTablesPath;
+      }
+
+      public Path getEnvironmentRoutingTablesPath() {
+         return _environmentRoutingTablesPath;
+      }
+
       public Path getEnvPath() {
          return _envPath;
       }
@@ -94,6 +115,14 @@ public final class Settings extends BaseSettings implements GrammarSettings {
          return _nodeBlacklistPath;
       }
 
+      public Path getParseEnvironmentBgpTablesAnswerPath() {
+         return _parseEnvironmentBgpTablesAnswerPath;
+      }
+
+      public Path getParseEnvironmentRoutingTablesAnswerPath() {
+         return _parseEnvironmentRoutingTablesAnswerPath;
+      }
+
       public Path getPrecomputedRoutesPath() {
          return _precomputedRoutesPath;
       }
@@ -102,8 +131,12 @@ public final class Settings extends BaseSettings implements GrammarSettings {
          return _serializedTopologyPath;
       }
 
-      public Path getTrafficFactsDir() {
-         return _trafficFactsDir;
+      public Path getSerializeEnvironmentBgpTablesPath() {
+         return _serializeEnvironmentBgpTablesPath;
+      }
+
+      public Path getSerializeEnvironmentRoutingTablesPath() {
+         return _serializeEnvironmentRoutingTablesPath;
       }
 
       public void setDataPlaneAnswerPath(Path dataPlaneAnswerPath) {
@@ -136,6 +169,15 @@ public final class Settings extends BaseSettings implements GrammarSettings {
          _environmentBasePath = environmentBasePath;
       }
 
+      public void setEnvironmentBgpTablesPath(Path environmentBgpTablesPath) {
+         _environmentBgpTablesPath = environmentBgpTablesPath;
+      }
+
+      public void setEnvironmentRoutingTablesPath(
+            Path environmentRoutingTablesPath) {
+         _environmentRoutingTablesPath = environmentRoutingTablesPath;
+      }
+
       public void setEnvPath(Path envPath) {
          _envPath = envPath;
       }
@@ -157,6 +199,16 @@ public final class Settings extends BaseSettings implements GrammarSettings {
          _nodeBlacklistPath = nodeBlacklistPath;
       }
 
+      public void setParseEnvironmentBgpTablesAnswerPath(
+            Path parseEnvironmentBgpTablesAnswerPath) {
+         _parseEnvironmentBgpTablesAnswerPath = parseEnvironmentBgpTablesAnswerPath;
+      }
+
+      public void setParseEnvironmentRoutingTablesAnswerPath(
+            Path parseEnvironmentRoutingTablesAnswerPath) {
+         _parseEnvironmentRoutingTablesAnswerPath = parseEnvironmentRoutingTablesAnswerPath;
+      }
+
       public void setPrecomputedRoutesPath(Path writeRoutesPath) {
          _precomputedRoutesPath = writeRoutesPath;
       }
@@ -165,8 +217,14 @@ public final class Settings extends BaseSettings implements GrammarSettings {
          _serializedTopologyPath = serializedTopologyPath;
       }
 
-      public void setTrafficFactsDir(Path trafficFactsDir) {
-         _trafficFactsDir = trafficFactsDir;
+      public void setSerializeEnvironmentBgpTablesPath(
+            Path serializeEnvironmentBgpTablesPath) {
+         _serializeEnvironmentBgpTablesPath = serializeEnvironmentBgpTablesPath;
+      }
+
+      public void setSerializeEnvironmentRoutingTablesPath(
+            Path serializeEnvironmentRoutingTablesPath) {
+         _serializeEnvironmentRoutingTablesPath = serializeEnvironmentRoutingTablesPath;
       }
 
    }
@@ -540,8 +598,6 @@ public final class Settings extends BaseSettings implements GrammarSettings {
 
    private String _questionName;
 
-   private Path _questionParametersPath;
-
    private Path _questionPath;
 
    private boolean _redFlagAsError;
@@ -844,10 +900,6 @@ public final class Settings extends BaseSettings implements GrammarSettings {
 
    public String getQuestionName() {
       return _questionName;
-   }
-
-   public Path getQuestionParametersPath() {
-      return _questionParametersPath;
    }
 
    public Path getQuestionPath() {
@@ -1514,10 +1566,6 @@ public final class Settings extends BaseSettings implements GrammarSettings {
 
    public void setPluginDirs(List<Path> pluginDirs) {
       _pluginDirs = pluginDirs;
-   }
-
-   public void setQuestionParametersPath(Path questionParametersPath) {
-      _questionParametersPath = questionParametersPath;
    }
 
    public void setQuestionPath(Path questionPath) {

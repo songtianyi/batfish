@@ -75,6 +75,8 @@ public class WorkMgr {
       envFilenames.add(BfConsts.RELPATH_NODE_BLACKLIST_FILE);
       envFilenames.add(BfConsts.RELPATH_INTERFACE_BLACKLIST_FILE);
       envFilenames.add(BfConsts.RELPATH_EDGE_BLACKLIST_FILE);
+      envFilenames.add(BfConsts.RELPATH_ENVIRONMENT_BGP_TABLES);
+      envFilenames.add(BfConsts.RELPATH_ENVIRONMENT_ROUTING_TABLES);
       envFilenames.add(BfConsts.RELPATH_EXTERNAL_BGP_ANNOUNCEMENTS);
       return envFilenames;
    }
@@ -885,18 +887,6 @@ public class WorkMgr {
          }
       }
 
-      File paramFile = Paths
-            .get(qDir.getAbsolutePath(), BfConsts.RELPATH_QUESTION_PARAM_FILE)
-            .toFile();
-
-      try (OutputStream paramFileOutputStream = new FileOutputStream(
-            paramFile)) {
-         int read = 0;
-         final byte[] bytes = new byte[1024];
-         while ((read = paramFileStream.read(bytes)) != -1) {
-            paramFileOutputStream.write(bytes, 0, read);
-         }
-      }
    }
 
    public void uploadTestrig(String containerName, String testrigName,

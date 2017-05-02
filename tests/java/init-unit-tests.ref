@@ -13,6 +13,7 @@
         "address_family" : "address_family",
         "aggAddress" : "ios_bgp_aggregate_address",
         "arista-event-handler" : "arista-event-handler",
+        "arista_bgp" : "arista_bgp",
         "arista_ip_route" : "arista_ip_route",
         "arista_logging" : "arista-logging",
         "arista_misc" : "arista_misc",
@@ -58,6 +59,7 @@
         "cisco_misc" : "cisco_misc",
         "cisco_mpls" : "cisco_mpls",
         "cisco_multicast" : "cisco_multicast",
+        "cisco_ntp" : "cisco_ntp",
         "cisco_ospf" : "cisco_ospf",
         "cisco_pim" : "cisco_pim",
         "cisco_platform" : "cisco_platform",
@@ -81,6 +83,7 @@
         "cisco_voice_port" : "cisco_voice_port",
         "cisco_vpdn" : "cisco_vpdn",
         "cisco_vpn" : "cisco_vpn",
+        "cisco_vrf" : "cisco_vrf",
         "cisco_vrrp" : "cisco_vrrp",
         "cisco_webvpn" : "cisco_webvpn",
         "cisco_wsma" : "cisco_wsma",
@@ -100,6 +103,7 @@
         "interface_exit" : "interface_exit",
         "interface_name" : "interface_name",
         "interface_sdr" : "interface_sdr",
+        "ios_bgp" : "ios_bgp",
         "ios_xr_acl" : "ios_xr_acl",
         "ios_xr_bgp_neighbor_group" : "ios_xr_bgp_neighbor_group",
         "ios_xr_isis" : "ios_xr_isis",
@@ -181,6 +185,7 @@
         "address_family" : "PASSED",
         "aggAddress" : "PASSED",
         "arista-event-handler" : "PASSED",
+        "arista_bgp" : "PASSED",
         "arista_ip_route" : "PASSED",
         "arista_logging" : "PASSED",
         "arista_misc" : "PASSED",
@@ -226,6 +231,7 @@
         "cisco_misc" : "PASSED",
         "cisco_mpls" : "PASSED",
         "cisco_multicast" : "PASSED",
+        "cisco_ntp" : "PASSED",
         "cisco_ospf" : "PASSED",
         "cisco_pim" : "PASSED",
         "cisco_platform" : "PASSED",
@@ -249,6 +255,7 @@
         "cisco_voice_port" : "PASSED",
         "cisco_vpdn" : "PASSED",
         "cisco_vpn" : "PASSED",
+        "cisco_vrf" : "PASSED",
         "cisco_vrrp" : "PASSED",
         "cisco_webvpn" : "PASSED",
         "cisco_wsma" : "PASSED",
@@ -268,6 +275,7 @@
         "interface_exit" : "PASSED",
         "interface_name" : "PASSED",
         "interface_sdr" : "PASSED",
+        "ios_bgp" : "PASSED",
         "ios_xr_acl" : "PASSED",
         "ios_xr_bgp_neighbor_group" : "PASSED",
         "ios_xr_isis" : "PASSED",
@@ -338,7 +346,7 @@
         "vrf_context" : "PASSED",
         "vxlan" : "PASSED"
       },
-      "version" : "0.14.0",
+      "version" : "0.18.0",
       "warnings" : {
         "bgp_address_family" : {
           "Red flags" : {
@@ -353,6 +361,11 @@
         "cisco_style_acl2" : {
           "Red flags" : {
             "1" : "MISCELLANEOUS: No hostname set in file: 'testrig/configs/cisco_style_acl2'\n"
+          }
+        },
+        "ios_bgp" : {
+          "Red flags" : {
+            "1" : "MISCELLANEOUS: reference to undeclared peer group: 'UNDEFINED_PEER_GROUP'"
           }
         },
         "ios_xr_ospf" : {
@@ -477,29 +490,29 @@
           "ipv4 acl" : {
             "167" : {
               "interface ip verify access-list" : [
-                24
+                62
               ]
             },
             "abc" : {
               "ip nat source dynamic access-list" : [
-                23
+                54
               ]
             },
             "def" : {
               "ip nat source dynamic access-list" : [
-                22
+                53
               ]
             },
             "mynatacl" : {
               "ip nat destination acl" : [
-                127
+                50
               ]
             }
           },
           "ipv4/6 acl" : {
             "310-systems" : {
               "interface outgoing ip access-list" : [
-                73
+                65
               ]
             }
           }
@@ -531,7 +544,7 @@
           "route-map" : {
             "DIRECT_OSPF" : {
               "ospf redistribute connected route-map" : [
-                30
+                31
               ]
             }
           }
@@ -540,17 +553,17 @@
           "ipv4 acl" : {
             "232.0.0.0/8" : {
               "pim ssl acl" : [
-                8
+                9
               ]
             },
             "foobar" : {
               "pim rp-address" : [
-                4
+                6
               ]
             },
             "foobarmap" : {
               "pim rp-address" : [
-                6
+                7
               ]
             }
           }
@@ -609,7 +622,7 @@
                 65
               ],
               "snmp server tftp-server list" : [
-                84
+                85
               ]
             },
             "customer-snmp" : {
@@ -680,6 +693,15 @@
             }
           }
         },
+        "ios_bgp" : {
+          "bgp group" : {
+            "UNDEFINED_PEER_GROUP" : {
+              "bgp neighbor statement" : [
+                6
+              ]
+            }
+          }
+        },
         "ios_xr_bgp_neighbor_group" : {
           "bgp group" : {
             "bippety" : {
@@ -722,6 +744,22 @@
             "ipv6-vty-acl" : {
               "ssh ipv6 access-list" : [
                 5
+              ]
+            }
+          }
+        },
+        "juniper_bgp" : {
+          "policy-statement" : {
+            "someexportpolicy" : {
+              "bgp export policy-statement" : [
+                8,
+                22
+              ]
+            },
+            "someimportpolicy" : {
+              "bgp import policy-statement" : [
+                10,
+                24
               ]
             }
           }
@@ -991,6 +1029,13 @@
           "ipv6 prefix-list" : {
             "ScienceDMZ-networks" : [
               16
+            ]
+          }
+        },
+        "arista_bgp" : {
+          "bgp group" : {
+            "UNDEFINED_PEER_GROUP" : [
+              8
             ]
           }
         },
@@ -1371,7 +1416,7 @@
           }
         }
       },
-      "version" : "0.14.0",
+      "version" : "0.18.0",
       "warnings" : {
         "address_family" : {
           "Red flags" : {
@@ -1391,7 +1436,7 @@
         },
         "cisco_interface" : {
           "Red flags" : {
-            "1" : "MISCELLANEOUS: Interface: 'Loopback0' contains OSPF settings, but there is no OSPF process"
+            "1" : "MISCELLANEOUS: Interface: 'Ethernet0' contains OSPF settings, but there is no OSPF process"
           }
         },
         "ios_xr_bgp_neighbor_group" : {
@@ -1404,6 +1449,13 @@
         "juniper-tcpflags" : {
           "Red flags" : {
             "1" : "MISCELLANEOUS: missing action in firewall filter: 'foo', term: 'bar'"
+          }
+        },
+        "juniper_bgp" : {
+          "Red flags" : {
+            "1" : "MISCELLANEOUS: BGP BROKEN FOR THIS ROUTER: Cannot determine local autonomous system",
+            "2" : "MISCELLANEOUS: Missing local-as for neighbor: 1.2.3.5",
+            "3" : "MISCELLANEOUS: Missing local-as for neighbor: 3.4.5.6"
           }
         },
         "juniper_firewall" : {
@@ -1465,6 +1517,7 @@
         "address_family" : "PASSED",
         "aggAddress" : "PASSED",
         "arista-event-handler" : "PASSED",
+        "arista_bgp" : "PASSED",
         "arista_ip_route" : "PASSED",
         "arista_logging" : "PASSED",
         "arista_misc" : "PASSED",
@@ -1510,6 +1563,7 @@
         "cisco_misc" : "PASSED",
         "cisco_mpls" : "PASSED",
         "cisco_multicast" : "PASSED",
+        "cisco_ntp" : "PASSED",
         "cisco_ospf" : "PASSED",
         "cisco_pim" : "PASSED",
         "cisco_platform" : "PASSED",
@@ -1533,6 +1587,7 @@
         "cisco_voice_port" : "PASSED",
         "cisco_vpdn" : "PASSED",
         "cisco_vpn" : "PASSED",
+        "cisco_vrf" : "PASSED",
         "cisco_vrrp" : "PASSED",
         "cisco_webvpn" : "PASSED",
         "cisco_wsma" : "PASSED",
@@ -1552,6 +1607,7 @@
         "interface_exit" : "PASSED",
         "interface_name" : "PASSED",
         "interface_sdr" : "PASSED",
+        "ios_bgp" : "PASSED",
         "ios_xr_acl" : "PASSED",
         "ios_xr_bgp_neighbor_group" : "PASSED",
         "ios_xr_isis" : "PASSED",

@@ -1,11 +1,14 @@
 package org.batfish.common.util;
 
-import java.io.File;
+import java.io.BufferedReader;
+import java.io.FileReader;
 import java.io.IOException;
+import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.MessageDigest;
@@ -17,6 +20,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -111,6 +115,8 @@ public class CommonUtil {
       try {
          Files.delete(path);
       }
+      catch (NoSuchFileException e) {
+      }
       catch (IOException e) {
          throw new BatfishException("Failed to delete file: " + path, e);
       }
@@ -183,10 +189,10 @@ public class CommonUtil {
       }
    }
 
-   public static File getConfigProperties(Class<?> locatorClass,
+   public static Path getConfigProperties(Class<?> locatorClass,
          String propertiesFilename) {
-      File configDir = getJarOrClassDir(locatorClass);
-      return Paths.get(configDir.toString(), propertiesFilename).toFile();
+      Path configDir = getJarOrClassDir(locatorClass);
+      return configDir.resolve(propertiesFilename);
    }
 
    public static String getIndentedString(String str, int indentLevel) {
@@ -223,23 +229,26 @@ public class CommonUtil {
       return null;
    }
 
-   public static File getJarOrClassDir(Class<?> locatorClass) {
-      File locatorDirFile = null;
+   public static Path getJarOrClassDir(Class<?> locatorClass) {
+      Path locatorDirFile = null;
       URL locatorSourceURL = locatorClass.getProtectionDomain().getCodeSource()
             .getLocation();
       String locatorSourceString = locatorSourceURL.toString();
       if (locatorSourceString.startsWith("onejar:")) {
-         URL onejarSourceURL = null;
+         URI onejarSourceURI = null;
          try {
-            onejarSourceURL = Class.forName("com.simontuffs.onejar.Boot")
+            URL onejarSourceURL = Class.forName("com.simontuffs.onejar.Boot")
                   .getProtectionDomain().getCodeSource().getLocation();
+            onejarSourceURI = onejarSourceURL.toURI();
          }
          catch (ClassNotFoundException e) {
             throw new BatfishException("could not find onejar class");
          }
-         File jarDir = new File(
-               onejarSourceURL.toString().replaceAll("^file:\\\\*", ""))
-                     .getParentFile();
+         catch (URISyntaxException e) {
+            throw new BatfishException("Failed to convert onejar URL to URI",
+                  e);
+         }
+         Path jarDir = Paths.get(onejarSourceURI).getParent();
          return jarDir;
       }
       else {
@@ -247,7 +256,7 @@ public class CommonUtil {
          String locatorPackageResourceName = locatorClass.getPackage().getName()
                .replace('.', separator);
          try {
-            locatorDirFile = new File(locatorClass.getClassLoader()
+            locatorDirFile = Paths.get(locatorClass.getClassLoader()
                   .getResource(locatorPackageResourceName).toURI());
          }
          catch (URISyntaxException e) {
@@ -368,6 +377,21 @@ public class CommonUtil {
       }
       else {
          return -1;
+      }
+   }
+
+   public static void outputFileLines(Path downloadedFile,
+         Consumer<String> outputFunction) {
+      try (BufferedReader br = new BufferedReader(
+            new FileReader(downloadedFile.toFile()))) {
+         String line = null;
+         while ((line = br.readLine()) != null) {
+            outputFunction.accept(line + "\n");
+         }
+      }
+      catch (IOException e) {
+         throw new BatfishException("Failed to read and output lines of file: '"
+               + downloadedFile.toString() + "'");
       }
    }
 

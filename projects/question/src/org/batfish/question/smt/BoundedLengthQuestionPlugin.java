@@ -43,40 +43,12 @@ public class BoundedLengthQuestionPlugin extends QuestionPlugin {
             _bound = null;
         }
 
-        @Override
-        public void setJsonParameters(JSONObject parameters) {
-            super.setJsonParameters(parameters);
-
-            Iterator<?> paramKeys = parameters.keys();
-
-            while (paramKeys.hasNext()) {
-                String paramKey = (String) paramKeys.next();
-
-                if (isBaseKey(paramKey)) {
-                    continue;
-                }
-
-                try {
-                    switch (paramKey) {
-                        case LENGTH_VAR:
-                            setBound(parameters.getInt(paramKey));
-                            break;
-                        default:
-                            throw new BatfishException("Unknown key: " + paramKey);
-                    }
-                }
-                catch (JSONException e) {
-                    throw new BatfishException("JSONException in parameters", e);
-                }
-            }
-
-        }
-
         @JsonProperty(LENGTH_VAR)
         public Integer getBound() {
             return _bound;
         }
 
+        @JsonProperty(LENGTH_VAR)
         public void setBound(int i) {
             this._bound = i;
         }

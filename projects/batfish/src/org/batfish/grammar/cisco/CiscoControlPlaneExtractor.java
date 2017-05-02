@@ -28,6 +28,7 @@ import org.batfish.grammar.BatfishCombinedParser;
 import org.batfish.grammar.ControlPlaneExtractor;
 import org.batfish.grammar.cisco.CiscoParser.*;
 import org.batfish.common.BatfishException;
+import org.batfish.common.RedFlagBatfishException;
 import org.batfish.datamodel.Configuration;
 import org.batfish.datamodel.ConfigurationFormat;
 import org.batfish.datamodel.DscpType;
@@ -114,10 +115,9 @@ import org.batfish.datamodel.vendor_family.cisco.Service;
 import org.batfish.datamodel.vendor_family.cisco.Sntp;
 import org.batfish.datamodel.vendor_family.cisco.SntpServer;
 import org.batfish.datamodel.vendor_family.cisco.SshSettings;
-import org.batfish.main.RedFlagBatfishException;
-import org.batfish.main.Warnings;
-import org.batfish.representation.VendorConfiguration;
+import org.batfish.common.Warnings;
 import org.batfish.representation.cisco.*;
+import org.batfish.vendor.VendorConfiguration;
 
 public class CiscoControlPlaneExtractor extends CiscoParserBaseListener
       implements ControlPlaneExtractor {
@@ -139,8 +139,6 @@ public class CiscoControlPlaneExtractor extends CiscoParserBaseListener
    private static final String F_BGP_MAXIMUM_PEERS = "bgp - maximum-peers";
 
    private static final String F_BGP_NEIGHBOR_DISTRIBUTE_LIST = "bgp - neighbor distribute-list";
-
-   private static final String F_BGP_NEXT_HOP_SELF = "bgp - (no) next-hop-self";
 
    private static final String F_BGP_REDISTRIBUTE_AGGREGATE = "bgp - redistribute aggregate";
 
@@ -935,13 +933,15 @@ public class CiscoControlPlaneExtractor extends CiscoParserBaseListener
          int definitionLine = ctx.peergroup.getLine();
          _currentNamedPeerGroup = proc.getNamedPeerGroups().get(name);
          if (_currentNamedPeerGroup == null) {
-            if (create) {
+            if (create
+                  || _configuration.getVendor() == ConfigurationFormat.ARISTA) {
                proc.addNamedPeerGroup(name, definitionLine);
                _currentNamedPeerGroup = proc.getNamedPeerGroups().get(name);
             }
             else {
-               throw new BatfishException(
-                     "reference to undeclared peer group: '" + name + "'");
+               int line = ctx.peergroup.getLine();
+               _configuration.getUndefinedPeerGroups().put(name, line);
+               _w.redFlag("reference to undeclared peer group: '" + name + "'");
             }
          }
          pushPeer(_currentNamedPeerGroup);
@@ -1651,17 +1651,13 @@ public class CiscoControlPlaneExtractor extends CiscoParserBaseListener
    public void exitBgp_listen_range_rb_stanza(
          Bgp_listen_range_rb_stanzaContext ctx) {
       String name = ctx.name.getText();
-      int definitionLine = ctx.name.getStart().getLine();
+      int line = ctx.name.getStart().getLine();
       BgpProcess proc = currentVrf().getBgpProcess();
       if (ctx.IP_PREFIX() != null) {
          Prefix prefix = new Prefix(ctx.IP_PREFIX().getText());
          DynamicIpBgpPeerGroup pg = proc.addDynamicIpPeerGroup(prefix);
-         NamedBgpPeerGroup namedGroup = proc.getNamedPeerGroups().get(name);
-         if (namedGroup == null) {
-            proc.addNamedPeerGroup(name, definitionLine);
-            namedGroup = proc.getNamedPeerGroups().get(name);
-         }
-         namedGroup.addNeighborIpPrefix(prefix);
+         pg.setGroupName(name);
+         pg.setGroupNameLine(line);
          if (ctx.as != null) {
             int remoteAs = toInteger(ctx.as);
             pg.setRemoteAs(remoteAs);
@@ -1670,12 +1666,8 @@ public class CiscoControlPlaneExtractor extends CiscoParserBaseListener
       else if (ctx.IPV6_PREFIX() != null) {
          Prefix6 prefix6 = new Prefix6(ctx.IPV6_PREFIX().getText());
          DynamicIpv6BgpPeerGroup pg = proc.addDynamicIpv6PeerGroup(prefix6);
-         NamedBgpPeerGroup namedGroup = proc.getNamedPeerGroups().get(name);
-         if (namedGroup == null) {
-            proc.addNamedPeerGroup(name, definitionLine);
-            namedGroup = proc.getNamedPeerGroups().get(name);
-         }
-         namedGroup.addNeighborIpv6Prefix(prefix6);
+         pg.setGroupName(name);
+         pg.setGroupNameLine(line);
          if (ctx.as != null) {
             int remoteAs = toInteger(ctx.as);
             pg.setRemoteAs(remoteAs);
@@ -2698,7 +2690,7 @@ public class CiscoControlPlaneExtractor extends CiscoParserBaseListener
          nextHopIp = nextHopPrefix.getAddress();
       }
       if (ctx.nexthopint != null) {
-         nextHopInterface = ctx.nexthopint.getText();
+         nextHopInterface = getCanonicalInterfaceName(ctx.nexthopint.getText());
       }
       if (ctx.distance != null) {
          distance = toInteger(ctx.distance);
@@ -3173,8 +3165,8 @@ public class CiscoControlPlaneExtractor extends CiscoParserBaseListener
 
    @Override
    public void exitNext_hop_self_bgp_tail(Next_hop_self_bgp_tailContext ctx) {
-      todo(ctx, F_BGP_NEXT_HOP_SELF);
-      // note that this rule matches "no next-hop-self"
+      boolean val = ctx.NO() == null;
+      _currentPeerGroup.setNextHopSelf(val);
    }
 
    @Override
@@ -3323,7 +3315,7 @@ public class CiscoControlPlaneExtractor extends CiscoParserBaseListener
          initVrf(vrfName);
       }
       if (ctx.PREFER() != null) {
-
+         // TODO: implement
       }
    }
 
@@ -3366,14 +3358,28 @@ public class CiscoControlPlaneExtractor extends CiscoParserBaseListener
    public void exitPeer_group_assignment_rb_stanza(
          Peer_group_assignment_rb_stanzaContext ctx) {
       String peerGroupName = ctx.name.getText();
+      int line = ctx.name.getStart().getLine();
       BgpProcess proc = currentVrf().getBgpProcess();
       if (ctx.address != null) {
          Ip address = toIp(ctx.address);
-         proc.addIpPeerGroupMember(address, peerGroupName);
+         IpBgpPeerGroup ipPeerGroup = proc.getIpPeerGroups().get(address);
+         if (ipPeerGroup == null) {
+            proc.addIpPeerGroup(address);
+            ipPeerGroup = proc.getIpPeerGroups().get(address);
+         }
+         ipPeerGroup.setGroupName(peerGroupName);
+         ipPeerGroup.setGroupNameLine(line);
       }
       else if (ctx.address6 != null) {
-         Ip6 address = toIp6(ctx.address6);
-         proc.addIpv6PeerGroupMember(address, peerGroupName);
+         Ip6 address6 = toIp6(ctx.address6);
+         Ipv6BgpPeerGroup ipv6PeerGroup = proc.getIpv6PeerGroups()
+               .get(address6);
+         if (ipv6PeerGroup == null) {
+            proc.addIpv6PeerGroup(address6);
+            ipv6PeerGroup = proc.getIpv6PeerGroups().get(address6);
+         }
+         ipv6PeerGroup.setGroupName(peerGroupName);
+         ipv6PeerGroup.setGroupNameLine(line);
       }
    }
 
@@ -4067,7 +4073,7 @@ public class CiscoControlPlaneExtractor extends CiscoParserBaseListener
             nextHopIp = new Ip(ctx.nhip.getText());
          }
          if (ctx.nhint != null) {
-            nextHopInterface = ctx.nhint.getText();
+            nextHopInterface = getCanonicalInterfaceName(ctx.nhint.getText());
          }
          int distance = DEFAULT_STATIC_ROUTE_DISTANCE;
          if (ctx.distance != null) {
@@ -4602,25 +4608,25 @@ public class CiscoControlPlaneExtractor extends CiscoParserBaseListener
       _currentStandardIpv6Acl.addLine(line);
    }
 
-   @Override
-   public void exitSubnet_bgp_tail(Subnet_bgp_tailContext ctx) {
-      BgpProcess proc = currentVrf().getBgpProcess();
-      if (ctx.IP_PREFIX() != null) {
-         Prefix prefix = new Prefix(ctx.IP_PREFIX().getText());
-         NamedBgpPeerGroup namedGroup = _currentNamedPeerGroup;
-         namedGroup.addNeighborIpPrefix(prefix);
-         DynamicIpBgpPeerGroup pg = proc.addDynamicIpPeerGroup(prefix);
-         pg.setGroupName(namedGroup.getName());
-      }
-      else if (ctx.IPV6_PREFIX() != null) {
-         Prefix6 prefix6 = new Prefix6(ctx.IPV6_PREFIX().getText());
-         NamedBgpPeerGroup namedGroup = _currentNamedPeerGroup;
-         namedGroup.addNeighborIpv6Prefix(prefix6);
-         DynamicIpv6BgpPeerGroup pg = proc.addDynamicIpv6PeerGroup(prefix6);
-         pg.setGroupName(namedGroup.getName());
-      }
-   }
-
+   // @Override
+   // public void exitSubnet_bgp_tail(Subnet_bgp_tailContext ctx) {
+   // BgpProcess proc = currentVrf().getBgpProcess();
+   // if (ctx.IP_PREFIX() != null) {
+   // Prefix prefix = new Prefix(ctx.IP_PREFIX().getText());
+   // NamedBgpPeerGroup namedGroup = _currentNamedPeerGroup;
+   // namedGroup.addNeighborIpPrefix(prefix);
+   // DynamicIpBgpPeerGroup pg = proc.addDynamicIpPeerGroup(prefix);
+   // pg.setGroupName(namedGroup.getName());
+   // }
+   // else if (ctx.IPV6_PREFIX() != null) {
+   // Prefix6 prefix6 = new Prefix6(ctx.IPV6_PREFIX().getText());
+   // NamedBgpPeerGroup namedGroup = _currentNamedPeerGroup;
+   // namedGroup.addNeighborIpv6Prefix(prefix6);
+   // DynamicIpv6BgpPeerGroup pg = proc.addDynamicIpv6PeerGroup(prefix6);
+   // pg.setGroupName(namedGroup.getName());
+   // }
+   // }
+   //
    @Override
    public void exitSummary_address_is_stanza(
          Summary_address_is_stanzaContext ctx) {

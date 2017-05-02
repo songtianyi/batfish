@@ -14,7 +14,8 @@
     "differential" : false,
     "failures" : 0,
     "fullModel" : true,
-    "nodeRegex" : ".*"
+    "nodeRegex" : ".*",
+    "strict" : false
   },
   "status" : "SUCCESS"
 }

@@ -43,39 +43,12 @@ public class LoadBalanceQuestionPlugin extends QuestionPlugin {
             _threshold = 0;
         }
 
-        @Override
-        public void setJsonParameters(JSONObject parameters) {
-            super.setJsonParameters(parameters);
-
-            Iterator<?> paramKeys = parameters.keys();
-
-            while (paramKeys.hasNext()) {
-                String paramKey = (String) paramKeys.next();
-                if (isBaseKey(paramKey)) {
-                    continue;
-                }
-
-                try {
-                    switch (paramKey) {
-                        case THRESHOLD_VAR:
-                            setThreshold(parameters.getInt(paramKey));
-                            break;
-                        default:
-                            throw new BatfishException("Unknown key in "
-                                    + getClass().getSimpleName() + ": " + paramKey);
-                    }
-                }
-                catch (JSONException e) {
-                    throw new BatfishException("JSONException in parameters", e);
-                }
-            }
-        }
-
         @JsonProperty(THRESHOLD_VAR)
         public int getThreshold() {
             return _threshold;
         }
 
+        @JsonProperty(THRESHOLD_VAR)
         public void setThreshold(int i) {
             this._threshold = i;
         }

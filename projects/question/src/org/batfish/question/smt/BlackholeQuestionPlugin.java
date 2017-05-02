@@ -31,19 +31,6 @@ public class BlackholeQuestionPlugin extends QuestionPlugin {
         public BlackholeQuestion() {}
 
         @Override
-        public void setJsonParameters(JSONObject parameters) {
-            super.setJsonParameters(parameters);
-            Iterator<?> paramKeys = parameters.keys();
-            while (paramKeys.hasNext()) {
-                String paramKey = (String) paramKeys.next();
-                if (isBaseKey(paramKey)) {
-                    continue;
-                }
-                throw new BatfishException("Unknown key: " + paramKey);
-            }
-        }
-
-        @Override
         public String getName() {
             return "smt-blackhole";
         }

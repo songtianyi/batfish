@@ -37,7 +37,8 @@
     "differential" : false,
     "failures" : 0,
     "fullModel" : false,
-    "nodeRegex" : ".*border.*"
+    "nodeRegex" : ".*border.*",
+    "strict" : false
   },
   "status" : "SUCCESS"
 }

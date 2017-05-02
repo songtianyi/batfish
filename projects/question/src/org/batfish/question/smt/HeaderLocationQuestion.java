@@ -57,30 +57,6 @@ public class HeaderLocationQuestion extends HeaderQuestion {
         _notIngressNodeRegex = DEFAULT_NOT_INGRESS_NODE_REGEX;
     }
 
-    @Override
-    protected boolean isBaseKey(String paramKey) {
-        if (super.isBaseKey(paramKey)) {
-            return true;
-        }
-        switch (paramKey) {
-            case FINAL_NODE_REGEX_VAR:
-                return true;
-            case NOT_FINAL_NODE_REGEX_VAR:
-                return true;
-            case FINAL_IFACE_REGEX_VAR:
-                return true;
-            case NOT_FINAL_IFACE_REGEX_VAR:
-                return true;
-            case INGRESS_NODE_REGEX_VAR:
-                return true;
-            case NOT_INGRESS_NODE_REGEX_VAR:
-                return true;
-            default:
-                return false;
-        }
-    }
-
-
     @JsonProperty(FINAL_NODE_REGEX_VAR)
     public String getFinalNodeRegex() {
         return _finalNodeRegex;
@@ -140,44 +116,4 @@ public class HeaderLocationQuestion extends HeaderQuestion {
     public void setNotIngressNodeRegex(String notIngressNodeRegex) {
         _notIngressNodeRegex = notIngressNodeRegex;
     }
-
-    @Override
-    public void setJsonParameters(JSONObject parameters) {
-        super.setJsonParameters(parameters);
-
-        Iterator<?> paramKeys = parameters.keys();
-
-        while (paramKeys.hasNext()) {
-            String paramKey = (String) paramKeys.next();
-            if (super.isBaseParamKey(paramKey)) {
-                continue;
-            }
-
-            try {
-                switch (paramKey) {
-                    case FINAL_NODE_REGEX_VAR:
-                        setFinalNodeRegex(parameters.getString(paramKey));
-                        break;
-                    case FINAL_IFACE_REGEX_VAR:
-                        setFinalIfaceRegex(parameters.getString(paramKey));
-                        break;
-                    case INGRESS_NODE_REGEX_VAR:
-                        setIngressNodeRegex(parameters.getString(paramKey));
-                        break;
-                    case NOT_FINAL_NODE_REGEX_VAR:
-                        setNotFinalNodeRegex(parameters.getString(paramKey));
-                        break;
-                    case NOT_FINAL_IFACE_REGEX_VAR:
-                        setNotFinalIfaceRegex(parameters.getString(paramKey));
-                        break;
-                    default:
-                        break;
-                }
-            }
-            catch (JSONException e) {
-                throw new BatfishException("JSONException in parameters", e);
-            }
-        }
-    }
-
 }

@@ -1,8 +1,6 @@
 package org.batfish.question;
 
-import java.io.IOException;
 import java.util.EnumSet;
-import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
@@ -26,14 +24,9 @@ import org.batfish.datamodel.Vrf;
 import org.batfish.datamodel.answers.AnswerElement;
 import org.batfish.datamodel.collections.RoleSet;
 import org.batfish.datamodel.questions.Question;
-import org.codehaus.jettison.json.JSONException;
-import org.codehaus.jettison.json.JSONObject;
-
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class NodesQuestionPlugin extends QuestionPlugin {
 
@@ -286,38 +279,38 @@ public class NodesQuestionPlugin extends QuestionPlugin {
 
       }
 
-      private static final String NODES_VAR = "nodes";
+      private static final String NODES_SUMMARY_VAR = "nodesSummary";
 
-      private static final String SUMMARY_VAR = "summary";
+      private static final String NODES_VAR = "nodes";
 
       private final SortedMap<String, Configuration> _nodes;
 
-      private final SortedMap<String, NodeSummary> _summary;
+      private final SortedMap<String, NodeSummary> _nodesSummary;
 
       public NodesAnswerElement(SortedMap<String, Configuration> nodes,
             boolean summary) {
 
          if (summary) {
-            _summary = new TreeMap<>();
+            _nodesSummary = new TreeMap<>();
             for (Entry<String, Configuration> e : nodes.entrySet()) {
                String hostname = e.getKey();
                Configuration node = e.getValue();
-               _summary.put(hostname, new NodeSummary(node));
+               _nodesSummary.put(hostname, new NodeSummary(node));
             }
             _nodes = null;
          }
          else {
             _nodes = nodes;
-            _summary = null;
+            _nodesSummary = null;
          }
       }
 
       @JsonCreator
       public NodesAnswerElement(
             @JsonProperty(NODES_VAR) SortedMap<String, Configuration> nodes,
-            @JsonProperty(SUMMARY_VAR) SortedMap<String, NodeSummary> summary) {
+            @JsonProperty(NODES_SUMMARY_VAR) SortedMap<String, NodeSummary> nodesSummary) {
          _nodes = nodes;
-         _summary = summary;
+         _nodesSummary = nodesSummary;
       }
 
       @JsonProperty(NODES_VAR)
@@ -325,9 +318,9 @@ public class NodesQuestionPlugin extends QuestionPlugin {
          return _nodes;
       }
 
-      @JsonProperty(SUMMARY_VAR)
-      public SortedMap<String, NodeSummary> getSummary() {
-         return _summary;
+      @JsonProperty(NODES_SUMMARY_VAR)
+      public SortedMap<String, NodeSummary> getNodesSummary() {
+         return _nodesSummary;
       }
 
    }
@@ -523,6 +516,7 @@ public class NodesQuestionPlugin extends QuestionPlugin {
                   + " identical elements not shown for readability.");
          }
       }
+
    }
 
    // <question_page_comment>
@@ -552,18 +546,18 @@ public class NodesQuestionPlugin extends QuestionPlugin {
 
       private static final String NODE_REGEX_VAR = "nodeRegex";
 
-      private static final String NODE_TYPE_VAR = "nodeType";
+      private static final String NODE_TYPES_VAR = "nodeTypes";
 
       private static final String SUMMARY_VAR = "summary";
 
       private String _nodeRegex;
 
-      private Set<NodeType> _nodeType;
+      private SortedSet<NodeType> _nodeTypes;
 
       private boolean _summary;
 
       public NodesQuestion() {
-         _nodeType = EnumSet.noneOf(NodeType.class);
+         _nodeTypes = new TreeSet<>();
          _nodeRegex = ".*";
          _summary = true;
       }
@@ -583,11 +577,12 @@ public class NodesQuestionPlugin extends QuestionPlugin {
          return _nodeRegex;
       }
 
-      @JsonProperty(NODE_TYPE_VAR)
-      public Set<NodeType> getNodeTypes() {
-         return _nodeType;
+      @JsonProperty(NODE_TYPES_VAR)
+      public SortedSet<NodeType> getNodeTypes() {
+         return _nodeTypes;
       }
 
+      @JsonProperty(SUMMARY_VAR)
       public boolean getSummary() {
          return _summary;
       }
@@ -597,48 +592,17 @@ public class NodesQuestionPlugin extends QuestionPlugin {
          return false;
       }
 
-      @Override
-      public void setJsonParameters(JSONObject parameters) {
-         super.setJsonParameters(parameters);
-         Iterator<?> paramKeys = parameters.keys();
-         while (paramKeys.hasNext()) {
-            String paramKey = (String) paramKeys.next();
-            if (isBaseParamKey(paramKey)) {
-               continue;
-            }
-            try {
-               switch (paramKey) {
-               case NODE_REGEX_VAR:
-                  setNodeRegex(parameters.getString(paramKey));
-                  break;
-               case NODE_TYPE_VAR:
-                  setNodeTypes(new ObjectMapper().<Set<NodeType>> readValue(
-                        parameters.getString(paramKey),
-                        new TypeReference<Set<NodeType>>() {
-                        }));
-                  break;
-               case SUMMARY_VAR:
-                  setSummary(parameters.getBoolean(paramKey));
-                  break;
-               default:
-                  throw new BatfishException("Unknown key in "
-                        + getClass().getSimpleName() + ": " + paramKey);
-               }
-            }
-            catch (JSONException | IOException e) {
-               throw new BatfishException("JSONException in parameters", e);
-            }
-         }
-      }
-
+      @JsonProperty(NODE_REGEX_VAR)
       public void setNodeRegex(String regex) {
          _nodeRegex = regex;
       }
 
-      public void setNodeTypes(Set<NodeType> nType) {
-         _nodeType = nType;
+      @JsonProperty(NODE_TYPES_VAR)
+      public void setNodeTypes(SortedSet<NodeType> nodeTypes) {
+         _nodeTypes = nodeTypes;
       }
 
+      @JsonProperty(SUMMARY_VAR)
       public void setSummary(boolean summary) {
          _summary = summary;
       }
