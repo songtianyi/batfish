@@ -1164,8 +1164,8 @@ public class Batfish extends PluginConsumer implements AutoCloseable, IBatfish {
    }
 
    @Override
-   public AnswerElement smtLocalConsistency(Pattern routerRegex, boolean fullModel) {
-      return PropertyChecker.computeLocalConsistency(this, routerRegex, fullModel);
+   public AnswerElement smtLocalConsistency(Pattern routerRegex, boolean strict, boolean fullModel) {
+      return PropertyChecker.computeLocalConsistency(this, routerRegex, strict, fullModel);
    }
 
 

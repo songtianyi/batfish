@@ -32,13 +32,13 @@ public class Encoder {
 
     private static final boolean ENABLE_DEBUGGING = false;
 
-    private static final boolean MINIMIZE_COUNTEREXAMPLE = false;
-
     public static final String MAIN_SLICE_NAME = "SLICE-MAIN_";
 
     static final int DEFAULT_CISCO_VLAN_OSPF_COST = 1;
 
     private int _encodingId;
+
+    private boolean _minimizeExamples;
 
     private boolean _modelIgp;
 
@@ -81,7 +81,7 @@ public class Encoder {
      * @param graph  The network graph
      */
     public Encoder(Graph graph, HeaderSpace h, int failures, boolean fullModel) {
-        this(null, graph, h, failures, fullModel, null, null, null, 0);
+        this(null, graph, h, failures, false, fullModel, null, null, null, 0);
     }
 
     /**
@@ -90,7 +90,7 @@ public class Encoder {
      * @param g An existing network graph
      */
     Encoder(Encoder e, Graph g) {
-        this(e, g, e.getMainSlice().getHeaderSpace(), e.getFailures(), e.getFullModel(),  e.getCtx(), e.getSolver(), e.getAllVariables()
+        this(e, g, e.getMainSlice().getHeaderSpace(), e.getFailures(), false, e.getFullModel(),  e.getCtx(), e.getSolver(), e.getAllVariables()
                 , e.getId() + 1);
     }
 
@@ -99,13 +99,14 @@ public class Encoder {
      * of another encoder. If the context and solver are null, then a new
      * encoder is created. Otherwise the old encoder is used.
      */
-    private Encoder(Encoder enc, Graph graph, HeaderSpace h, int failures, boolean fullModel, Context ctx, Solver solver, List<Expr> vars, int id) {
+    private Encoder(Encoder enc, Graph graph, HeaderSpace h, int failures, boolean minimize, boolean fullModel, Context ctx, Solver solver, List<Expr> vars, int id) {
         _graph = graph;
         _failures = failures;
         _fullModel = fullModel;
         _previousEncoder = enc;
         _modelIgp = true;
         _encodingId = id;
+        _minimizeExamples = minimize;
         _slices = new HashMap<>();
         _sliceReachability = new HashMap<>();
 
@@ -724,7 +725,7 @@ public class Encoder {
 
                 result = new VerificationResult(false, model, packetModel, envModel, fwdModel, failures);
 
-                if (!MINIMIZE_COUNTEREXAMPLE) {
+                if (!_minimizeExamples) {
                     break;
                 }
 

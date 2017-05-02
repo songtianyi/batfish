@@ -87,7 +87,7 @@ public interface IBatfish extends IPluginConsumer {
            String finalNodeRegexStr, String notFinalNodeRegexStr,
            String finalIfaceRegexStr, String notFinalIfaceRegexStr, int threshold);
 
-   AnswerElement smtLocalConsistency(Pattern routerRegex, boolean fullModel);
+   AnswerElement smtLocalConsistency(Pattern routerRegex, boolean strict, boolean fullModel);
 
 
    Map<String, BiFunction<Question, IBatfish, Answerer>> getAnswererCreators();

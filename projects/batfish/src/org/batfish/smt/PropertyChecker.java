@@ -40,10 +40,6 @@ public class PropertyChecker {
         VerificationResult result = encoder.verify();
         SmtOneAnswerElement answer = new SmtOneAnswerElement();
         answer.setResult(result);
-
-        // EncoderSlice slice = encoder.getMainSlice();
-        // result.debug(slice, false, "SLICE-MAIN_");
-
         return answer;
     }
 
@@ -386,7 +382,7 @@ public class PropertyChecker {
      * We finally check that their forwarding decisions and exported messages
      * will be equal given their equal inputs.
      */
-    public static AnswerElement computeLocalConsistency(IBatfish batfish, Pattern n, boolean fullModel) {
+    public static AnswerElement computeLocalConsistency(IBatfish batfish, Pattern n, boolean strict, boolean fullModel) {
         Graph graph = new Graph(batfish);
         List<String> routers = PatternUtils.findMatchingNodes(graph, n, Pattern.compile(""));
 
@@ -458,11 +454,10 @@ public class PropertyChecker {
             Configuration conf1 = g1.getConfigurations().get(r1);
             Configuration conf2 = g2.getConfigurations().get(r2);
 
-
-
             // Set environments equal
-
             Set<String> communities = new HashSet<>();
+
+            Set<SymbolicRecord> envRecords = new HashSet<>();
 
             for (Protocol proto1 : slice1.getProtocols().get(r1)) {
                 for (ArrayList<LogicalEdge> es : slice1.getLogicalGraph().getLogicalEdges().get(r1)
@@ -476,10 +471,8 @@ public class PropertyChecker {
 
                         if (lge1.getEdgeType() == EdgeType.IMPORT) {
 
-                            SymbolicRecord vars1 = slice1.getLogicalGraph().getEnvironmentVars().get
-                                    (lge1);
-                            SymbolicRecord vars2 = slice2.getLogicalGraph().getEnvironmentVars().get
-                                    (lge2);
+                            SymbolicRecord vars1 = slice1.getLogicalGraph().getEnvironmentVars().get(lge1);
+                            SymbolicRecord vars2 = slice2.getLogicalGraph().getEnvironmentVars().get(lge2);
 
                             BoolExpr aclIn1 = slice1.getIncomingAcls().get(lge1.getEdge());
                             BoolExpr aclIn2 = slice2.getIncomingAcls().get(lge2.getEdge());
@@ -553,6 +546,8 @@ public class PropertyChecker {
                                     }
                                 }
 
+                                envRecords.add(vars1);
+
                                 BoolExpr equalVars = slice1.equal(conf1, proto1, vars1, vars2, lge1, true);
                                 equalEnvs = ctx.mkAnd(equalEnvs, unsetComms, samePermitted, equalVars,
                                         equalComms);
@@ -578,48 +573,63 @@ public class PropertyChecker {
                 }
             }
 
-            // TODO: check both have same environment variables (e.g., screw up configuring peer
-            // connection)
+            // Ensure that there is only one active environment message if we want to
+            // check the stronger version of local equivalence
+            if (strict) {
+                for (SymbolicRecord env1 : envRecords) {
+                    for (SymbolicRecord env2 : envRecords) {
+                        if (!env1.equals(env2)) {
+                            BoolExpr c = e2.Implies(env1.getPermitted(), e2.Not(env2.getPermitted()));
+                            e2.add(c);
+                        }
+                    }
+                }
+            }
 
+            // TODO: check both have same environment variables (e.g., screw up configuring peer connection)
+
+            // Create assumptions
             BoolExpr validDest;
             validDest = ignoredDestinations(ctx, slice1, r1, conf1);
             validDest = ctx.mkAnd(validDest, ignoredDestinations(ctx, slice2, r2, conf2));
-
-            Map<String, GraphEdge> geMap2 = interfaceMap(edges2);
-            BoolExpr sameForwarding = ctx.mkBool(true);
-            for (GraphEdge ge1 : edges1) {
-                GraphEdge ge2 = geMap2.get(ge1.getStart().getName());
-                BoolExpr dataFwd1 = slice1.getSymbolicDecisions().getDataForwarding().get(r1, ge1);
-                BoolExpr dataFwd2 = slice2.getSymbolicDecisions().getDataForwarding().get(r2, ge2);
-                sameForwarding = ctx.mkAnd(sameForwarding, ctx.mkEq(dataFwd1, dataFwd2));
-            }
-
-            // Ensure packets are the same
             SymbolicPacket p1 = slice1.getSymbolicPacket();
             SymbolicPacket p2 = slice2.getSymbolicPacket();
             BoolExpr equalPackets = p1.mkEqual(p2);
-
             BoolExpr assumptions = ctx.mkAnd(equalEnvs, equalPackets, validDest);
-            BoolExpr required = ctx.mkAnd(sameForwarding); //, equalOutputs); //, equalOutputs, equalIncomingAcls);
+
+            // Create the requirements
+
+            // Best choices should be the same
+            BoolExpr required;
+            if (strict) {
+                SymbolicRecord best1 = e1.getMainSlice().getSymbolicDecisions().getBestNeighbor().get(conf1.getName());
+                SymbolicRecord best2 = e2.getMainSlice().getSymbolicDecisions().getBestNeighbor().get(conf2.getName());
+                // Just pick some protocol for defaults, shouldn't matter for best choice
+                required = e2.getMainSlice().equal(conf2, Protocol.CONNECTED, best1, best2, null, true);
+            }
+            else {
+                // Forwarding decisions should be the sames
+                Map<String, GraphEdge> geMap2 = interfaceMap(edges2);
+                BoolExpr sameForwarding = ctx.mkBool(true);
+                for (GraphEdge ge1 : edges1) {
+                    GraphEdge ge2 = geMap2.get(ge1.getStart().getName());
+                    BoolExpr dataFwd1 = slice1.getSymbolicDecisions().getDataForwarding().get(r1, ge1);
+                    BoolExpr dataFwd2 = slice2.getSymbolicDecisions().getDataForwarding().get(r2, ge2);
+                    sameForwarding = ctx.mkAnd(sameForwarding, ctx.mkEq(dataFwd1, dataFwd2));
+                }
+                required = ctx.mkAnd(sameForwarding); //, equalOutputs); //, equalOutputs, equalIncomingAcls);
+            }
 
             //System.out.println("Assumptions: ");
             //System.out.println(assumptions.simplify());
 
-            //System.out.println("Required: ");
-            //System.out.println(required.simplify());
+            // System.out.println("Required: ");
+            // System.out.println(required.simplify());
 
             e2.add(assumptions);
             e2.add(ctx.mkNot(required));
 
-            // System.out.println("About to verify");
             VerificationResult res = e2.verify();
-            // System.out.println("Verified");
-
-            if (!res.getVerified()) {
-                System.out.println("Violation: " + conf1.getName() + "<-->" + conf2.getName());
-            }
-
-            // res.debug(e2.getMainSlice(), false, null);
 
             String name = r1 + "<-->" + r2;
             result.put(name, res);

@@ -1188,13 +1188,7 @@ class EncoderSlice {
         return 0;
     }
 
-    public int defaultMetric(Protocol proto) {
-        if (proto.isConnected()) {
-            return 0;
-        }
-        if (proto.isStatic()) {
-            return 0;
-        }
+    public int defaultMetric() {
         return 0;
     }
 
@@ -1276,7 +1270,7 @@ class EncoderSlice {
      * Creates a symbolic test to check for equal protocol histories
      * after accounting for null values introduced by optimizations
      */
-    public BoolExpr equalHistories(Protocol proto, SymbolicRecord best, SymbolicRecord
+    public BoolExpr equalHistories(SymbolicRecord best, SymbolicRecord
             vars) {
         BoolExpr history;
         if (best.getProtocolHistory() == null || vars.getProtocolHistory() == null) {
@@ -1291,7 +1285,7 @@ class EncoderSlice {
      * Creates a symbolic test to check for equal bgp internal
      * tags after accounting for null values introduced by optimizations
      */
-    public BoolExpr equalBgpInternal(Protocol proto, SymbolicRecord best, SymbolicRecord vars) {
+    public BoolExpr equalBgpInternal(SymbolicRecord best, SymbolicRecord vars) {
         if (best.getBgpInternal() == null || vars.getBgpInternal() == null) {
             return True();
         } else  {
@@ -1388,6 +1382,7 @@ class EncoderSlice {
      * symbolic record (vars). It checks pairwise that all fields
      * are equal, while filling in values missing due to optimizations
      * with default values based on the protocol.
+     * If there is no corresponding edge e, then the value null can be used
      */
     public BoolExpr equal(
             Configuration conf, Protocol proto, SymbolicRecord best, SymbolicRecord vars,
@@ -1395,7 +1390,7 @@ class EncoderSlice {
 
         ArithExpr defaultLocal = Int(defaultLocalPref());
         ArithExpr defaultAdmin = Int(defaultAdminDistance(conf, proto));
-        ArithExpr defaultMet = Int(defaultMetric(proto));
+        ArithExpr defaultMet = Int(defaultMetric());
         ArithExpr defaultMed = Int(defaultMed(proto));
         ArithExpr defaultLen = Int(defaultLength());
         ArithExpr defaultIgp = Int(defaultIgpMetric());
@@ -1423,9 +1418,9 @@ class EncoderSlice {
         equalOspfType = equalTypes(best, vars);
         equalOspfArea = equalAreas(best, vars, e);
 
-        equalId = equalIds(best, vars, conf, proto, e);
-        equalHistory = equalHistories(proto, best, vars);
-        equalBgpInternal = equalBgpInternal(proto, best, vars);
+        equalId = (proto == Protocol.BEST ? True() : equalIds(best, vars, conf, proto, e));
+        equalHistory = equalHistories(best, vars);
+        equalBgpInternal = equalBgpInternal(best, vars);
         equalCommunities = (compareCommunities ? equalCommunities(best, vars) : True());
 
         return And(equalLen, equalAd, equalLp, equalMet, equalMed, equalOspfArea, equalOspfType,
@@ -1496,7 +1491,7 @@ class EncoderSlice {
 
         ArithExpr defaultLocal = Int(defaultLocalPref());
         ArithExpr defaultAdmin = Int(defaultAdminDistance(conf, proto));
-        ArithExpr defaultMet = Int(defaultMetric(proto));
+        ArithExpr defaultMet = Int(defaultMetric());
         ArithExpr defaultMed = Int(defaultMed(proto));
         ArithExpr defaultLen = Int(defaultLength());
         ArithExpr defaultIgp = Int(defaultIgpMetric());

@@ -38,7 +38,7 @@ public class LocalConsistencyQuestionPlugin extends QuestionPlugin {
                         q.getRouterRegex()), e);
             }
 
-            return _batfish.smtLocalConsistency(routerRegex, q.getFullModel());
+            return _batfish.smtLocalConsistency(routerRegex, q.getStrict(), q.getFullModel());
         }
     }
 
@@ -46,10 +46,15 @@ public class LocalConsistencyQuestionPlugin extends QuestionPlugin {
 
         private static final String NODE_REGEX_VAR = "nodeRegex";
 
+        private static final String STRICT_VAR = "strict";
+
         private String _routerRegex;
+
+        private boolean _strict;
 
         public LocalConsistencyQuestion() {
             _routerRegex = ".*";
+            _strict = false;
         }
 
         @Override
@@ -70,6 +75,9 @@ public class LocalConsistencyQuestionPlugin extends QuestionPlugin {
                         case NODE_REGEX_VAR:
                             setRouterRegex(parameters.getString(paramKey));
                             break;
+                        case STRICT_VAR:
+                            setStrict(parameters.getBoolean(paramKey));
+                            break;
                         default:
                             throw new BatfishException("Unknown key in "
                                     + getClass().getSimpleName() + ": " + paramKey);
@@ -86,9 +94,17 @@ public class LocalConsistencyQuestionPlugin extends QuestionPlugin {
             return _routerRegex;
         }
 
+        @JsonProperty(STRICT_VAR)
+        public boolean getStrict() {
+            return _strict;
+        }
 
         public void setRouterRegex(String _routerRegex) {
             this._routerRegex = _routerRegex;
+        }
+
+        public void setStrict(boolean _strict) {
+            this._strict = _strict;
         }
 
         @Override

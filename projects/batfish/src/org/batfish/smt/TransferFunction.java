@@ -460,7 +460,7 @@ class TransferFunction {
         ArithExpr defaultMed = _enc.Int(_enc.defaultMed(_from));
         ArithExpr defaultLp = _enc.Int(_enc.defaultLocalPref());
         ArithExpr defaultId = _enc.Int(_enc.defaultId());
-        ArithExpr defaultMet = _enc.Int(_enc.defaultMetric(_from));
+        ArithExpr defaultMet = _enc.Int(_enc.defaultMetric());
 
         BoolExpr met;
         ArithExpr metValue;
@@ -596,7 +596,7 @@ class TransferFunction {
         // Update the administrative distance
         BoolExpr ad = _enc.safeEq(_current.getAdminDist(), otherAd);
 
-        BoolExpr history = _enc.equalHistories(_from, _current, _other);
+        BoolExpr history = _enc.equalHistories(_current, _other);
         BoolExpr med = _enc.safeEq(_current.getMed(), otherMed);
 
         BoolExpr updates = _enc.And(per, len, ad, med, lp, met, id, type, area, comms, history, isInternal, igpMet);
