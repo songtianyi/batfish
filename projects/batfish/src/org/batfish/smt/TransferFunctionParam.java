@@ -2,6 +2,7 @@ package org.batfish.smt;
 
 
 import org.batfish.datamodel.routing_policy.statement.*;
+import org.batfish.smt.collections.PList;
 
 
 public class TransferFunctionParam {
@@ -12,7 +13,9 @@ public class TransferFunctionParam {
 
     private SymbolicRecord _other;
 
-    private boolean _initialCall;
+    private int _indent;
+
+    private PList<String> _scopes;
 
     private CallContext _callContext;
 
@@ -28,7 +31,8 @@ public class TransferFunctionParam {
         _other = other;
         _callContext = CallContext.NONE;
         _chainContext = ChainContext.NONE;
-        _initialCall = true;
+        _indent = 0;
+        _scopes = PList.empty();
         _defaultAccept = false;
         _defaultAcceptLocal = false;
         _defaultPolicy = null;
@@ -38,7 +42,8 @@ public class TransferFunctionParam {
         _other = p._other;
         _callContext = p._callContext;
         _chainContext = p._chainContext;
-        _initialCall = p._initialCall;
+        _indent = p._indent;
+        _scopes = p._scopes;
         _defaultAccept = p._defaultAccept;
         _defaultAcceptLocal = p._defaultAcceptLocal;
         _defaultPolicy = p._defaultPolicy;
@@ -70,7 +75,11 @@ public class TransferFunctionParam {
     }
 
     public boolean getInitialCall() {
-        return _initialCall;
+        return _indent == 0;
+    }
+
+    public String getScope() {
+        return _scopes.get(0);
     }
 
     public TransferFunctionParam setCallContext(CallContext cc) {
@@ -110,9 +119,31 @@ public class TransferFunctionParam {
         return ret;
     }
 
-    public TransferFunctionParam enterScope() {
+    public TransferFunctionParam enterScope(String name) {
         TransferFunctionParam ret = new TransferFunctionParam(this);
-        ret._initialCall = false;
+        ret._scopes = ret._scopes.plus(name);
         return ret;
+    }
+
+    public TransferFunctionParam indent() {
+        TransferFunctionParam ret = new TransferFunctionParam(this);
+        ret._indent = ret._indent + 1;
+        return ret;
+    }
+
+    public void debug(String str) {
+        if (Encoder.ENABLE_DEBUGGING) {
+            StringBuilder sb = new StringBuilder();
+            for (int i=0; i<_indent; i++) {
+                sb.append(" ");
+            }
+            String s = _scopes.get(0);
+            String scope = (s == null ? "" : s);
+            sb.append("[");
+            sb.append(scope);
+            sb.append("]: ");
+            sb.append(str);
+            System.out.println(sb.toString());
+        }
     }
 }

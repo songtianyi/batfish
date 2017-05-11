@@ -17,22 +17,63 @@ import java.util.*;
 import static org.batfish.datamodel.routing_policy.statement.Statements.*;
 
 /**
- * <p>Class that computes a symbolic transfer function between
+ * Class that computes a symbolic transfer function between
  * two symbolic control plane records. The transfer function
- * is used to encode both import and export filters.</p>
+ * is used to encode both import and export filters.
  *
- * <p>Batfish represents the AST much like vendors where there
+ * Batfish represents the AST much like vendors where there
  * is a simple imperative language for matching fields and
  * making modifications to fields. Since this is not a good
  * fit for a declarative symbolic encoding of the network,
- * we convert this stateful representation into a stateless representation </p>
+ * we convert this stateful representation into a stateless representation
  *
- * <p>The TransferFunctionSSA class makes policies stateless by converting
- * the vendor-independent format to an SSA form where all updates are
+ * The TransferFunctionSSA class makes policies stateless by converting
+ * the vendor-independent format to a Single Assignment (SSA) form where all updates are
  * reflected in new variables. Rather than create a full control flow
- * graph (CFG), we use a simple SSA conversion based on adding join points
- * for every If statement. Since functions can have side effects, we treat
- * the route variables as global across function calls.</p>
+ * graph (CFG) as is typically done in SSA, we use a simple conversion based on adding join points
+ * for every variable modified in an If statement. Since functions can have side effects, we treat
+ * the route variables as global across function calls.
+ *
+ * The joint point defined as the [phi] function from SSA merges variables that may differ across
+ * different branches of an If statement. For example, if there is the following filter:
+ *
+ * If match(c1) then
+ *   add community c2
+ * else
+ *   prepend path 2
+ *
+ * Then this function will introduce a new variable at the end of the If statement that
+ * updates the value of each variable modified based on the branch taken. For example:
+ *
+ * c2' = (c1 ? true : c2)
+ * metric' = (c1 ? metric : metric + 2)
+ *
+ * To model the return value of functions, we introduce two new variables: [returnValue] and [returnAssigned].
+ * For example, if we have the following AST function in Batfish:
+ *
+ * function foo()
+ *   if match(c1) then
+ *      reject
+ *   accept
+ *
+ * This is modeled by introducing [returnValue] - the value that the function returns, and the
+ * [returnAssigned] variable - whether a return has been hit so far in the control flow.
+ * For the foo function, we would have somthing like the following:
+ *
+ * function foo()
+ *   [returnValue = False]
+ *   [returnAssigned = False]
+ *   if match(c1) then
+ *      reject
+ *      [returnValue' = False]
+ *      [returnAssigned' = True]
+ *   [returnValue'' = (c1 and not returnAssigned ? returnValue' : returnValue)]
+ *   [returnAssigned'' = (c1 ? True : returnAssigned)]
+ *   accept
+ *   [returnValue''' = (returnAssigned'' ? returnValue'' : True)]
+ *   [returnAssigned'' = True]
+ *
+ * This encoding will then be inline and simplified by z3 to the following expression: [returnValue''' = not c1]
  *
  * @author Ryan Beckett
  */
@@ -64,7 +105,7 @@ class TransferFunctionSSA {
 
     private boolean _isExport;
 
-    TransferFunctionSSA(EncoderSlice encoderSlice, Configuration conf, SymbolicRecord other,
+    public TransferFunctionSSA(EncoderSlice encoderSlice, Configuration conf, SymbolicRecord other,
                         SymbolicRecord current, Protocol to, Protocol from, List<Statement> statements,
                         Integer addedCost, GraphEdge ge, boolean isExport) {
         _enc = encoderSlice;
@@ -205,13 +246,16 @@ class TransferFunctionSSA {
 
         // TODO: right now everything is IPV4
         if (expr instanceof MatchIpv4) {
+            p.debug("MatchIpv4");
             return fromExpr(_enc.True());
         }
         if (expr instanceof  MatchIpv6) {
+            p.debug("MatchIpv6");
             return fromExpr(_enc.False());
         }
 
         if (expr instanceof Conjunction) {
+            p.debug("Conjunction");
             Conjunction c = (Conjunction) expr;
             BoolExpr acc = _enc.True();
             TransferFunctionResult result = new TransferFunctionResult();
@@ -224,6 +268,7 @@ class TransferFunctionSSA {
         }
 
         if (expr instanceof Disjunction) {
+            p.debug("Disjunction");
             Disjunction d = (Disjunction) expr;
             BoolExpr acc = _enc.True();
             TransferFunctionResult result = new TransferFunctionResult();
@@ -236,6 +281,7 @@ class TransferFunctionSSA {
         }
 
         if (expr instanceof ConjunctionChain) {
+            p.debug("ConjunctionChain");
             ConjunctionChain d = (ConjunctionChain) expr;
             List<BooleanExpr> conjuncts = new ArrayList<>(d.getSubroutines());
             if (p.getDefaultPolicy() != null) {
@@ -248,7 +294,8 @@ class TransferFunctionSSA {
                 TransferFunctionResult result = new TransferFunctionResult();
                 BoolExpr acc = _enc.True();
                 for (BooleanExpr conjunct : conjuncts) {
-                    TransferFunctionResult r = compute(conjunct, p.setDefaultPolicy(null).enterScope());
+                    TransferFunctionParam param = p.setDefaultPolicy(null).setChainContext(TransferFunctionParam.ChainContext.CONJUNCTION);
+                    TransferFunctionResult r = compute(conjunct, param);
                     result.addChangedVariables(r);
                     acc = _enc.And(acc, r.getReturnValue());
                 }
@@ -257,6 +304,7 @@ class TransferFunctionSSA {
         }
 
         if (expr instanceof DisjunctionChain) {
+            p.debug("DisjunctionChain");
             DisjunctionChain d = (DisjunctionChain) expr;
             List<BooleanExpr> disjuncts = new ArrayList<>(d.getSubroutines());
             if (p.getDefaultPolicy() != null) {
@@ -269,7 +317,8 @@ class TransferFunctionSSA {
                 TransferFunctionResult result = new TransferFunctionResult();
                 BoolExpr acc = _enc.False();
                 for (BooleanExpr disjunct : disjuncts) {
-                    TransferFunctionResult r = compute(disjunct, p.setDefaultPolicy(null).enterScope());
+                    TransferFunctionParam param =  p.setDefaultPolicy(null).setChainContext(TransferFunctionParam.ChainContext.DISJUNCTION);
+                    TransferFunctionResult r = compute(disjunct, param);
                     result.addChangedVariables(r);
                     acc = _enc.Or(acc, r.getReturnValue());
                 }
@@ -278,12 +327,14 @@ class TransferFunctionSSA {
         }
 
         if (expr instanceof Not) {
+            p.debug("Not");
             Not n = (Not) expr;
             TransferFunctionResult result = compute(n.getExpr(), p);
             return result.setReturnValue( _enc.Not(result.getReturnValue()) );
         }
 
         if (expr instanceof MatchProtocol) {
+            p.debug("MatchProtocol");
             MatchProtocol mp = (MatchProtocol) expr;
             Protocol proto = Protocol.fromRoutingProtocol(mp.getProtocol());
             if (proto == null) {
@@ -296,27 +347,32 @@ class TransferFunctionSSA {
         }
 
         if (expr instanceof MatchPrefixSet) {
+            p.debug("MatchPrefixSet");
             MatchPrefixSet m = (MatchPrefixSet) expr;
             return fromExpr(matchPrefixSet(_conf, m.getPrefixSet(), p.getOther()));
 
         // TODO: implement me
         } else if (expr instanceof MatchPrefix6Set) {
+            p.debug("MatchPrefix6Set");
             return fromExpr(_enc.False());
 
         } else if (expr instanceof CallExpr) {
+            p.debug("CallExpr");
             // TODO: the call can modify certain fields, need to keep track of these variables
             CallExpr c = (CallExpr) expr;
             String name = c.getCalledPolicyName();
             RoutingPolicy pol = _conf.getRoutingPolicies().get(name);
             p = p.setCallContext(TransferFunctionParam.CallContext.EXPR_CALL);
-            return compute(pol.getStatements(), p.enterScope());
+            return compute(pol.getStatements(), p.indent().enterScope(name));
 
         } else if (expr instanceof WithEnvironmentExpr) {
+            p.debug("WithEnvironmentExpr");
             // TODO: this is not correct
             WithEnvironmentExpr we = (WithEnvironmentExpr) expr;
             return compute(we.getExpr(), p);
 
         } else if (expr instanceof MatchCommunitySet) {
+            p.debug("MatchCommunitySet");
             MatchCommunitySet mcs = (MatchCommunitySet) expr;
             return fromExpr(matchCommunitySet(_conf, mcs.getExpr(), p.getOther()));
 
@@ -324,12 +380,16 @@ class TransferFunctionSSA {
             BooleanExprs.StaticBooleanExpr b = (BooleanExprs.StaticBooleanExpr) expr;
             switch (b.getType()) {
                 case CallExprContext:
+                    p.debug("CallExprContext");
                     return fromExpr(_enc.Bool(p.getCallContext() == TransferFunctionParam.CallContext.EXPR_CALL));
                 case CallStatementContext:
+                    p.debug("CallStmtContext");
                     return fromExpr(_enc.Bool(p.getCallContext() == TransferFunctionParam.CallContext.STMT_CALL));
                 case True:
+                    p.debug("True");
                     return fromExpr(_enc.True());
                 case False:
+                    p.debug("False");
                     return fromExpr(_enc.False());
             }
 
@@ -436,14 +496,6 @@ class TransferFunctionSSA {
         } else {
             return false;
         }
-    }
-
-    /*
-     * Determine if BGP should transmit the
-     * local preference attribute to the neighboring peer.
-     */
-    private boolean sendLocalPref() {
-        return !_to.isBgp() || _graphEdge.isAbstract();
     }
 
     /*
@@ -559,53 +611,57 @@ class TransferFunctionSSA {
      */
     private TransferFunctionResult returnValue(TransferFunctionParam p, TransferFunctionResult r, boolean val) {
         BoolExpr b = _enc.If(r.getReturnAssignedValue(), r.getReturnValue(), _enc.Bool(val));
-        BoolExpr newRet = createBoolVariableWith("RETURN", b);
+        BoolExpr newRet = createBoolVariableWith(p, "RETURN", b);
         return r.setReturnValue(newRet).setReturnAssignedValue(_enc.True());
     }
 
 
-    private Expr joinPoint(SymbolicRecord other, BoolExpr guard, Pair<String,Pair<Expr,Expr>> values) {
+    /*
+     * The [phi] function from SSA that merges variables that may differ across
+     * different branches of an If statement.
+     */
+    private Expr joinPoint(TransferFunctionParam p, BoolExpr guard, Pair<String,Pair<Expr,Expr>> values) {
         String variableName = values.getFirst();
         Expr trueBranch = values.getSecond().getFirst();
         Expr falseBranch = values.getSecond().getSecond();
 
         if (variableName.equals("PREFIX-LEN")) {
             ArithExpr newValue = _enc.If(guard, (ArithExpr) trueBranch, (ArithExpr) falseBranch);
-            ArithExpr ret = createArithVariableWith("PREFIX-LEN", newValue);
-            other.setPrefixLength(ret);
+            ArithExpr ret = createArithVariableWith(p, "PREFIX-LEN", newValue);
+            p.getOther().setPrefixLength(ret);
             return ret;
         }
         if (variableName.equals("ADMIN-DIST")) {
             ArithExpr newValue = _enc.If(guard, (ArithExpr) trueBranch, (ArithExpr) falseBranch);
-            ArithExpr ret = createArithVariableWith("ADMIN-DIST", newValue);
-            other.setAdminDist(ret);
+            ArithExpr ret = createArithVariableWith(p, "ADMIN-DIST", newValue);
+            p.getOther().setAdminDist(ret);
             return ret;
         }
         if (variableName.equals("LOCAL-PREF")) {
             ArithExpr newValue = _enc.If(guard, (ArithExpr) trueBranch, (ArithExpr) falseBranch);
-            ArithExpr ret = createArithVariableWith("LOCAL-PREF", newValue);
-            other.setLocalPref(ret);
+            ArithExpr ret = createArithVariableWith(p, "LOCAL-PREF", newValue);
+            p.getOther().setLocalPref(ret);
             return ret;
         }
         if (variableName.equals("METRIC")) {
             ArithExpr newValue = _enc.If(guard, (ArithExpr) trueBranch, (ArithExpr) falseBranch);
-            ArithExpr ret = createArithVariableWith("METRIC", newValue);
-            other.setMetric(ret);
+            ArithExpr ret = createArithVariableWith(p, "METRIC", newValue);
+            p.getOther().setMetric(ret);
             return ret;
         }
         if (variableName.equals("OSPF-TYPE")) {
             BitVecExpr newValue = _enc.If(guard, (BitVecExpr) trueBranch, (BitVecExpr) falseBranch);
-            BitVecExpr ret = createBitVecVariableWith("METRIC", 2, newValue);
-            other.getOspfType().setBitVec(ret);
+            BitVecExpr ret = createBitVecVariableWith(p, "METRIC", 2, newValue);
+            p.getOther().getOspfType().setBitVec(ret);
             return ret;
         }
 
-        for (Map.Entry<CommunityVar, BoolExpr> entry : other.getCommunities().entrySet()) {
+        for (Map.Entry<CommunityVar, BoolExpr> entry : p.getOther().getCommunities().entrySet()) {
             CommunityVar cvar = entry.getKey();
             if (variableName.equals(cvar.getValue())) {
                 BoolExpr newValue = _enc.If(guard, (BoolExpr) trueBranch, (BoolExpr) falseBranch);
-                BoolExpr ret = createBoolVariableWith(cvar.getValue(), newValue);
-                other.getCommunities().put(cvar, ret);
+                BoolExpr ret = createBoolVariableWith(p, cvar.getValue(), newValue);
+                p.getOther().getCommunities().put(cvar, ret);
                 return ret;
             }
         }
@@ -621,8 +677,9 @@ class TransferFunctionSSA {
     private TransferFunctionResult compute(List<Statement> statements, TransferFunctionParam p) {
 
         // initialize the return variable
-        TransferFunctionResult result = new TransferFunctionResult();
-        result = result.setReturnValue(_enc.False()).setReturnAssignedValue(_enc.False());
+        TransferFunctionResult result = new TransferFunctionResult()
+                .setReturnValue(_enc.False())
+                .setReturnAssignedValue(_enc.False());
 
         for (Statement stmt : statements) {
 
@@ -631,38 +688,47 @@ class TransferFunctionSSA {
 
                 switch (ss.getType()) {
                     case ExitAccept:
+                        p.debug("ExitAccept");
                         result = returnValue(p, result, true);
                         break;
 
                     case ReturnTrue:
+                        p.debug("ReturnTrue");
                         result = returnValue(p, result, true);
                         break;
 
                     case ExitReject:
+                        p.debug("ExitReject");
                         result = returnValue(p, result, false);
                         break;
 
                     case ReturnFalse:
+                        p.debug("ReturnFalse");
                         result = returnValue(p, result, false);
                         break;
 
                     case SetDefaultActionAccept:
+                        p.debug("SetDefaulActionAccept");
                         p = p.setDefaultAccept(true);
                         break;
 
                     case SetDefaultActionReject:
+                        p.debug("SetDefaultActionReject");
                         p = p.setDefaultAccept(false);
                         break;
 
                     case SetLocalDefaultActionAccept:
+                        p.debug("SetLocalDefaultActionAccept");
                         p = p.setDefaultAcceptLocal(true);
                         break;
 
                     case SetLocalDefaultActionReject:
+                        p.debug("SetLocalDefaultActionReject");
                         p = p.setDefaultAcceptLocal(false);
                         break;
 
                     case ReturnLocalDefaultAction:
+                        p.debug("ReturnLocalDefaultAction");
                         // TODO: need to set local default action in an environment
                         if (p.getDefaultAcceptLocal()) {
                             result = returnValue(p, result, true);
@@ -672,6 +738,7 @@ class TransferFunctionSSA {
                         break;
 
                     case FallThrough:
+                        p.debug("Fallthrough");
                         switch (p.getChainContext()) {
                             case NONE:
                                 throw new BatfishException("Fallthrough found without chain context");
@@ -686,6 +753,7 @@ class TransferFunctionSSA {
 
                     case Return:
                         // TODO: I'm assumming this happens at the end of the function, so it is ignored for now.
+                        p.debug("Return");
                         break;
 
                     default:
@@ -694,29 +762,33 @@ class TransferFunctionSSA {
 
 
             } else if (stmt instanceof If) {
+                p.debug("If");
                 If i = (If) stmt;
                 TransferFunctionResult r = compute(i.getGuard(), p);
                 result = result.addChangedVariables(r);
                 BoolExpr guard = r.getReturnValue();
-                TransferFunctionResult trueBranch = compute(i.getTrueStatements(), p.enterScope().copyRecord());
-                TransferFunctionResult falseBranch = compute(i.getFalseStatements(), p.enterScope().copyRecord());
+                TransferFunctionResult trueBranch = compute(i.getTrueStatements(), p.indent().copyRecord());
+                TransferFunctionResult falseBranch = compute(i.getFalseStatements(), p.indent().copyRecord());
                 for (Pair<String, Pair<Expr, Expr>> pair : trueBranch.commonChangedVariables(falseBranch)) {
-                    Expr x = joinPoint(p.getOther(), guard, pair);
+                    Expr x = joinPoint(p, guard, pair);
                     result = result.addChangedVariable(pair.getFirst(), x);
                 }
 
             } else if (stmt instanceof SetDefaultPolicy) {
+                p.debug("SetDefaultPolicy");
                 p = p.setDefaultPolicy((SetDefaultPolicy) stmt);
 
             } else if (stmt instanceof SetMetric) {
+                p.debug("SetMetric");
                 SetMetric sm = (SetMetric) stmt;
                 IntExpr ie = sm.getMetric();
                 ArithExpr newValue = applyIntExprModification(p.getOther().getMetric(), ie);
-                ArithExpr x = createArithVariableWith("METRIC", newValue);
+                ArithExpr x = createArithVariableWith(p, "METRIC", newValue);
                 p.getOther().setMetric(x);
                 result = result.addChangedVariable("METRIC", x);
 
             } else if (stmt instanceof SetOspfMetricType) {
+                p.debug("SetOspfMetricType");
                 SetOspfMetricType somt = (SetOspfMetricType) stmt;
                 OspfMetricType mt = somt.getMetricType();
                 SymbolicOspfType t;
@@ -726,49 +798,55 @@ class TransferFunctionSSA {
                     t = new SymbolicOspfType(_enc, OspfType.E2);
                 }
                 BitVecExpr newValue = t.getBitVec();
-                BitVecExpr x = createBitVecVariableWith("OSPF-TYPE", 2, newValue);
+                BitVecExpr x = createBitVecVariableWith(p, "OSPF-TYPE", 2, newValue);
                 p.getOther().getOspfType().setBitVec(x);
                 result = result.addChangedVariable("OSPF-TYPE", x);
 
 
             } else if (stmt instanceof SetLocalPreference) {
+                p.debug("SetLocalPreference");
                 SetLocalPreference slp = (SetLocalPreference) stmt;
                 IntExpr ie = slp.getLocalPreference();
                 ArithExpr newValue = applyIntExprModification(p.getOther().getLocalPref(), ie);
-                ArithExpr x = createArithVariableWith("LOCAL-PREF", newValue);
+                ArithExpr x = createArithVariableWith(p, "LOCAL-PREF", newValue);
                 p.getOther().setMetric(x);
                 result = result.addChangedVariable("LOCAL-PREF", x);
 
             } else if (stmt instanceof AddCommunity) {
+                p.debug("AddCommunity");
                 AddCommunity ac = (AddCommunity) stmt;
                 Set<CommunityVar> comms = _enc.findAllCommunities(_conf, ac.getExpr());
                 for (CommunityVar cvar : comms) {
-                    BoolExpr x = createBoolVariableWith(cvar.getValue(), _enc.True());
+                    BoolExpr x = createBoolVariableWith(p, cvar.getValue(), _enc.True());
                     p.getOther().getCommunities().put(cvar, x);
                     result = result.addChangedVariable(cvar.getValue(), x);
                 }
 
             } else if (stmt instanceof DeleteCommunity) {
+                p.debug("DeleteCommunity");
                 DeleteCommunity ac = (DeleteCommunity) stmt;
                 Set<CommunityVar> comms = _enc.findAllCommunities(_conf, ac.getExpr());
                 for (CommunityVar cvar : comms) {
-                    BoolExpr x = createBoolVariableWith(cvar.getValue(), _enc.False());
+                    BoolExpr x = createBoolVariableWith(p, cvar.getValue(), _enc.False());
                     p.getOther().getCommunities().put(cvar, x);
                     result = result.addChangedVariable(cvar.getValue(), x);
                 }
 
             } else if (stmt instanceof RetainCommunity) {
+                p.debug("RetainCommunity");
                 // no op
 
             } else if (stmt instanceof PrependAsPath) {
+                p.debug("PrependAsPath");
                 PrependAsPath pap = (PrependAsPath) stmt;
                 Integer prependCost = prependLength(pap.getExpr());
                 ArithExpr newValue = _enc.Sum(p.getOther().getMetric(), _enc.Int(prependCost));
-                ArithExpr x = createArithVariableWith("METRIC", newValue);
+                ArithExpr x = createArithVariableWith(p, "METRIC", newValue);
                 p.getOther().setMetric(x);
                 result = result.addChangedVariable("METRIC", x);
 
             } else if (stmt instanceof SetOrigin) {
+                p.debug("SetOrigin");
                 // TODO: implement me
 
             } else {
@@ -785,6 +863,7 @@ class TransferFunctionSSA {
 
         // If this is the outermost call, then we relate the variables
         if (p.getInitialCall()) {
+            p.debug("InitialCall finalizing");
             BoolExpr related = relateVariables(p, result);
             BoolExpr retValue = _enc.If(result.getReturnValue(), related, _enc.Not(_current.getPermitted()) );
             result = result.setReturnValue(retValue);
@@ -793,37 +872,37 @@ class TransferFunctionSSA {
     }
 
 
-    private ArithExpr createArithVariable(String name) {
+    /*
+     * A collection of functions to create new SSA variables on-the-fly,
+     * while also simultaneously setting their value based on an old value.
+     */
+    private ArithExpr createArithVariableWith(TransferFunctionParam p, String name, ArithExpr e) {
         String s = "SSA_" + name + _enc.generateId();
         ArithExpr x = _enc.getCtx().mkIntConst(s);
         _enc.getAllVariables().add(x);
+        BoolExpr eq = _enc.Eq(x, e);
+        _enc.add(eq);
+        p.debug(eq.toString());
         return x;
     }
 
-    private ArithExpr createArithVariableWith(String name, ArithExpr e) {
-        ArithExpr x = createArithVariable(name);
-        _enc.add(_enc.Eq(x, e));
-        return x;
-    }
-
-    private BoolExpr createBoolVariable(String name) {
+    private BoolExpr createBoolVariableWith(TransferFunctionParam p, String name, BoolExpr e) {
         String s = "SSA_" + name + _enc.generateId();
         BoolExpr x = _enc.getCtx().mkBoolConst(s);
         _enc.getAllVariables().add(x);
+        BoolExpr eq = _enc.Eq(x,e);
+        _enc.add(eq);
+        p.debug(eq.toString());;
         return x;
     }
 
-    private BoolExpr createBoolVariableWith(String name, BoolExpr e) {
-        BoolExpr x = createBoolVariable(name);
-        _enc.add(_enc.Eq(x,e));
-        return x;
-    }
-
-    private BitVecExpr createBitVecVariableWith(String name, int size, BitVecExpr e) {
+    private BitVecExpr createBitVecVariableWith(TransferFunctionParam p, String name, int size, BitVecExpr e) {
         String s = "SSA_" + name + _enc.generateId();
         BitVecExpr x = _enc.getCtx().mkBVConst(s, size);
         _enc.getAllVariables().add(x);
-        _enc.add(_enc.Eq(x,e));
+        BoolExpr eq = _enc.Eq(x,e);
+        _enc.add(eq);
+        p.debug(eq.toString());
         return x;
     }
 
@@ -832,8 +911,8 @@ class TransferFunctionSSA {
      * Create a new variable representing the new prefix length after
      * applying the effect of aggregation.
      */
-    private void computeIntermediatePrefixLen(SymbolicRecord other) {
-        ArithExpr prefixLen = other.getPrefixLength();
+    private void computeIntermediatePrefixLen(TransferFunctionParam param) {
+        ArithExpr prefixLen = param.getOther().getPrefixLength();
         if (_isExport) {
             _aggregates = aggregateRoutes();
             if (_aggregates.size() > 0) {
@@ -843,24 +922,21 @@ class TransferFunctionSSA {
                     Prefix p = prefix.getNetworkPrefix();
                     ArithExpr len = _enc.Int(p.getPrefixLength());
                     BoolExpr relevantPfx = _enc.isRelevantFor(p, _enc.getSymbolicPacket().getDstIp());
-                    BoolExpr relevantLen = _enc.Gt(other.getPrefixLength(), len);
+                    BoolExpr relevantLen = _enc.Gt(param.getOther().getPrefixLength(), len);
                     BoolExpr relevant = _enc.And(relevantPfx, relevantLen, _enc.Bool(isSuppressed));
                     prefixLen = _enc.If(relevant, len, prefixLen);
                 }
-                ArithExpr i = createArithVariableWith("PREFIX-LEN", prefixLen);
-                other.setPrefixLength(i);
+                ArithExpr i = createArithVariableWith(param, "PREFIX-LEN", prefixLen);
+                param.getOther().setPrefixLength(i);
             }
         }
     }
 
-    // - use better data structure to merge join points on if statements
-    // - reset default policy after use so it isn't used in two different chain contexts
-    // - ensure the result from a call expression is merged (e.g., changed variables) with the current result
-
-    BoolExpr compute() {
+    // TODO use better data structure to merge join points on if statements
+    public BoolExpr compute() {
         SymbolicRecord o = new SymbolicRecord(_other);
-        computeIntermediatePrefixLen(o);
         TransferFunctionParam p = new TransferFunctionParam(o);
+        computeIntermediatePrefixLen(p);
         TransferFunctionResult result = compute(_statements, p);
         return result.getReturnValue();
     }
