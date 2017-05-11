@@ -25,7 +25,7 @@ import static org.batfish.datamodel.routing_policy.statement.Statements.*;
  * we convert this stateful representation into a stateless
  * representation using a form of continuation passing style.</p>
  *
- * <p>The TransferFunction class makes policies stateless by inlining
+ * <p>The TransferFunctionInline class makes policies stateless by inlining
  * the result of function calls. The _contTrue and _contFalse contexts
  * maintain the "remaining" policy statements that need to be inlined
  * as the policy is converted to a stateless form. While traversing the
@@ -34,7 +34,7 @@ import static org.batfish.datamodel.routing_policy.statement.Statements.*;
  *
  * @author Ryan Beckett
  */
-class TransferFunction {
+class TransferFunctionInline {
 
     private enum Operation {CONJUNCTION, DISJUNCTION}
 
@@ -58,9 +58,9 @@ class TransferFunction {
 
     private GraphEdge _graphEdge;
 
-    private Stack<Queue<BooleanExpr>> _operands;
+    private Stack<Queue<BooleanExpr>> _logicCont;
 
-    private Stack<Operation> _operandTypes;
+    private Stack<Operation> _logicType;
 
     private Stack<List<Statement>> _contTrue;
 
@@ -72,8 +72,8 @@ class TransferFunction {
 
     private boolean _isExport;
 
-    TransferFunction(EncoderSlice encoderSlice, Configuration conf, SymbolicRecord other,
-            SymbolicRecord current, Protocol to, Protocol from, List<Statement>
+    TransferFunctionInline(EncoderSlice encoderSlice, Configuration conf, SymbolicRecord other,
+                           SymbolicRecord current, Protocol to, Protocol from, List<Statement>
             statements, Integer addedCost, GraphEdge ge, boolean isExport) {
         _enc = encoderSlice;
         _conf = conf;
@@ -219,76 +219,121 @@ class TransferFunction {
      * by performing inlining of stateful side effects.
      */
     private BoolExpr compute(BooleanExpr expr, Modifications mods, boolean pure, boolean
-            inExprCall, boolean inStmtCall) {
+            inExprCall, boolean inStmtCall, Continuation cont) {
 
         Modifications freshMods = new Modifications(mods);
 
+        // TODO: right now everything is IPV4
+        if (expr instanceof MatchIpv4) {
+            cont.println("MatchIpv4");
+            return _enc.True();
+        }
+        if (expr instanceof  MatchIpv6) {
+            cont.println("MatchIpv6");
+            return _enc.False();
+        }
+
         if (expr instanceof Conjunction) {
+            cont.println("Conjunction");
             Conjunction c = (Conjunction) expr;
             if (pure) {
                 BoolExpr v = _enc.True();
                 for (BooleanExpr x : c.getConjuncts()) {
-                    v = _enc.And(v, compute(x, freshMods, pure, inExprCall, inStmtCall));
+                    v = _enc.And(v, compute(x, freshMods, pure, inExprCall, inStmtCall, cont));
                 }
                 return v;
             } else {
                 Queue<BooleanExpr> queue = new ArrayDeque<>(c.getConjuncts());
                 BooleanExpr x = queue.remove();
-                _operands.push(queue);
-                _operandTypes.push(Operation.CONJUNCTION);
-                BoolExpr ret = compute(wrapExpr(x), freshMods, inExprCall, inStmtCall);
-                _operandTypes.pop();
-                _operands.pop();
+                _logicCont.push(queue);
+                _logicType.push(Operation.CONJUNCTION);
+                BoolExpr ret = compute(wrapExpr(x), freshMods, inExprCall, inStmtCall, cont);
+                _logicType.pop();
+                _logicCont.pop();
                 return ret;
             }
         }
 
+        if (expr instanceof ConjunctionChain) {
+            cont.println("ConjunctionChain");
+            ConjunctionChain d = (ConjunctionChain) expr;
+            // Add the default policy
+            List<BooleanExpr> conjuncts = new ArrayList<>(d.getSubroutines());
+            if (freshMods.getSetDefaultPolicy() != null) {
+                BooleanExpr be = new CallExpr(freshMods.getSetDefaultPolicy().getDefaultPolicy());
+                conjuncts.add(be);
+                freshMods.resetDefaultPolicy();
+            }
+            if (conjuncts.size() == 0) {
+                return _enc.True();
+            } else if (conjuncts.size() == 1) {
+                return compute(conjuncts.get(0), freshMods, pure, true, inStmtCall, cont);
+            } else {
+                cont = cont.addConjunctionChain(conjuncts);
+                BooleanExpr x = cont.peekChainElement();
+                cont = cont.popChainElement();
+
+                System.out.println("Adding conjunction chain queue of size: " + conjuncts.size());
+                for (BooleanExpr be : cont.continuationChain.get(0)) {
+                    System.out.println("  Expr: " + be);
+                }
+                return compute(wrapExpr(x), freshMods, true, inStmtCall, cont);
+            }
+        }
+
         if (expr instanceof Disjunction) {
+            cont.println("Disjunction");
             Disjunction d = (Disjunction) expr;
             if (pure) {
                 BoolExpr v = _enc.False();
                 for (BooleanExpr x : d.getDisjuncts()) {
-                    v = _enc.Or(v, compute(x, freshMods, pure, inExprCall, inStmtCall));
+                    v = _enc.Or(v, compute(x, freshMods, pure, inExprCall, inStmtCall, cont));
                 }
                 return v;
             } else {
                 Queue<BooleanExpr> queue = new ArrayDeque<>(d.getDisjuncts());
                 BooleanExpr x = queue.remove();
-                _operands.push(queue);
-                _operandTypes.push(Operation.DISJUNCTION);
-                BoolExpr ret = compute(wrapExpr(x), freshMods, inExprCall, inStmtCall);
-                _operandTypes.pop();
-                _operands.pop();
+                _logicCont.push(queue);
+                _logicType.push(Operation.DISJUNCTION);
+                BoolExpr ret = compute(wrapExpr(x), freshMods, inExprCall, inStmtCall, cont);
+                _logicType.pop();
+                _logicCont.pop();
                 return ret;
             }
         }
 
         if (expr instanceof DisjunctionChain) {
+            cont.println("DisjunctionChain");
             DisjunctionChain d = (DisjunctionChain) expr;
             // Add the default policy
             List<BooleanExpr> disjuncts = new ArrayList<>(d.getSubroutines());
-            if (mods.getSetDefaultPolicy() != null) {
-                BooleanExpr be = new CallExpr(mods.getSetDefaultPolicy().getDefaultPolicy());
+            if (freshMods.getSetDefaultPolicy() != null) {
+                BooleanExpr be = new CallExpr(freshMods.getSetDefaultPolicy().getDefaultPolicy());
                 disjuncts.add(be);
+                freshMods.resetDefaultPolicy();
             }
-            // TODO: I'm not entirely sure how to handle this due to the side effects
             if (disjuncts.size() == 0) {
                 return _enc.True();
             } else if (disjuncts.size() == 1) {
-                return compute(disjuncts.get(0), freshMods, pure, true, inStmtCall);
+                return compute(disjuncts.get(0), freshMods, pure, true, inStmtCall, cont);
             } else {
-                System.out.println("Router: " + _conf.getName());
-                throw new BatfishException("TODO: disjunct chain longer than length 1");
+                cont = cont.addDisjunctionChain(disjuncts);
+                BooleanExpr x = cont.peekChainElement();
+                cont = cont.popChainElement();
+                System.out.println("Adding disjunction chain queue of size: " + disjuncts.size());
+                return compute(wrapExpr(x), freshMods, true, inStmtCall, cont);
             }
         }
 
         if (expr instanceof Not) {
+            cont.println("Not");
             Not n = (Not) expr;
-            BoolExpr v = compute(n.getExpr(), mods, pure, inExprCall, inStmtCall);
+            BoolExpr v = compute(n.getExpr(), mods, pure, inExprCall, inStmtCall, cont);
             return _enc.Not(v);
         }
 
         if (expr instanceof MatchProtocol) {
+            cont.println("MatchProtocol");
             MatchProtocol mp = (MatchProtocol) expr;
 
             Protocol p = Protocol.fromRoutingProtocol(mp.getProtocol());
@@ -303,25 +348,30 @@ class TransferFunction {
         }
 
         if (expr instanceof MatchPrefixSet) {
+            cont.println("MatchPrefixSet");
             MatchPrefixSet m = (MatchPrefixSet) expr;
             return matchPrefixSet(_conf, m.getPrefixSet());
 
         // TODO: implement me
         } else if (expr instanceof MatchPrefix6Set) {
+            cont.println("MatchPrefix6Set");
             return _enc.False();
 
         } else if (expr instanceof CallExpr) {
             CallExpr c = (CallExpr) expr;
             String name = c.getCalledPolicyName();
+            cont.println("CallExpr: " + name);
             RoutingPolicy pol = _conf.getRoutingPolicies().get(name);
-            return compute(pol.getStatements(), freshMods, inExprCall, true);
+            return compute(pol.getStatements(), freshMods, inExprCall, true, cont.indent(name));
 
         } else if (expr instanceof WithEnvironmentExpr) {
+            cont.println("WithEnvironmentExpr");
             // TODO: this is not correct
             WithEnvironmentExpr we = (WithEnvironmentExpr) expr;
-            return compute(we.getExpr(), freshMods, pure, inExprCall, inStmtCall);
+            return compute(we.getExpr(), freshMods, pure, inExprCall, inStmtCall, cont);
 
         } else if (expr instanceof MatchCommunitySet) {
+            cont.println("MatchCommunitySet");
             MatchCommunitySet mcs = (MatchCommunitySet) expr;
             return matchCommunitySet(_conf, mcs.getExpr(), _other);
 
@@ -329,8 +379,10 @@ class TransferFunction {
             BooleanExprs.StaticBooleanExpr b = (BooleanExprs.StaticBooleanExpr) expr;
             switch (b.getType()) {
                 case CallExprContext:
+                    cont.println("CallExprContext");
                     return _enc.Bool(inExprCall);
                 case CallStatementContext:
+                    cont.println("CallStatementContext");
                     return _enc.Bool(inStmtCall);
                 case True:
                     return _enc.True();
@@ -623,21 +675,41 @@ class TransferFunction {
         return val[0];
     }
 
+    private boolean inLogicalContext() {
+        return !_logicCont.isEmpty() && !_logicCont.peek().isEmpty();
+    }
+
+    private boolean inConjunctionContext() {
+        if (!inLogicalContext()) return false;
+        Operation op = _logicType.peek();
+        return op == Operation.CONJUNCTION;
+    }
+
+    private boolean inDisjunctionContext() {
+        if (!inLogicalContext()) return false;
+        Operation op = _logicType.peek();
+        return op == Operation.DISJUNCTION;
+    }
+
     /*
      * Handle a return true statement
      */
-    private BoolExpr returnTrue(Modifications mods, boolean inExprCall, boolean inStmtCall) {
+    private BoolExpr returnTrue(Modifications mods, boolean inExprCall, boolean inStmtCall, Continuation cont) {
         Modifications newMods = new Modifications(mods);
-        // TODO: we might introduce a returnTrue, so this might not be right
         newMods.setDefaultAcceptLocal(false);
-        if (!_operands.isEmpty() && !_operands.peek().isEmpty() && _operandTypes.peek() == Operation.CONJUNCTION) {
-            Queue<BooleanExpr> queue = _operands.peek();
+        if (cont.isConjunctionChainContext()) {
+            BooleanExpr x = cont.peekChainElement();
+            return compute(wrapExpr(x), mods, inExprCall, inStmtCall, cont.popChainElement());
+        }
+        if (inConjunctionContext()) {
+            Queue<BooleanExpr> queue = _logicCont.peek();
             BooleanExpr x = queue.poll();
-            return compute(wrapExpr(x), mods, inExprCall, inStmtCall);
-        } else if (!_contTrue.isEmpty()) {
+            return compute(wrapExpr(x), mods, inExprCall, inStmtCall, cont);
+        }
+        if (!_contTrue.isEmpty()) {
             List<Statement> t = _contTrue.pop();
             List<Statement> f = _contFalse.pop();
-            BoolExpr ret = compute(t, mods, inExprCall, inStmtCall);
+            BoolExpr ret = compute(t, mods, inExprCall, inStmtCall, cont);
             _contTrue.push(t);
             _contFalse.push(f);
             return ret;
@@ -649,24 +721,22 @@ class TransferFunction {
     /*
      * Handle a return false statement
      */
-    private BoolExpr returnFalse(Modifications mods, boolean inExprCall, boolean inStmtCall) {
+    private BoolExpr returnFalse(Modifications mods, boolean inExprCall, boolean inStmtCall, Continuation cont) {
         Modifications newMods = new Modifications(mods);
         newMods.setDefaultAcceptLocal(false);
-
-        if (!_operands.isEmpty() && !_operands.peek().isEmpty() && _operandTypes.peek() == Operation.DISJUNCTION) {
-            Queue<BooleanExpr> queue = _operands.peek();
-            BooleanExpr x = queue.poll();
-            return compute(wrapExpr(x), mods, inExprCall, inStmtCall);
+        if (cont.isDisjunctionChainContext()) {
+            BooleanExpr x = cont.peekChainElement();
+            return compute(wrapExpr(x), mods, inExprCall, inStmtCall, cont.popChainElement());
         }
-
-        /* if (!_operands.isEmpty() && !_operands.peek().isEmpty()) {
-            Queue<BooleanExpr> queue = _operands.peek();
+        if (inDisjunctionContext()) {
+            Queue<BooleanExpr> queue = _logicCont.peek();
             BooleanExpr x = queue.poll();
-            return compute(wrapExpr(x), mods, inExprCall, inStmtCall);
-        } */ else if (!_contFalse.isEmpty()) {
+            return compute(wrapExpr(x), mods, inExprCall, inStmtCall, cont);
+        }
+        if (!_contFalse.isEmpty()) {
             List<Statement> t = _contTrue.pop();
             List<Statement> f = _contFalse.pop();
-            BoolExpr ret = compute(f, mods, inExprCall, inStmtCall);
+            BoolExpr ret = compute(f, mods, inExprCall, inStmtCall, cont);
             _contTrue.push(t);
             _contFalse.push(f);
             return ret;
@@ -681,7 +751,7 @@ class TransferFunction {
      * Convert a list of statements into a Z3 boolean expression for the transfer function.
      */
     private BoolExpr compute(List<Statement> statements, Modifications mods, boolean inExprCall,
-            boolean inStmtCall) {
+            boolean inStmtCall, Continuation cont) {
         Modifications freshMods = new Modifications(mods);
 
         ListIterator<Statement> it = statements.listIterator();
@@ -692,36 +762,59 @@ class TransferFunction {
                 Statements.StaticStatement ss = (Statements.StaticStatement) s;
 
                 if (ss.getType() == ExitAccept || ss.getType() == ReturnTrue) {
-                    return returnTrue(freshMods, inExprCall, inStmtCall);
+                    cont.println("ExitAccept/ReturnTrue");
+                    return returnTrue(freshMods, inExprCall, inStmtCall, cont);
 
                 } else if (ss.getType() == ExitReject || ss.getType() == ReturnFalse) {
-                    return returnFalse(freshMods, inExprCall, inStmtCall);
+                    cont.println("ExitReject/ReturnFalse");
+                    return returnFalse(freshMods, inExprCall, inStmtCall, cont);
 
                 } else if (ss.getType() == SetDefaultActionAccept) {
+                    cont.println("SetDefaultActionAccept");
                     freshMods.addModification(s);
 
                 } else if (ss.getType() == SetDefaultActionReject) {
+                    cont.println("SetDefaultActionReject");
                     freshMods.addModification(s);
 
                 } else if (ss.getType() == SetLocalDefaultActionAccept) {
+                    cont.println("SetLocalDefaultActionAccept");
                     freshMods.addModification(s);
 
                 } else if (ss.getType() == SetLocalDefaultActionReject) {
+                    cont.println("SetLocalDefaultActionReject");
                     freshMods.addModification(s);
 
                 } else if (ss.getType() == ReturnLocalDefaultAction) {
+                    cont.println("ReturnLocalDefaultAction");
                     // TODO: need to set local default action in an environment
                     if (freshMods.getDefaultAcceptLocal()) {
-                        return returnTrue(freshMods, inExprCall, inStmtCall);
+                        return returnTrue(freshMods, inExprCall, inStmtCall, cont);
                     } else {
-                        return returnFalse(freshMods, inExprCall, inStmtCall);
+                        return returnFalse(freshMods, inExprCall, inStmtCall, cont);
                     }
+
+
+                } else if (ss.getType() == FallThrough) {
+                    cont.println("Fallthrough");
+                    if (cont.isConjunctionChainContext()) {
+                        returnTrue(mods, inExprCall, inStmtCall, cont);
+                    } else if (cont.isDisjunctionChainContext()) {
+                        returnFalse(mods, inExprCall, inStmtCall, cont);
+                    } else {
+                        throw new BatfishException("Fallthrough not in chain context");
+                    }
+
+                } else if (ss.getType() ==  Return) {
+                    cont.println("Return");
+                    // noop
 
                 } else {
                     throw new BatfishException("TODO: computeTransferFunction: " + ss.getType());
                 }
 
             } else if (s instanceof If) {
+                cont.println("If");
                 If i = (If) s;
                 List<Statement> remainingx = new ArrayList<>(i.getTrueStatements());
                 List<Statement> remainingy = new ArrayList<>(i.getFalseStatements());
@@ -739,55 +832,65 @@ class TransferFunction {
                 if (isNotPure(i.getGuard())) {
                     _contTrue.push(remainingx);
                     _contFalse.push(remainingy);
-                    BoolExpr ret = compute(i.getGuard(), freshMods, false, inExprCall, inStmtCall);
+                    BoolExpr ret = compute(i.getGuard(), freshMods, false, inExprCall, inStmtCall, cont);
                     _contTrue.pop();
                     _contFalse.pop();
                     return ret;
                 } else {
                     Modifications modsTrue = new Modifications(freshMods);
                     Modifications modsFalse = new Modifications(freshMods);
-                    BoolExpr trueBranch = compute(remainingx, modsTrue, inExprCall, inStmtCall);
-                    BoolExpr falseBranch = compute(remainingy, modsFalse, inExprCall, inStmtCall);
-                    BoolExpr guard = compute(i.getGuard(), freshMods, true, inExprCall, inStmtCall);
+                    BoolExpr trueBranch = compute(remainingx, modsTrue, inExprCall, inStmtCall, cont);
+                    BoolExpr falseBranch = compute(remainingy, modsFalse, inExprCall, inStmtCall, cont);
+                    BoolExpr guard = compute(i.getGuard(), freshMods, true, inExprCall, inStmtCall, cont);
                     return _enc.If(guard, trueBranch, falseBranch);
                 }
 
             } else if (s instanceof SetDefaultPolicy) {
+                cont.println("SetDefaultPolicy");
                 freshMods.addModification(s);
 
             } else if (s instanceof SetMetric) {
+                cont.println("SetMetric");
                 freshMods.addModification(s);
 
             } else if (s instanceof SetOspfMetricType) {
+                cont.println("SetOspfMetricType");
                 freshMods.addModification(s);
 
             } else if (s instanceof SetLocalPreference) {
+                cont.println("SetLocalPreference: " + ((LiteralInt) ((SetLocalPreference) s).getLocalPreference()).getValue() );
                 freshMods.addModification(s);
 
             } else if (s instanceof AddCommunity) {
+                cont.println("AddCommunity");
                 freshMods.addModification(s);
 
             } else if (s instanceof DeleteCommunity) {
+                cont.println("DeleteCommunity");
                 freshMods.addModification(s);
 
             } else if (s instanceof RetainCommunity) {
+                cont.println("RetainCommunity");
                 freshMods.addModification(s);
 
             } else if (s instanceof PrependAsPath) {
+                cont.println("PrependAsPath");
                 freshMods.addModification(s);
 
             // TODO: implement me
             } else if (s instanceof SetOrigin) {
+                cont.println("SetOrigin");
 
             } else {
                 throw new BatfishException("TODO: statement transfer function: " + s);
             }
         }
 
+        // Apply the default action
         if (freshMods.getDefaultAccept()) {
-            return returnTrue(freshMods, inExprCall, inStmtCall);
+            return returnTrue(freshMods, inExprCall, inStmtCall, cont);
         } else {
-            return returnFalse(freshMods, inExprCall, inStmtCall);
+            return returnFalse(freshMods, inExprCall, inStmtCall, cont);
         }
     }
 
@@ -827,11 +930,12 @@ class TransferFunction {
     BoolExpr compute() {
         computeIntermediatePrefixLen();
         Modifications mods = new Modifications(_enc, _conf);
-        _operands = new Stack<>();
-        _operandTypes = new Stack<>();
+        _logicCont = new Stack<>();
+        _logicType = new Stack<>();
         _contTrue = new Stack<>();
         _contFalse = new Stack<>();
-        return compute(_statements, mods, false, false);
+        Continuation c = new Continuation();
+        return compute(_statements, mods, false, false, c);
     }
 
 }

@@ -167,6 +167,10 @@ class Modifications {
 
     }
 
+    void resetDefaultPolicy() {
+        _defaultPolicy = null;
+    }
+
     PrependAsPath getPrependPath() {
         return _prependPath;
     }

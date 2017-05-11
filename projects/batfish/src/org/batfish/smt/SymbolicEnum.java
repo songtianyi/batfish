@@ -54,6 +54,8 @@ class SymbolicEnum<T> {
         }
     }
 
+
+
     protected SymbolicEnum(EncoderSlice slice, List<T> values, T value) {
         _enc = slice;
         int idx = values.indexOf(value);
@@ -94,6 +96,10 @@ class SymbolicEnum<T> {
 
     private boolean isPowerOfTwo(int x) {
         return (x & -x) == x;
+    }
+
+    void setBitVec(BitVecExpr bv) {
+        this._bitvec = bv;
     }
 
     BoolExpr Eq(SymbolicEnum<T> other) {

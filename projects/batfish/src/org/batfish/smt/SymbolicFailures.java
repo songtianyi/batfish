@@ -2,7 +2,7 @@ package org.batfish.smt;
 
 
 import com.microsoft.z3.ArithExpr;
-import org.batfish.smt.utils.Table2;
+import org.batfish.smt.collections.Table2;
 
 import java.util.HashMap;
 import java.util.Map;

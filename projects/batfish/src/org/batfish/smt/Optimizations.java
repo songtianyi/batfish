@@ -7,7 +7,7 @@ import org.batfish.datamodel.routing_policy.RoutingPolicy;
 import org.batfish.datamodel.routing_policy.expr.BooleanExpr;
 import org.batfish.datamodel.routing_policy.expr.CallExpr;
 import org.batfish.datamodel.routing_policy.statement.*;
-import org.batfish.smt.utils.Table2;
+import org.batfish.smt.collections.Table2;
 
 import java.util.*;
 

@@ -1,4 +1,4 @@
-package org.batfish.smt.utils;
+package org.batfish.smt.collections;
 
 import java.util.HashMap;
 import java.util.Map;

@@ -30,7 +30,9 @@ import java.util.*;
  */
 public class Encoder {
 
-    private static final boolean ENABLE_DEBUGGING = false;
+    public static final boolean ENABLE_UNSAT_CORE = false;
+
+    public static final boolean ENABLE_DEBUGGING = false;
 
     public static final String MAIN_SLICE_NAME = "SLICE-MAIN_";
 
@@ -113,7 +115,7 @@ public class Encoder {
         HashMap<String, String> cfg = new HashMap<>();
 
         // allows for unsat core when debugging
-        if (ENABLE_DEBUGGING) {
+        if (ENABLE_UNSAT_CORE) {
             cfg.put("proof", "true");
             cfg.put("auto-config", "false");
         }
@@ -121,7 +123,7 @@ public class Encoder {
         _ctx = (ctx == null ? new Context(cfg) : ctx);
 
         if (solver == null) {
-            if (ENABLE_DEBUGGING) {
+            if (ENABLE_UNSAT_CORE) {
                 _solver = _ctx.mkSolver();
             } else {
                 Tactic t1 = _ctx.mkTactic("simplify");
@@ -147,7 +149,7 @@ public class Encoder {
             System.out.println(graph.toString());
         }
 
-        _unsatCore = new UnsatCore(ENABLE_DEBUGGING);
+        _unsatCore = new UnsatCore(ENABLE_UNSAT_CORE);
 
         initConfigurations();
         initFailedLinkVariables();

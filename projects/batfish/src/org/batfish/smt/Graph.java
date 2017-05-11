@@ -6,7 +6,7 @@ import org.batfish.datamodel.*;
 import org.batfish.datamodel.collections.EdgeSet;
 import org.batfish.datamodel.collections.NodeInterfacePair;
 import org.batfish.datamodel.routing_policy.RoutingPolicy;
-import org.batfish.smt.utils.Table2;
+import org.batfish.smt.collections.Table2;
 
 import java.util.*;
 

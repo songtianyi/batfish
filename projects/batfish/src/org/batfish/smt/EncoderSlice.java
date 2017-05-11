@@ -7,7 +7,7 @@ import org.batfish.datamodel.*;
 import org.batfish.datamodel.routing_policy.RoutingPolicy;
 import org.batfish.datamodel.routing_policy.expr.*;
 import org.batfish.datamodel.routing_policy.statement.*;
-import org.batfish.smt.utils.Table2;
+import org.batfish.smt.collections.Table2;
 
 import java.util.*;
 import java.util.regex.Matcher;
@@ -146,6 +146,11 @@ class EncoderSlice {
         return _encoder.True();
     }
 
+    // Simplify a boolean expression
+    public BoolExpr simplify(BoolExpr be) {
+        return (BoolExpr) (be.simplify());
+    }
+
     // Create a symbolic boolean
     BoolExpr Bool(boolean val) {
         return _encoder.Bool(val);
@@ -179,6 +184,11 @@ class EncoderSlice {
     // Symbolic if-then-else for booleans
     BoolExpr If(BoolExpr cond, BoolExpr case1, BoolExpr case2) {
         return _encoder.If(cond, case1, case2);
+    }
+
+    // Symbolic if-then-else for bit vectors
+    BitVecExpr If(BoolExpr cond, BitVecExpr case1, BitVecExpr case2) {
+        return (BitVecExpr) _encoder.getCtx().mkITE(cond, case1, case2);
     }
 
     // Symbolic if-then-else for arithmetic
@@ -1617,7 +1627,7 @@ class EncoderSlice {
     }
 
     /*
-     * Constraints each protocol-best record similarly to the overall
+     * Constrains each protocol-best record similarly to the overall
      * best record. It will be better than all choices and equal to
      * at least one of them.
      */
@@ -2105,6 +2115,10 @@ class EncoderSlice {
                     BoolExpr importFunction;
                     RoutingPolicy pol = getGraph().findImportRoutingPolicy(router, proto, e.getEdge());
 
+                    if (Encoder.ENABLE_DEBUGGING && pol != null) {
+                        System.out.println("Policy: " + pol.getName());
+                    }
+
                     List<Statement> statements;
                     if (pol == null) {
                         Statements.StaticStatement s = new Statements.StaticStatement(Statements
@@ -2114,18 +2128,17 @@ class EncoderSlice {
                         statements = pol.getStatements();
                     }
 
-                    TransferFunction f = new TransferFunction(this, conf, varsOther, vars,
+                    TransferFunctionInline f = new TransferFunctionInline(this, conf, varsOther, vars,
                             proto, proto, statements, 0, ge, false);
                     importFunction = f.compute();
 
                     BoolExpr acc = If(usable, importFunction, val);
 
-                    // System.out.println("IMPORT FUNCTION: " + router + " " + varsOther.getName());
-                    // System.out.println(importFunction);
-                    //if (router.equals("as2border1") && proto.isBgp()) {
-                    //    System.out.println("IMPORT FUNCTION (simpl): " + router + " " + varsOther.getName() + " " + ge);
-                    //    System.out.println(acc.simplify());
-                    //}
+                    if (Encoder.ENABLE_DEBUGGING && proto.isBgp()) {
+                        System.out.println("IMPORT FUNCTION: " + router + " " + varsOther.getName());
+                        System.out.println(importFunction.simplify());
+                        System.out.println("\n\n");
+                    }
 
                     add(acc);
 
@@ -2189,9 +2202,9 @@ class EncoderSlice {
                 BoolExpr acc;
                 RoutingPolicy pol = getGraph().findExportRoutingPolicy(router, proto, e);
 
-                //if (pol != null) {
-                //    System.out.println("Export policy: " + pol.getName());
-                //}
+                if (Encoder.ENABLE_DEBUGGING && pol != null) {
+                    System.out.println("Export policy: " + pol.getName());
+                }
 
                 // We have to wrap this with the right thing for some reason
                 List<Statement> statements;
@@ -2213,7 +2226,7 @@ class EncoderSlice {
                     statements = (pol == null ? Collections.singletonList(s1) : pol.getStatements());
                 }
 
-                TransferFunction f = new TransferFunction(this, conf, varsOther, vars, proto,
+                TransferFunctionInline f = new TransferFunctionInline(this, conf, varsOther, vars, proto,
                         proto, statements, cost, ge, true);
                 acc = f.compute();
 
@@ -2253,7 +2266,7 @@ class EncoderSlice {
                         });
                         r.setCommunities(comms);
 
-                        TransferFunction origin = new TransferFunction(this, conf, r, vars, proto, proto, statements, cost, ge, true);
+                        TransferFunctionInline origin = new TransferFunctionInline(this, conf, r, vars, proto, proto, statements, cost, ge, true);
 
                         values = origin.compute();
 
@@ -2284,11 +2297,13 @@ class EncoderSlice {
 
                 add(acc);
 
-                /* if (proto.isBgp()) {
-                    System.out.println("SIMPLIFIED: " + router + " " + varsOther.getName() + " " + ge);
+                if (Encoder.ENABLE_DEBUGGING) {
+                    System.out.println("EXPORT: " + router + " " + varsOther.getName() + " " + ge);
                     System.out.println(acc.simplify());
-                    System.out.println("");
-                } */
+                    System.out.println("\n\n");
+                    System.out.println(acc);
+                    System.out.println("\n\n");
+                }
 
             }
             return true;

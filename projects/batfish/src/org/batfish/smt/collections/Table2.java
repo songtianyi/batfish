@@ -1,4 +1,6 @@
-package org.batfish.smt.utils;
+package org.batfish.smt.collections;
+
+import org.batfish.smt.utils.TriConsumer;
 
 import java.util.HashMap;
 import java.util.Map;

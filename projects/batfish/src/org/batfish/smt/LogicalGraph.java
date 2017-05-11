@@ -3,7 +3,7 @@ package org.batfish.smt;
 
 import org.batfish.datamodel.BgpNeighbor;
 import org.batfish.datamodel.Configuration;
-import org.batfish.smt.utils.Table2;
+import org.batfish.smt.collections.Table2;
 
 import java.util.*;
 

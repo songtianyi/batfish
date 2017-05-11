@@ -1,9 +1,6 @@
 package org.batfish.smt;
 
-import com.microsoft.z3.ArithExpr;
-import com.microsoft.z3.BoolExpr;
-import com.microsoft.z3.Context;
-import com.microsoft.z3.Expr;
+import com.microsoft.z3.*;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -101,6 +98,27 @@ class SymbolicRecord {
         _permitted = null;
         _ospfType = null;
         _protocolHistory = null;
+    }
+
+    SymbolicRecord(SymbolicRecord other) {
+        _name = other._name;
+        _proto = other._proto;
+        _isUsed = other._isUsed;
+        _isBest = other._isBest;
+        _isBestOverall = other._isBestOverall;
+        _isEnv = other._isEnv;
+        _isExport = other._isExport;
+        _prefixLength = other._prefixLength;
+        _metric = other._metric;
+        _adminDist = other._adminDist;
+        _med = other._med;
+        _localPref = other._localPref;
+        _bgpInternal = other._bgpInternal;
+        _igpMetric = other._igpMetric;
+        _routerId = other._routerId;
+        _permitted = other._permitted;
+        _ospfType = other._ospfType;
+        _protocolHistory = other._protocolHistory;
     }
 
 
