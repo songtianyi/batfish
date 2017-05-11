@@ -11,7 +11,6 @@ import org.batfish.datamodel.*;
 import org.batfish.datamodel.routing_policy.RoutingPolicy;
 import org.batfish.datamodel.routing_policy.expr.*;
 import org.batfish.datamodel.routing_policy.statement.*;
-import org.batfish.smt.collections.PList;
 
 import java.util.*;
 
@@ -189,79 +188,128 @@ class TransferFunctionSSA {
         throw new BatfishException("TODO: match community set");
     }
 
+    /*
+     * Wrap a simple boolean expression return value in a transfer function result
+     */
+    private TransferFunctionResult fromExpr(BoolExpr b) {
+        return new TransferFunctionResult()
+                .setReturnAssignedValue(_enc.True())
+                .setReturnValue(b);
+    }
 
     /*
      * Convert a Batfish AST boolean expression to a symbolic Z3 boolean expression
      * by performing inlining of stateful side effects.
      */
-    private BoolExpr compute(BooleanExpr expr, TransferFunctionParam p) {
+    private TransferFunctionResult compute(BooleanExpr expr, TransferFunctionParam p) {
 
         // TODO: right now everything is IPV4
         if (expr instanceof MatchIpv4) {
-            return _enc.True();
+            return fromExpr(_enc.True());
         }
         if (expr instanceof  MatchIpv6) {
-            return _enc.False();
+            return fromExpr(_enc.False());
         }
 
         if (expr instanceof Conjunction) {
             Conjunction c = (Conjunction) expr;
             BoolExpr acc = _enc.True();
+            TransferFunctionResult result = new TransferFunctionResult();
             for (BooleanExpr be : c.getConjuncts()) {
-                acc = _enc.And(acc, compute(be, p));
+                TransferFunctionResult r = compute(be,p);
+                result = result.addChangedVariables(r);
+                acc = _enc.And(acc, r.getReturnValue());
             }
-            return acc;
-        }
-
-        if (expr instanceof ConjunctionChain) {
-            ConjunctionChain d = (ConjunctionChain) expr;
+            return result.setReturnValue(acc);
         }
 
         if (expr instanceof Disjunction) {
             Disjunction d = (Disjunction) expr;
             BoolExpr acc = _enc.True();
+            TransferFunctionResult result = new TransferFunctionResult();
             for (BooleanExpr be : d.getDisjuncts()) {
-                acc = _enc.Or(acc, compute(be, p));
+                TransferFunctionResult r = compute(be,p);
+                result = result.addChangedVariables(r);
+                acc = _enc.Or(acc, r.getReturnValue());
             }
-            return acc;
+            return result.setReturnValue(acc);
+        }
+
+        if (expr instanceof ConjunctionChain) {
+            ConjunctionChain d = (ConjunctionChain) expr;
+            List<BooleanExpr> conjuncts = new ArrayList<>(d.getSubroutines());
+            if (p.getDefaultPolicy() != null) {
+                BooleanExpr be = new CallExpr(p.getDefaultPolicy().getDefaultPolicy());
+                conjuncts.add(be);
+            }
+            if (conjuncts.size() == 0) {
+                return fromExpr(_enc.True());
+            } else {
+                TransferFunctionResult result = new TransferFunctionResult();
+                BoolExpr acc = _enc.True();
+                for (BooleanExpr conjunct : conjuncts) {
+                    TransferFunctionResult r = compute(conjunct, p.setDefaultPolicy(null).enterScope());
+                    result.addChangedVariables(r);
+                    acc = _enc.And(acc, r.getReturnValue());
+                }
+                return result.setReturnValue(acc);
+            }
         }
 
         if (expr instanceof DisjunctionChain) {
             DisjunctionChain d = (DisjunctionChain) expr;
+            List<BooleanExpr> disjuncts = new ArrayList<>(d.getSubroutines());
+            if (p.getDefaultPolicy() != null) {
+                BooleanExpr be = new CallExpr(p.getDefaultPolicy().getDefaultPolicy());
+                disjuncts.add(be);
+            }
+            if (disjuncts.size() == 0) {
+                return fromExpr(_enc.True());
+            } else {
+                TransferFunctionResult result = new TransferFunctionResult();
+                BoolExpr acc = _enc.False();
+                for (BooleanExpr disjunct : disjuncts) {
+                    TransferFunctionResult r = compute(disjunct, p.setDefaultPolicy(null).enterScope());
+                    result.addChangedVariables(r);
+                    acc = _enc.Or(acc, r.getReturnValue());
+                }
+                return result.setReturnValue(acc);
+            }
         }
 
         if (expr instanceof Not) {
             Not n = (Not) expr;
-            return _enc.Not( compute(n.getExpr(), p) );
+            TransferFunctionResult result = compute(n.getExpr(), p);
+            return result.setReturnValue( _enc.Not(result.getReturnValue()) );
         }
 
         if (expr instanceof MatchProtocol) {
             MatchProtocol mp = (MatchProtocol) expr;
             Protocol proto = Protocol.fromRoutingProtocol(mp.getProtocol());
             if (proto == null) {
-                return _enc.False();
+                return fromExpr(_enc.False());
             }
             if (p.getOther().getProtocolHistory() == null) {
-                return _enc.Bool(proto.equals(_from));
+                return fromExpr(_enc.Bool(proto.equals(_from)));
             }
-            return p.getOther().getProtocolHistory().checkIfValue(proto);
+            return fromExpr(p.getOther().getProtocolHistory().checkIfValue(proto));
         }
 
         if (expr instanceof MatchPrefixSet) {
             MatchPrefixSet m = (MatchPrefixSet) expr;
-            return matchPrefixSet(_conf, m.getPrefixSet(), p.getOther());
+            return fromExpr(matchPrefixSet(_conf, m.getPrefixSet(), p.getOther()));
 
         // TODO: implement me
         } else if (expr instanceof MatchPrefix6Set) {
-            return _enc.False();
+            return fromExpr(_enc.False());
 
         } else if (expr instanceof CallExpr) {
+            // TODO: the call can modify certain fields, need to keep track of these variables
             CallExpr c = (CallExpr) expr;
             String name = c.getCalledPolicyName();
             RoutingPolicy pol = _conf.getRoutingPolicies().get(name);
             p = p.setCallContext(TransferFunctionParam.CallContext.EXPR_CALL);
-            TransferFunctionResult result = compute(pol.getStatements(), p.enterScope());
-            return result.getReturnVariable();
+            return compute(pol.getStatements(), p.enterScope());
 
         } else if (expr instanceof WithEnvironmentExpr) {
             // TODO: this is not correct
@@ -270,19 +318,19 @@ class TransferFunctionSSA {
 
         } else if (expr instanceof MatchCommunitySet) {
             MatchCommunitySet mcs = (MatchCommunitySet) expr;
-            return matchCommunitySet(_conf, mcs.getExpr(), p.getOther());
+            return fromExpr(matchCommunitySet(_conf, mcs.getExpr(), p.getOther()));
 
         } else if (expr instanceof BooleanExprs.StaticBooleanExpr) {
             BooleanExprs.StaticBooleanExpr b = (BooleanExprs.StaticBooleanExpr) expr;
             switch (b.getType()) {
                 case CallExprContext:
-                    return _enc.Bool(p.getCallContext() == TransferFunctionParam.CallContext.EXPR_CALL);
+                    return fromExpr(_enc.Bool(p.getCallContext() == TransferFunctionParam.CallContext.EXPR_CALL));
                 case CallStatementContext:
-                    return _enc.Bool(p.getCallContext() == TransferFunctionParam.CallContext.STMT_CALL);
+                    return fromExpr(_enc.Bool(p.getCallContext() == TransferFunctionParam.CallContext.STMT_CALL));
                 case True:
-                    return _enc.True();
+                    return fromExpr(_enc.True());
                 case False:
-                    return _enc.False();
+                    return fromExpr(_enc.False());
             }
 
         }
@@ -510,53 +558,56 @@ class TransferFunctionSSA {
      * Create a new variable reflecting the final return value of the function
      */
     private TransferFunctionResult returnValue(TransferFunctionParam p, TransferFunctionResult r, boolean val) {
-        BoolExpr b = _enc.If(r.getReturnAssignedVariable(), r.getReturnVariable(), _enc.Bool(val));
+        BoolExpr b = _enc.If(r.getReturnAssignedValue(), r.getReturnValue(), _enc.Bool(val));
         BoolExpr newRet = createBoolVariableWith("RETURN", b);
-        return r.setReturnVariable(newRet).setReturnAssignedVariable(_enc.True());
+        return r.setReturnValue(newRet).setReturnAssignedValue(_enc.True());
     }
 
 
-    private void createJoinPoint(SymbolicRecord other, BoolExpr guard, Pair<String,Pair<Expr,Expr>> values) {
+    private Expr joinPoint(SymbolicRecord other, BoolExpr guard, Pair<String,Pair<Expr,Expr>> values) {
         String variableName = values.getFirst();
         Expr trueBranch = values.getSecond().getFirst();
         Expr falseBranch = values.getSecond().getSecond();
 
         if (variableName.equals("PREFIX-LEN")) {
             ArithExpr newValue = _enc.If(guard, (ArithExpr) trueBranch, (ArithExpr) falseBranch);
-            other.setPrefixLength(createArithVariableWith("PREFIX-LEN", newValue));
-            return;
+            ArithExpr ret = createArithVariableWith("PREFIX-LEN", newValue);
+            other.setPrefixLength(ret);
+            return ret;
         }
         if (variableName.equals("ADMIN-DIST")) {
             ArithExpr newValue = _enc.If(guard, (ArithExpr) trueBranch, (ArithExpr) falseBranch);
-            other.setAdminDist(createArithVariableWith("ADMIN-DIST", newValue));
-            return;
+            ArithExpr ret = createArithVariableWith("ADMIN-DIST", newValue);
+            other.setAdminDist(ret);
+            return ret;
         }
         if (variableName.equals("LOCAL-PREF")) {
             ArithExpr newValue = _enc.If(guard, (ArithExpr) trueBranch, (ArithExpr) falseBranch);
-            other.setLocalPref(createArithVariableWith("LOCAL-PREF", newValue));
-            return;
+            ArithExpr ret = createArithVariableWith("LOCAL-PREF", newValue);
+            other.setLocalPref(ret);
+            return ret;
         }
         if (variableName.equals("METRIC")) {
             ArithExpr newValue = _enc.If(guard, (ArithExpr) trueBranch, (ArithExpr) falseBranch);
-            other.setMetric(createArithVariableWith("METRIC", newValue));
-            return;
+            ArithExpr ret = createArithVariableWith("METRIC", newValue);
+            other.setMetric(ret);
+            return ret;
         }
         if (variableName.equals("OSPF-TYPE")) {
             BitVecExpr newValue = _enc.If(guard, (BitVecExpr) trueBranch, (BitVecExpr) falseBranch);
-            BitVecExpr x = createBitVecVariableWith("METRIC", 2, newValue);
-            other.getOspfType().setBitVec(x);
-            return;
+            BitVecExpr ret = createBitVecVariableWith("METRIC", 2, newValue);
+            other.getOspfType().setBitVec(ret);
+            return ret;
         }
 
         for (Map.Entry<CommunityVar, BoolExpr> entry : other.getCommunities().entrySet()) {
             CommunityVar cvar = entry.getKey();
             if (variableName.equals(cvar.getValue())) {
                 BoolExpr newValue = _enc.If(guard, (BoolExpr) trueBranch, (BoolExpr) falseBranch);
-                BoolExpr x = createBoolVariableWith(cvar.getValue(), newValue);
-                other.getCommunities().put(cvar, x);
-                return;
+                BoolExpr ret = createBoolVariableWith(cvar.getValue(), newValue);
+                other.getCommunities().put(cvar, ret);
+                return ret;
             }
-
         }
 
         throw new BatfishException("[joinPoint]: unhandled case for " + variableName);
@@ -571,7 +622,7 @@ class TransferFunctionSSA {
 
         // initialize the return variable
         TransferFunctionResult result = new TransferFunctionResult();
-        result = result.setReturnVariable(_enc.False()).setReturnAssignedVariable(_enc.False());
+        result = result.setReturnValue(_enc.False()).setReturnAssignedValue(_enc.False());
 
         for (Statement stmt : statements) {
 
@@ -644,11 +695,14 @@ class TransferFunctionSSA {
 
             } else if (stmt instanceof If) {
                 If i = (If) stmt;
-                BoolExpr guard = compute(i.getGuard(), p);
+                TransferFunctionResult r = compute(i.getGuard(), p);
+                result = result.addChangedVariables(r);
+                BoolExpr guard = r.getReturnValue();
                 TransferFunctionResult trueBranch = compute(i.getTrueStatements(), p.enterScope().copyRecord());
                 TransferFunctionResult falseBranch = compute(i.getFalseStatements(), p.enterScope().copyRecord());
                 for (Pair<String, Pair<Expr, Expr>> pair : trueBranch.commonChangedVariables(falseBranch)) {
-                    createJoinPoint(p.getOther(), guard, pair);
+                    Expr x = joinPoint(p.getOther(), guard, pair);
+                    result = result.addChangedVariable(pair.getFirst(), x);
                 }
 
             } else if (stmt instanceof SetDefaultPolicy) {
@@ -732,8 +786,8 @@ class TransferFunctionSSA {
         // If this is the outermost call, then we relate the variables
         if (p.getInitialCall()) {
             BoolExpr related = relateVariables(p, result);
-            BoolExpr retValue = _enc.If(result.getReturnVariable(), related, _enc.Not(_current.getPermitted()) );
-            result = result.setReturnVariable(retValue);
+            BoolExpr retValue = _enc.If(result.getReturnValue(), related, _enc.Not(_current.getPermitted()) );
+            result = result.setReturnValue(retValue);
         }
         return result;
     }
@@ -799,20 +853,16 @@ class TransferFunctionSSA {
         }
     }
 
-    // TODO list
-    //
-    // - take into account final action (e.g., no overflow / update all fields)
     // - use better data structure to merge join points on if statements
-    // - implement the semantics of actions (e.g., Add community)
     // - reset default policy after use so it isn't used in two different chain contexts
-    // - record which fields of the record are changed so it is possible to use this at the join
+    // - ensure the result from a call expression is merged (e.g., changed variables) with the current result
 
     BoolExpr compute() {
         SymbolicRecord o = new SymbolicRecord(_other);
         computeIntermediatePrefixLen(o);
         TransferFunctionParam p = new TransferFunctionParam(o);
         TransferFunctionResult result = compute(_statements, p);
-        return result.getReturnVariable();
+        return result.getReturnValue();
     }
 
 }

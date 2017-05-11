@@ -10,20 +10,20 @@ public class TransferFunctionResult {
 
     private PList<Pair<String,Expr>> _changedVariables; // should be a map
 
-    private BoolExpr _returnVariable;
+    private BoolExpr _returnValue;
 
-    private BoolExpr _returnAssignedVariable;
+    private BoolExpr _returnAssignedValue;
 
     public TransferFunctionResult() {
         this._changedVariables = PList.empty();
-        this._returnVariable = null;
-        this._returnAssignedVariable = null;
+        this._returnValue = null;
+        this._returnAssignedValue = null;
     }
 
     public TransferFunctionResult(TransferFunctionResult other) {
         this._changedVariables = other._changedVariables;
-        this._returnVariable = other._returnVariable;
-        this._returnAssignedVariable = other._returnAssignedVariable;
+        this._returnValue = other._returnValue;
+        this._returnAssignedValue = other._returnAssignedValue;
     }
 
     public PList<Pair<String, Pair<Expr,Expr>>> commonChangedVariables(TransferFunctionResult other) {
@@ -43,17 +43,23 @@ public class TransferFunctionResult {
         return _changedVariables;
     }
 
-    public BoolExpr getReturnVariable() {
-        return _returnVariable;
+    public BoolExpr getReturnValue() {
+        return _returnValue;
     }
 
-    public BoolExpr getReturnAssignedVariable() {
-        return _returnAssignedVariable;
+    public BoolExpr getReturnAssignedValue() {
+        return _returnAssignedValue;
     }
 
     public TransferFunctionResult addChangedVariable(String s, Expr x) {
         TransferFunctionResult ret = new TransferFunctionResult(this);
         ret._changedVariables = ret._changedVariables.plus(new Pair<>(s,x));
+        return ret;
+    }
+
+    public TransferFunctionResult addChangedVariables(TransferFunctionResult other) {
+        TransferFunctionResult ret = new TransferFunctionResult(this);
+        ret._changedVariables.plusAll(other._changedVariables);
         return ret;
     }
 
@@ -66,15 +72,15 @@ public class TransferFunctionResult {
         return false;
     }
 
-    public TransferFunctionResult setReturnVariable(BoolExpr x) {
+    public TransferFunctionResult setReturnValue(BoolExpr x) {
         TransferFunctionResult ret = new TransferFunctionResult(this);
-        ret._returnVariable = x;
+        ret._returnValue = x;
         return ret;
     }
 
-    public TransferFunctionResult setReturnAssignedVariable(BoolExpr x) {
+    public TransferFunctionResult setReturnAssignedValue(BoolExpr x) {
         TransferFunctionResult ret = new TransferFunctionResult(this);
-        ret._returnAssignedVariable = x;
+        ret._returnAssignedValue = x;
         return ret;
     }
 }
