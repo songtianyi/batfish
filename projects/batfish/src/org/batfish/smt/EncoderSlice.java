@@ -250,6 +250,17 @@ class EncoderSlice {
         return Eq(x, Sum(value, Int(cost)));
     }
 
+    // Check for equality of arithmetic expressions after adding cost, and accounting for null
+    BoolExpr safeEqAdd(ArithExpr x, ArithExpr value, ArithExpr cost) {
+        if (x == null) {
+            return True();
+        }
+        if (cost == null) {
+            return Eq(x, value);
+        }
+        return Eq(x, Sum(value, cost));
+    }
+
     // Check for equality of symbolic enums after accounting for null
     <T> BoolExpr safeEqEnum(SymbolicEnum<T> x, T value) {
         if (x == null) {
@@ -2109,32 +2120,30 @@ class EncoderSlice {
                         loop = False();
                     }
 
-
                     BoolExpr usable = And(Not(isRoot), Not(loop), active, varsOther.getPermitted(), receiveMessage);
 
                     BoolExpr importFunction;
                     RoutingPolicy pol = getGraph().findImportRoutingPolicy(router, proto, e.getEdge());
 
                     if (Encoder.ENABLE_DEBUGGING && pol != null) {
-                        System.out.println("Policy: " + pol.getName());
+                        System.out.println("Import Policy: " + pol.getName());
                     }
 
                     List<Statement> statements;
                     if (pol == null) {
-                        Statements.StaticStatement s = new Statements.StaticStatement(Statements
-                                .ExitAccept);
+                        Statements.StaticStatement s = new Statements.StaticStatement(Statements.ExitAccept);
                         statements = Collections.singletonList(s);
                     } else {
                         statements = pol.getStatements();
                     }
 
-                    TransferFunctionInline f = new TransferFunctionInline(this, conf, varsOther, vars,
+                    TransferFunctionSSA f = new TransferFunctionSSA(this, conf, varsOther, vars,
                             proto, proto, statements, 0, ge, false);
                     importFunction = f.compute();
 
                     BoolExpr acc = If(usable, importFunction, val);
 
-                    if (Encoder.ENABLE_DEBUGGING && proto.isBgp()) {
+                    if (Encoder.ENABLE_DEBUGGING) {
                         System.out.println("IMPORT FUNCTION: " + router + " " + varsOther.getName());
                         System.out.println(importFunction.simplify());
                         System.out.println("\n\n");
@@ -2189,14 +2198,17 @@ class EncoderSlice {
                 BoolExpr active = interfaceActive(iface, proto);
 
                 // Don't re-export routes learned via iBGP
-                boolean isIbgp = (proto.isBgp()) && (getGraph().getIbgpNeighbors().containsKey(ge));
+                boolean isIbgpEdge = (proto.isBgp()) && (getGraph().getIbgpNeighbors().containsKey(ge));
                 boolean isInternalExport = varsOther.isBest() && _optimizations.getNeedBgpInternal().contains(router);
 
                 BoolExpr doExport = True();
-                if (isIbgp && isInternalExport) {
+                if (isIbgpEdge && isInternalExport) {
                     doExport = Not(varsOther.getBgpInternal());
                     cost = 0;
                 }
+
+                // Split Horizon (Don't re-export routes to the neighbor from which you received it)
+                // BoolExpr splitHorizon = getSymbolicDecisions().getControlForwarding().get(router, ge);
 
                 BoolExpr usable = And(active, doExport, varsOther.getPermitted(), notFailed);
                 BoolExpr acc;
@@ -2208,10 +2220,8 @@ class EncoderSlice {
 
                 // We have to wrap this with the right thing for some reason
                 List<Statement> statements;
-                Statements.StaticStatement s1 = new Statements.StaticStatement(Statements
-                        .ExitAccept);
-                Statements.StaticStatement s2 = new Statements.StaticStatement(Statements
-                        .ExitReject);
+                Statements.StaticStatement s1 = new Statements.StaticStatement(Statements.ExitAccept);
+                Statements.StaticStatement s2 = new Statements.StaticStatement(Statements.ExitReject);
 
                 if (proto.isOspf()) {
                     If i = new If();
@@ -2226,7 +2236,7 @@ class EncoderSlice {
                     statements = (pol == null ? Collections.singletonList(s1) : pol.getStatements());
                 }
 
-                TransferFunctionInline f = new TransferFunctionInline(this, conf, varsOther, vars, proto,
+                TransferFunctionSSA f = new TransferFunctionSSA(this, conf, varsOther, vars, proto,
                         proto, statements, cost, ge, true);
                 acc = f.compute();
 
@@ -2234,7 +2244,7 @@ class EncoderSlice {
 
                 List<Long> areas = new ArrayList<>(getGraph().getAreaIds().get(router));
                 for (Prefix p : originations) {
-                    BoolExpr notIbgpExport = Not(Bool(isIbgp));
+                    BoolExpr notIbgpExport = Not(Bool(isIbgpEdge));
                     BoolExpr ifaceUp = interfaceActive(iface, proto);
                     BoolExpr relevantPrefix = isRelevantFor(p, _symbolicPacket.getDstIp());
                     BoolExpr relevant = And(notIbgpExport, ifaceUp, relevantPrefix);
@@ -2266,7 +2276,7 @@ class EncoderSlice {
                         });
                         r.setCommunities(comms);
 
-                        TransferFunctionInline origin = new TransferFunctionInline(this, conf, r, vars, proto, proto, statements, cost, ge, true);
+                        TransferFunctionSSA origin = new TransferFunctionSSA(this, conf, r, vars, proto, proto, statements, cost, ge, true);
 
                         values = origin.compute();
 
@@ -2284,8 +2294,7 @@ class EncoderSlice {
                         BoolExpr igpMet = safeEq(vars.getIgpMetric(), Int(0));
 
                         BoolExpr comms = True();
-                        for (Map.Entry<CommunityVar, BoolExpr> entry : vars.getCommunities()
-                                                                           .entrySet()) {
+                        for (Map.Entry<CommunityVar, BoolExpr> entry : vars.getCommunities().entrySet()) {
                             comms = And(comms, Not(entry.getValue()));
                         }
 
@@ -2300,8 +2309,6 @@ class EncoderSlice {
                 if (Encoder.ENABLE_DEBUGGING) {
                     System.out.println("EXPORT: " + router + " " + varsOther.getName() + " " + ge);
                     System.out.println(acc.simplify());
-                    System.out.println("\n\n");
-                    System.out.println(acc);
                     System.out.println("\n\n");
                 }
 

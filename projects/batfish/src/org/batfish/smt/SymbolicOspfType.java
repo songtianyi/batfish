@@ -19,6 +19,10 @@ class SymbolicOspfType extends SymbolicEnum<OspfType> {
         super(slice, OspfType.values, t);
     }
 
+    SymbolicOspfType(SymbolicOspfType other) {
+        super(other);
+    }
+
     BoolExpr isExternal() {
         if (this._bitvec == null) {
             return _enc.False();

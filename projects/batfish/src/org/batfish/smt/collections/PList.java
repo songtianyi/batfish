@@ -5,6 +5,9 @@ import java.util.AbstractSequentialList;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.ListIterator;
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 
 /**
@@ -204,6 +207,18 @@ public final class PList<E> extends AbstractSequentialList<E> {
         return new PList<E>(first, newRest);
     }
 
+    private int find(Predicate<E> f, final int i) {
+        if (size == 0)
+            return -1;
+        if(f.test(first)) // found it
+            return i; // don't recurse (only remove one)
+        // otherwise keep looking:
+        return rest.find(f, i+1);
+    }
+
+    public int find(Predicate<E> f) {
+        return find(f, 0);
+    }
 
     public PList<E> subList(final int start) {
         if(start<0 || start>size)

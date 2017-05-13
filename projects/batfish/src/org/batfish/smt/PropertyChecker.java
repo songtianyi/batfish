@@ -38,6 +38,7 @@ public class PropertyChecker {
                     "environment");
         }
         VerificationResult result = encoder.verify();
+        //result.debug(encoder.getMainSlice(), false, null);
         SmtOneAnswerElement answer = new SmtOneAnswerElement();
         answer.setResult(result);
         return answer;
@@ -630,6 +631,8 @@ public class PropertyChecker {
             e2.add(ctx.mkNot(required));
 
             VerificationResult res = e2.verify();
+
+            // res.debug(e1.getMainSlice(), false, null);
 
             String name = r1 + "<-->" + r2;
             result.put(name, res);

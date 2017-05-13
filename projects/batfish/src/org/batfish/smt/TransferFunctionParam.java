@@ -96,7 +96,7 @@ public class TransferFunctionParam {
 
     public TransferFunctionParam copyRecord() {
         TransferFunctionParam ret = new TransferFunctionParam(this);
-        ret._other = new SymbolicRecord(_other);
+        ret._other = new SymbolicRecord(this._other);
         return ret;
     }
 
@@ -127,7 +127,7 @@ public class TransferFunctionParam {
 
     public TransferFunctionParam indent() {
         TransferFunctionParam ret = new TransferFunctionParam(this);
-        ret._indent = ret._indent + 1;
+        ret._indent = this._indent + 1;
         return ret;
     }
 
@@ -135,7 +135,7 @@ public class TransferFunctionParam {
         if (Encoder.ENABLE_DEBUGGING) {
             StringBuilder sb = new StringBuilder();
             for (int i=0; i<_indent; i++) {
-                sb.append(" ");
+                sb.append("    ");
             }
             String s = _scopes.get(0);
             String scope = (s == null ? "" : s);

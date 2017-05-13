@@ -96,10 +96,16 @@ class SymbolicRecord {
         _igpMetric = null;
         _routerId = null;
         _permitted = null;
+        _ospfArea = null;
         _ospfType = null;
         _protocolHistory = null;
     }
 
+    /*
+     * Copy constructor used to create the SSA form.
+     * To avoid changing values along different If branches,
+     * we must create a new copy of several variables that can change.
+     */
     SymbolicRecord(SymbolicRecord other) {
         _name = other._name;
         _proto = other._proto;
@@ -117,8 +123,10 @@ class SymbolicRecord {
         _igpMetric = other._igpMetric;
         _routerId = other._routerId;
         _permitted = other._permitted;
-        _ospfType = other._ospfType;
+        _ospfArea = other._ospfArea;
+        _ospfType = (other._ospfType == null ? null : new SymbolicOspfType(other._ospfType));
         _protocolHistory = other._protocolHistory;
+        _communities = new HashMap<>(other._communities); // TODO: use a persistent map to avoid this penalty
     }
 
 

@@ -11,6 +11,7 @@ import org.batfish.datamodel.*;
 import org.batfish.datamodel.routing_policy.RoutingPolicy;
 import org.batfish.datamodel.routing_policy.expr.*;
 import org.batfish.datamodel.routing_policy.statement.*;
+import org.batfish.smt.collections.PList;
 
 import java.util.*;
 
@@ -58,7 +59,7 @@ import static org.batfish.datamodel.routing_policy.statement.Statements.*;
  *
  * This is modeled by introducing [returnValue] - the value that the function returns, and the
  * [returnAssigned] variable - whether a return has been hit so far in the control flow.
- * For the foo function, we would have somthing like the following:
+ * For the foo function, we would have the following:
  *
  * function foo()
  *   [returnValue = False]
@@ -73,13 +74,16 @@ import static org.batfish.datamodel.routing_policy.statement.Statements.*;
  *   [returnValue''' = (returnAssigned'' ? returnValue'' : True)]
  *   [returnAssigned'' = True]
  *
- * This encoding will then be inline and simplified by z3 to the following expression: [returnValue''' = not c1]
+ * This encoding will then be inlined and simplified by z3 to the simpler expression:
+ * [returnValue''' = not c1], which removes many such intermediate variables
  *
  * @author Ryan Beckett
  */
 
 
 class TransferFunctionSSA {
+
+    private static int id = 0;
 
     private EncoderSlice _enc;
 
@@ -120,6 +124,15 @@ class TransferFunctionSSA {
         _iface = ge.getStart();
         _isExport = isExport;
         _aggregates = null;
+    }
+
+    /*
+     * Returns and increments a unique id for adding additional SSA variables
+     */
+    private static int generateId() {
+        int result = TransferFunctionSSA.id;
+        TransferFunctionSSA.id = result + 1;
+        return result;
     }
 
     /*
@@ -270,7 +283,7 @@ class TransferFunctionSSA {
         if (expr instanceof Disjunction) {
             p.debug("Disjunction");
             Disjunction d = (Disjunction) expr;
-            BoolExpr acc = _enc.True();
+            BoolExpr acc = _enc.False();
             TransferFunctionResult result = new TransferFunctionResult();
             for (BooleanExpr be : d.getDisjuncts()) {
                 TransferFunctionResult r = compute(be,p);
@@ -334,16 +347,20 @@ class TransferFunctionSSA {
         }
 
         if (expr instanceof MatchProtocol) {
-            p.debug("MatchProtocol");
             MatchProtocol mp = (MatchProtocol) expr;
             Protocol proto = Protocol.fromRoutingProtocol(mp.getProtocol());
             if (proto == null) {
+                p.debug("MatchProtocol(" + mp.getProtocol().protocolName() + "): false");
                 return fromExpr(_enc.False());
             }
-            if (p.getOther().getProtocolHistory() == null) {
-                return fromExpr(_enc.Bool(proto.equals(_from)));
+            if (_other.getProtocolHistory() == null) {
+                BoolExpr protoMatch = _enc.Bool(proto.equals(_from));
+                p.debug("MatchProtocol(" + mp.getProtocol().protocolName() + "): " + protoMatch);
+                return fromExpr(protoMatch);
             }
-            return fromExpr(p.getOther().getProtocolHistory().checkIfValue(proto));
+            BoolExpr protoMatch = _other.getProtocolHistory().checkIfValue(proto);
+            p.debug("MatchProtocol(" + mp.getProtocol().protocolName() + "): " + protoMatch);
+            return fromExpr(protoMatch);
         }
 
         if (expr instanceof MatchPrefixSet) {
@@ -509,23 +526,9 @@ class TransferFunctionSSA {
         ArithExpr defaultId = _enc.Int(_enc.defaultId());
         ArithExpr defaultMet = _enc.Int(_enc.defaultMetric());
 
-        // Update the path metric
-        ArithExpr otherMet = getOrDefault(p.getOther().getMetric(), defaultMet);
-        ArithExpr metValue = _enc.Sum(otherMet, _enc.Int(_addedCost));
-        BoolExpr  met = _enc.safeEqAdd(_current.getMetric(), otherMet, _addedCost);
+        // TODO: remove all isChanged calls with actual symbolic values that test for a change
 
         boolean isIbgp = _graphEdge.isAbstract() && _to.isBgp();
-
-        // Update local preference
-        BoolExpr lp;
-        ArithExpr otherLp = getOrDefault(p.getOther().getLocalPref(), defaultLp);
-        if (result.isChanged("LOCAL-PREF") || isIbgp) {
-            lp = _enc.safeEq(_current.getLocalPref(), otherLp);
-        } else {
-            // Otherwise, we use the default local preference value
-            // Use a value of 100 for export too since we might merge records
-            lp = _enc.safeEq(_current.getLocalPref(), _enc.Int(100));
-        }
 
         // Update prefix length when aggregation
         BoolExpr len = _enc.safeEq(_current.getPrefixLength(), getOrDefault(p.getOther().getPrefixLength(), defaultLen));
@@ -595,14 +598,17 @@ class TransferFunctionSSA {
         // TODO: handle MED correctly (AS-specific? always-compare-med? deterministic-med?)
         ArithExpr otherAd = (p.getOther().getAdminDist() == null ? defaultAd : p.getOther().getAdminDist());
         ArithExpr otherMed = (p.getOther().getMed() == null ? defaultMed : p.getOther().getMed());
+        ArithExpr otherMet = getOrDefault(p.getOther().getMetric(), defaultMet);
+        ArithExpr otherLp = getOrDefault(p.getOther().getLocalPref(), defaultLp);
 
-        // Update the administrative distance
         BoolExpr ad = _enc.safeEq(_current.getAdminDist(), otherAd);
         BoolExpr history = _enc.equalHistories(_current, p.getOther());
         BoolExpr med = _enc.safeEq(_current.getMed(), otherMed);
+        BoolExpr  met = _enc.safeEq(_current.getMetric(), otherMet);
+        BoolExpr lp = _enc.safeEq(_current.getLocalPref(), otherLp);
 
         BoolExpr updates = _enc.And(per, len, ad, med, lp, met, id, type, area, comms, history, isInternal, igpMet);
-        BoolExpr noOverflow = noOverflow(metValue, _to);
+        BoolExpr noOverflow = noOverflow(otherMet, _to);
         return _enc.If(noOverflow, updates, _enc.Not(_current.getPermitted()));
     }
 
@@ -612,7 +618,9 @@ class TransferFunctionSSA {
     private TransferFunctionResult returnValue(TransferFunctionParam p, TransferFunctionResult r, boolean val) {
         BoolExpr b = _enc.If(r.getReturnAssignedValue(), r.getReturnValue(), _enc.Bool(val));
         BoolExpr newRet = createBoolVariableWith(p, "RETURN", b);
-        return r.setReturnValue(newRet).setReturnAssignedValue(_enc.True());
+        return r.setReturnValue(newRet)
+                .setReturnAssignedValue(_enc.True())
+                .addChangedVariable("RETURN", newRet);
     }
 
 
@@ -620,49 +628,79 @@ class TransferFunctionSSA {
      * The [phi] function from SSA that merges variables that may differ across
      * different branches of an If statement.
      */
-    private Expr joinPoint(TransferFunctionParam p, BoolExpr guard, Pair<String,Pair<Expr,Expr>> values) {
+    private Pair<Expr,Expr> joinPoint(TransferFunctionParam p, TransferFunctionResult r, BoolExpr guard, Pair<String,Pair<Expr,Expr>> values) {
         String variableName = values.getFirst();
         Expr trueBranch = values.getSecond().getFirst();
         Expr falseBranch = values.getSecond().getSecond();
 
+        if (variableName.equals("RETURN")) {
+            Expr t = (trueBranch == null ? r.getReturnValue() : trueBranch);
+            Expr f = (falseBranch == null ? r.getReturnValue() : falseBranch);
+            BoolExpr newValue = _enc.If(guard, (BoolExpr) t, (BoolExpr) f);
+            BoolExpr ret = createBoolVariableWith(p, "RETURN", newValue);
+            Expr tass = (trueBranch == null ? r.getReturnAssignedValue() : _enc.True());
+            Expr fass = (falseBranch == null ? r.getReturnAssignedValue() : _enc.True());
+            BoolExpr newAss = _enc.If(guard, (BoolExpr) tass, (BoolExpr) fass);
+            BoolExpr retAss = createBoolVariableWith(p, "ASSIGNED", newAss);
+            return new Pair<>(ret, retAss);
+        }
+
         if (variableName.equals("PREFIX-LEN")) {
-            ArithExpr newValue = _enc.If(guard, (ArithExpr) trueBranch, (ArithExpr) falseBranch);
+            Expr t = (trueBranch == null ? p.getOther().getPrefixLength() : trueBranch);
+            Expr f = (falseBranch == null ? p.getOther().getPrefixLength() : falseBranch);
+            ArithExpr newValue = _enc.If(guard, (ArithExpr) t, (ArithExpr) f);
+            newValue = _enc.If(r.getReturnAssignedValue(), p.getOther().getPrefixLength(), newValue);
             ArithExpr ret = createArithVariableWith(p, "PREFIX-LEN", newValue);
             p.getOther().setPrefixLength(ret);
-            return ret;
+            return new Pair<>(ret, null);
         }
         if (variableName.equals("ADMIN-DIST")) {
-            ArithExpr newValue = _enc.If(guard, (ArithExpr) trueBranch, (ArithExpr) falseBranch);
+            Expr t = (trueBranch == null ? p.getOther().getAdminDist() : trueBranch);
+            Expr f = (falseBranch == null ? p.getOther().getAdminDist() : falseBranch);
+            ArithExpr newValue = _enc.If(guard, (ArithExpr) t, (ArithExpr) f);
+            newValue = _enc.If(r.getReturnAssignedValue(), p.getOther().getAdminDist(), newValue);
             ArithExpr ret = createArithVariableWith(p, "ADMIN-DIST", newValue);
             p.getOther().setAdminDist(ret);
-            return ret;
+            return new Pair<>(ret, null);
         }
         if (variableName.equals("LOCAL-PREF")) {
-            ArithExpr newValue = _enc.If(guard, (ArithExpr) trueBranch, (ArithExpr) falseBranch);
+            Expr t = (trueBranch == null ? p.getOther().getLocalPref() : trueBranch);
+            Expr f = (falseBranch == null ? p.getOther().getLocalPref() : falseBranch);
+            ArithExpr newValue = _enc.If(guard, (ArithExpr) t, (ArithExpr) f);
+            newValue = _enc.If(r.getReturnAssignedValue(), p.getOther().getLocalPref(), newValue);
             ArithExpr ret = createArithVariableWith(p, "LOCAL-PREF", newValue);
             p.getOther().setLocalPref(ret);
-            return ret;
+            return new Pair<>(ret, null);
         }
         if (variableName.equals("METRIC")) {
-            ArithExpr newValue = _enc.If(guard, (ArithExpr) trueBranch, (ArithExpr) falseBranch);
+            Expr t = (trueBranch == null ? p.getOther().getMetric() : trueBranch);
+            Expr f = (falseBranch == null ? p.getOther().getMetric() : falseBranch);
+            ArithExpr newValue = _enc.If(guard, (ArithExpr) t, (ArithExpr) f);
+            newValue = _enc.If(r.getReturnAssignedValue(), p.getOther().getMetric(), newValue);
             ArithExpr ret = createArithVariableWith(p, "METRIC", newValue);
             p.getOther().setMetric(ret);
-            return ret;
+            return new Pair<>(ret, null);
         }
         if (variableName.equals("OSPF-TYPE")) {
-            BitVecExpr newValue = _enc.If(guard, (BitVecExpr) trueBranch, (BitVecExpr) falseBranch);
-            BitVecExpr ret = createBitVecVariableWith(p, "METRIC", 2, newValue);
+            Expr t = (trueBranch == null ? p.getOther().getOspfType().getBitVec() : trueBranch);
+            Expr f = (falseBranch == null ? p.getOther().getOspfType().getBitVec() : falseBranch);
+            BitVecExpr newValue = _enc.If(guard, (BitVecExpr) t, (BitVecExpr) f);
+            newValue = _enc.If(r.getReturnAssignedValue(), p.getOther().getOspfType().getBitVec(), newValue);
+            BitVecExpr ret = createBitVecVariableWith(p, "OSPF-TYPE", 2, newValue);
             p.getOther().getOspfType().setBitVec(ret);
-            return ret;
+            return new Pair<>(ret, null);
         }
 
         for (Map.Entry<CommunityVar, BoolExpr> entry : p.getOther().getCommunities().entrySet()) {
             CommunityVar cvar = entry.getKey();
             if (variableName.equals(cvar.getValue())) {
-                BoolExpr newValue = _enc.If(guard, (BoolExpr) trueBranch, (BoolExpr) falseBranch);
+                Expr t = (trueBranch == null ? p.getOther().getCommunities().get(cvar) : trueBranch);
+                Expr f = (falseBranch == null ? p.getOther().getCommunities().get(cvar) : falseBranch);
+                BoolExpr newValue = _enc.If(guard, (BoolExpr) t, (BoolExpr) f);
+                newValue = _enc.If(r.getReturnAssignedValue(), p.getOther().getCommunities().get(cvar), newValue);
                 BoolExpr ret = createBoolVariableWith(p, cvar.getValue(), newValue);
                 p.getOther().getCommunities().put(cvar, ret);
-                return ret;
+                return new Pair<>(ret, null);
             }
         }
 
@@ -681,6 +719,8 @@ class TransferFunctionSSA {
                 .setReturnValue(_enc.False())
                 .setReturnAssignedValue(_enc.False());
 
+        boolean doesReturn = false;
+
         for (Statement stmt : statements) {
 
             if (stmt instanceof StaticStatement) {
@@ -688,21 +728,25 @@ class TransferFunctionSSA {
 
                 switch (ss.getType()) {
                     case ExitAccept:
+                        doesReturn = true;
                         p.debug("ExitAccept");
                         result = returnValue(p, result, true);
                         break;
 
                     case ReturnTrue:
+                        doesReturn = true;
                         p.debug("ReturnTrue");
                         result = returnValue(p, result, true);
                         break;
 
                     case ExitReject:
+                        doesReturn = true;
                         p.debug("ExitReject");
                         result = returnValue(p, result, false);
                         break;
 
                     case ReturnFalse:
+                        doesReturn = true;
                         p.debug("ReturnFalse");
                         result = returnValue(p, result, false);
                         break;
@@ -767,11 +811,32 @@ class TransferFunctionSSA {
                 TransferFunctionResult r = compute(i.getGuard(), p);
                 result = result.addChangedVariables(r);
                 BoolExpr guard = r.getReturnValue();
+                p.debug("guard: " + guard.simplify());
+                p.debug("True Branch");
                 TransferFunctionResult trueBranch = compute(i.getTrueStatements(), p.indent().copyRecord());
+                p.debug("False Branch");
                 TransferFunctionResult falseBranch = compute(i.getFalseStatements(), p.indent().copyRecord());
-                for (Pair<String, Pair<Expr, Expr>> pair : trueBranch.commonChangedVariables(falseBranch)) {
-                    Expr x = joinPoint(p, guard, pair);
-                    result = result.addChangedVariable(pair.getFirst(), x);
+                p.debug("JOIN");
+                PList<Pair<String, Pair<Expr,Expr>>> pairs = trueBranch.mergeChangedVariables(falseBranch);
+
+                // Extract and deal with the return value first so that other
+                // variables have this reflected in their value
+                int idx = pairs.find(pair -> pair.getFirst().equals("RETURN"));
+                if (idx >= 0) {
+                    Pair<String, Pair<Expr,Expr>> ret = pairs.get(idx);
+                    pairs = pairs.minus(idx);
+                    pairs = pairs.plus(pairs.size(), ret);
+                }
+
+                for (Pair<String, Pair<Expr, Expr>> pair : pairs) {
+                    String s = pair.getFirst();
+                    Pair<Expr,Expr> x = joinPoint(p, result, guard, pair);
+                    result = result.addChangedVariable(s, x.getFirst());
+                    if (s.equals("RETURN")) {
+                        result = result
+                                .setReturnValue((BoolExpr) x.getFirst())
+                                .setReturnAssignedValue((BoolExpr) x.getSecond());
+                    }
                 }
 
             } else if (stmt instanceof SetDefaultPolicy) {
@@ -783,6 +848,7 @@ class TransferFunctionSSA {
                 SetMetric sm = (SetMetric) stmt;
                 IntExpr ie = sm.getMetric();
                 ArithExpr newValue = applyIntExprModification(p.getOther().getMetric(), ie);
+                newValue = _enc.If(result.getReturnAssignedValue(), p.getOther().getMetric(), newValue);
                 ArithExpr x = createArithVariableWith(p, "METRIC", newValue);
                 p.getOther().setMetric(x);
                 result = result.addChangedVariable("METRIC", x);
@@ -798,6 +864,7 @@ class TransferFunctionSSA {
                     t = new SymbolicOspfType(_enc, OspfType.E2);
                 }
                 BitVecExpr newValue = t.getBitVec();
+                newValue = _enc.If(result.getReturnAssignedValue(), p.getOther().getOspfType().getBitVec(), newValue);
                 BitVecExpr x = createBitVecVariableWith(p, "OSPF-TYPE", 2, newValue);
                 p.getOther().getOspfType().setBitVec(x);
                 result = result.addChangedVariable("OSPF-TYPE", x);
@@ -808,8 +875,9 @@ class TransferFunctionSSA {
                 SetLocalPreference slp = (SetLocalPreference) stmt;
                 IntExpr ie = slp.getLocalPreference();
                 ArithExpr newValue = applyIntExprModification(p.getOther().getLocalPref(), ie);
+                newValue = _enc.If(result.getReturnAssignedValue(), p.getOther().getLocalPref(), newValue);
                 ArithExpr x = createArithVariableWith(p, "LOCAL-PREF", newValue);
-                p.getOther().setMetric(x);
+                p.getOther().setLocalPref(x);
                 result = result.addChangedVariable("LOCAL-PREF", x);
 
             } else if (stmt instanceof AddCommunity) {
@@ -817,7 +885,8 @@ class TransferFunctionSSA {
                 AddCommunity ac = (AddCommunity) stmt;
                 Set<CommunityVar> comms = _enc.findAllCommunities(_conf, ac.getExpr());
                 for (CommunityVar cvar : comms) {
-                    BoolExpr x = createBoolVariableWith(p, cvar.getValue(), _enc.True());
+                    BoolExpr newValue = _enc.If(result.getReturnAssignedValue(), p.getOther().getCommunities().get(cvar), _enc.True());
+                    BoolExpr x = createBoolVariableWith(p, cvar.getValue(), newValue);
                     p.getOther().getCommunities().put(cvar, x);
                     result = result.addChangedVariable(cvar.getValue(), x);
                 }
@@ -827,7 +896,8 @@ class TransferFunctionSSA {
                 DeleteCommunity ac = (DeleteCommunity) stmt;
                 Set<CommunityVar> comms = _enc.findAllCommunities(_conf, ac.getExpr());
                 for (CommunityVar cvar : comms) {
-                    BoolExpr x = createBoolVariableWith(p, cvar.getValue(), _enc.False());
+                    BoolExpr newValue = _enc.If(result.getReturnAssignedValue(), p.getOther().getCommunities().get(cvar), _enc.False());
+                    BoolExpr x = createBoolVariableWith(p, cvar.getValue(), newValue);
                     p.getOther().getCommunities().put(cvar, x);
                     result = result.addChangedVariable(cvar.getValue(), x);
                 }
@@ -841,6 +911,7 @@ class TransferFunctionSSA {
                 PrependAsPath pap = (PrependAsPath) stmt;
                 Integer prependCost = prependLength(pap.getExpr());
                 ArithExpr newValue = _enc.Sum(p.getOther().getMetric(), _enc.Int(prependCost));
+                newValue = _enc.If(result.getReturnAssignedValue(), p.getOther().getMetric(), newValue);
                 ArithExpr x = createArithVariableWith(p, "METRIC", newValue);
                 p.getOther().setMetric(x);
                 result = result.addChangedVariable("METRIC", x);
@@ -854,16 +925,20 @@ class TransferFunctionSSA {
             }
         }
 
-        // Apply the default action
-        if (p.getDefaultAccept()) {
-            result = returnValue(p, result, true);
-        } else {
-            result = returnValue(p, result, false);
-        }
-
         // If this is the outermost call, then we relate the variables
         if (p.getInitialCall()) {
             p.debug("InitialCall finalizing");
+
+            // Apply the default action
+            if (!doesReturn) {
+                p.debug("Applying default action: " + p.getDefaultAccept());
+                if (p.getDefaultAccept()) {
+                    result = returnValue(p, result, true);
+                } else {
+                    result = returnValue(p, result, false);
+                }
+            }
+
             BoolExpr related = relateVariables(p, result);
             BoolExpr retValue = _enc.If(result.getReturnValue(), related, _enc.Not(_current.getPermitted()) );
             result = result.setReturnValue(retValue);
@@ -877,30 +952,30 @@ class TransferFunctionSSA {
      * while also simultaneously setting their value based on an old value.
      */
     private ArithExpr createArithVariableWith(TransferFunctionParam p, String name, ArithExpr e) {
-        String s = "SSA_" + name + _enc.generateId();
+        String s = "SSA_" + name + generateId();
         ArithExpr x = _enc.getCtx().mkIntConst(s);
-        _enc.getAllVariables().add(x);
-        BoolExpr eq = _enc.Eq(x, e);
+        // _enc.getAllVariables().add(x);
+        BoolExpr eq = _enc.Eq(x, e.simplify());
         _enc.add(eq);
         p.debug(eq.toString());
         return x;
     }
 
     private BoolExpr createBoolVariableWith(TransferFunctionParam p, String name, BoolExpr e) {
-        String s = "SSA_" + name + _enc.generateId();
+        String s = "SSA_" + name + generateId();
         BoolExpr x = _enc.getCtx().mkBoolConst(s);
-        _enc.getAllVariables().add(x);
-        BoolExpr eq = _enc.Eq(x,e);
+        // _enc.getAllVariables().add(x);
+        BoolExpr eq = _enc.Eq(x, e.simplify());
         _enc.add(eq);
         p.debug(eq.toString());;
         return x;
     }
 
     private BitVecExpr createBitVecVariableWith(TransferFunctionParam p, String name, int size, BitVecExpr e) {
-        String s = "SSA_" + name + _enc.generateId();
+        String s = "SSA_" + name + generateId();
         BitVecExpr x = _enc.getCtx().mkBVConst(s, size);
-        _enc.getAllVariables().add(x);
-        BoolExpr eq = _enc.Eq(x,e);
+        // _enc.getAllVariables().add(x);
+        BoolExpr eq = _enc.Eq(x, e.simplify());
         _enc.add(eq);
         p.debug(eq.toString());
         return x;
@@ -932,11 +1007,27 @@ class TransferFunctionSSA {
         }
     }
 
+    private void applyMetricUpdate(TransferFunctionParam p) {
+        if (_isExport) {
+            ArithExpr newValue = _enc.Sum(p.getOther().getMetric(), _enc.Int(_addedCost));
+            p.getOther().setMetric(newValue);
+        }
+    }
+
+    private void setDefaultLocalPref(TransferFunctionParam p) {
+        // must be the case that it is an environment variable
+        if (p.getOther().getLocalPref() == null) {
+            p.getOther().setLocalPref(_enc.Int(100));
+        }
+    }
+
     // TODO use better data structure to merge join points on if statements
     public BoolExpr compute() {
         SymbolicRecord o = new SymbolicRecord(_other);
         TransferFunctionParam p = new TransferFunctionParam(o);
         computeIntermediatePrefixLen(p);
+        applyMetricUpdate(p);
+        setDefaultLocalPref(p);
         TransferFunctionResult result = compute(_statements, p);
         return result.getReturnValue();
     }

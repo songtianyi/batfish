@@ -127,9 +127,10 @@ public class Encoder {
                 _solver = _ctx.mkSolver();
             } else {
                 Tactic t1 = _ctx.mkTactic("simplify");
-                Tactic t2 = _ctx.mkTactic("solve-eqs");
-                Tactic t3 = _ctx.mkTactic("smt");
-                Tactic t = _ctx.then(t1, t2, t3);
+                Tactic t2 = _ctx.mkTactic("propagate-values");
+                Tactic t3 = _ctx.mkTactic("solve-eqs");
+                Tactic t4 = _ctx.mkTactic("smt");
+                Tactic t = _ctx.then(t1, t2, t3, t4);
                 _solver = _ctx.mkSolver(t);
             }
         } else {

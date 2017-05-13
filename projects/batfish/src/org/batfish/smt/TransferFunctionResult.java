@@ -6,6 +6,9 @@ import com.microsoft.z3.Expr;
 import org.batfish.common.Pair;
 import org.batfish.smt.collections.PList;
 
+import java.util.HashSet;
+import java.util.Set;
+
 public class TransferFunctionResult {
 
     private PList<Pair<String,Expr>> _changedVariables; // should be a map
@@ -26,16 +29,44 @@ public class TransferFunctionResult {
         this._returnAssignedValue = other._returnAssignedValue;
     }
 
-    public PList<Pair<String, Pair<Expr,Expr>>> commonChangedVariables(TransferFunctionResult other) {
-        PList<Pair<String, Pair<Expr,Expr>>> vars = PList.empty();
-        for (Pair<String, Expr> cv1 : this._changedVariables) {
-            for (Pair<String, Expr> cv2 : other._changedVariables) {
-                if (cv1.getFirst().equals(cv2.getFirst())) {
-                    Pair<Expr,Expr> x = new Pair<>(cv1.getSecond(), cv2.getSecond());
-                    vars = vars.plus( new Pair<>(cv1.getFirst(), x) );
-                }
+
+    private Expr find(PList<Pair<String,Expr>> vals, String s) {
+        for (Pair<String, Expr> pair : vals) {
+            if (pair.getFirst().equals(s)) {
+                return pair.getSecond();
             }
         }
+        return null;
+    }
+
+
+    // TODO: this really needs to use persistent set data types
+    public PList<Pair<String, Pair<Expr,Expr>>> mergeChangedVariables(TransferFunctionResult other) {
+        Set<String> seen = new HashSet<>();
+        PList<Pair<String, Pair<Expr,Expr>>> vars = PList.empty();
+
+        for (Pair<String, Expr> cv1 : this._changedVariables) {
+            String s = cv1.getFirst();
+            Expr x = cv1.getSecond();
+            if (!seen.contains(s)) {
+                seen.add(s);
+                Expr e = find(other._changedVariables, s);
+                Pair<Expr, Expr> pair = new Pair<>(x, e);
+                vars = vars.plus(new Pair<>(s, pair));
+            }
+        }
+
+        for (Pair<String, Expr> cv1 : other._changedVariables) {
+            String s = cv1.getFirst();
+            Expr x = cv1.getSecond();
+            if (!seen.contains(s)) {
+                seen.add(s);
+                Expr e = find(this._changedVariables, s);
+                Pair<Expr, Expr> pair = new Pair<>(e,x); // preserve order
+                vars = vars.plus(new Pair<>(s, pair));
+            }
+        }
+
         return vars;
     }
 

@@ -54,6 +54,13 @@ class SymbolicEnum<T> {
         }
     }
 
+    SymbolicEnum(SymbolicEnum<T> other) {
+        _enc = other._enc;
+        _bitvec = other._bitvec;
+        _numBits = other._numBits;
+        _values = other._values;
+        _valueMap = other._valueMap;
+    }
 
 
     protected SymbolicEnum(EncoderSlice slice, List<T> values, T value) {
