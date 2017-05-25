@@ -15,17 +15,21 @@ public class TransferFunctionResult {
 
     private BoolExpr _returnValue;
 
+    private BoolExpr _fallthroughValue;
+
     private BoolExpr _returnAssignedValue;
 
     public TransferFunctionResult() {
         this._changedVariables = PList.empty();
         this._returnValue = null;
+        this._fallthroughValue = null;
         this._returnAssignedValue = null;
     }
 
     public TransferFunctionResult(TransferFunctionResult other) {
         this._changedVariables = other._changedVariables;
         this._returnValue = other._returnValue;
+        this._fallthroughValue = other._fallthroughValue;
         this._returnAssignedValue = other._returnAssignedValue;
     }
 
@@ -78,6 +82,10 @@ public class TransferFunctionResult {
         return _returnValue;
     }
 
+    public BoolExpr getFallthroughValue() {
+        return _fallthroughValue;
+    }
+
     public BoolExpr getReturnAssignedValue() {
         return _returnAssignedValue;
     }
@@ -103,11 +111,24 @@ public class TransferFunctionResult {
         return false;
     }
 
+    public TransferFunctionResult clearChanged() {
+        TransferFunctionResult ret = new TransferFunctionResult(this);
+        ret._changedVariables = PList.empty();
+        return ret;
+    }
+
     public TransferFunctionResult setReturnValue(BoolExpr x) {
         TransferFunctionResult ret = new TransferFunctionResult(this);
         ret._returnValue = x;
         return ret;
     }
+
+    public TransferFunctionResult setFallthroughValue(BoolExpr x) {
+        TransferFunctionResult ret = new TransferFunctionResult(this);
+        ret._fallthroughValue = x;
+        return ret;
+    }
+
 
     public TransferFunctionResult setReturnAssignedValue(BoolExpr x) {
         TransferFunctionResult ret = new TransferFunctionResult(this);

@@ -29,11 +29,10 @@ import static org.batfish.datamodel.routing_policy.statement.Statements.*;
  * we convert this stateful representation into a stateless representation
  *
  * The TransferFunctionSSA class makes policies stateless by converting
- * the vendor-independent format to a Single Assignment (SSA) form where all updates are
+ * the vendor-independent format to a Static Single Assignment (SSA) form where all updates are
  * reflected in new variables. Rather than create a full control flow
  * graph (CFG) as is typically done in SSA, we use a simple conversion based on adding join points
- * for every variable modified in an If statement. Since functions can have side effects, we treat
- * the route variables as global across function calls.
+ * for every variable modified in an If statement.
  *
  * The joint point defined as the [phi] function from SSA merges variables that may differ across
  * different branches of an If statement. For example, if there is the following filter:
@@ -49,7 +48,7 @@ import static org.batfish.datamodel.routing_policy.statement.Statements.*;
  * c2' = (c1 ? true : c2)
  * metric' = (c1 ? metric : metric + 2)
  *
- * To model the return value of functions, we introduce two new variables: [returnValue] and [returnAssigned].
+ * To model the return value of functions, we introduce three new variables: [fallthrough], [returnValue] and [returnAssigned].
  * For example, if we have the following AST function in Batfish:
  *
  * function foo()
@@ -58,7 +57,7 @@ import static org.batfish.datamodel.routing_policy.statement.Statements.*;
  *   accept
  *
  * This is modeled by introducing [returnValue] - the value that the function returns, and the
- * [returnAssigned] variable - whether a return has been hit so far in the control flow.
+ * [returnAssigned] variable - whether a return or fallthrough statement has been hit so far in the control flow.
  * For the foo function, we would have the following:
  *
  * function foo()
@@ -74,8 +73,12 @@ import static org.batfish.datamodel.routing_policy.statement.Statements.*;
  *   [returnValue''' = (returnAssigned'' ? returnValue'' : True)]
  *   [returnAssigned'' = True]
  *
- * This encoding will then be inlined and simplified by z3 to the simpler expression:
- * [returnValue''' = not c1], which removes many such intermediate variables
+ * Naturally, this kind of encoding can grow quite large since we introduce a large number of
+ * extra variables. To make formula much simpler, we use a term size heuristic to inline variable equalities
+ * when the inlined term will not be too large. Thus, additional variables are still introduced, but only to
+ * keep the encoding compact. The 'simplify' and 'propagate-values' tactics for z3 will further improve the
+ * encoding by removing any unnecessary variables. In this example, the encoding will be simplified to
+ * [returnValue''' = not c1], which removes all intermediate variables
  *
  * @author Ryan Beckett
  */
@@ -84,6 +87,8 @@ import static org.batfish.datamodel.routing_policy.statement.Statements.*;
 class TransferFunctionSSA {
 
     private static int id = 0;
+
+    private static int INLINE_HEURISTIC = 1500;
 
     private EncoderSlice _enc;
 
@@ -251,6 +256,13 @@ class TransferFunctionSSA {
                 .setReturnValue(b);
     }
 
+    private TransferFunctionResult initialResult() {
+        return new TransferFunctionResult()
+                        .setReturnValue(_enc.False())
+                        .setFallthroughValue(_enc.False())
+                        .setReturnAssignedValue(_enc.False());
+    }
+
     /*
      * Convert a Batfish AST boolean expression to a symbolic Z3 boolean expression
      * by performing inlining of stateful side effects.
@@ -305,13 +317,15 @@ class TransferFunctionSSA {
                 return fromExpr(_enc.True());
             } else {
                 TransferFunctionResult result = new TransferFunctionResult();
-                BoolExpr acc = _enc.True();
-                for (BooleanExpr conjunct : conjuncts) {
+                BoolExpr acc = _enc.False();
+                for (int i = conjuncts.size()-1; i >= 0; i--) {
+                    BooleanExpr conjunct = conjuncts.get(i);
                     TransferFunctionParam param = p.setDefaultPolicy(null).setChainContext(TransferFunctionParam.ChainContext.CONJUNCTION);
                     TransferFunctionResult r = compute(conjunct, param);
                     result.addChangedVariables(r);
-                    acc = _enc.And(acc, r.getReturnValue());
+                    acc = _enc.If(r.getFallthroughValue(), acc, r.getReturnValue());
                 }
+                p.debug("ConjunctionChain Result: " + acc);
                 return result.setReturnValue(acc);
             }
         }
@@ -329,12 +343,14 @@ class TransferFunctionSSA {
             } else {
                 TransferFunctionResult result = new TransferFunctionResult();
                 BoolExpr acc = _enc.False();
-                for (BooleanExpr disjunct : disjuncts) {
-                    TransferFunctionParam param =  p.setDefaultPolicy(null).setChainContext(TransferFunctionParam.ChainContext.DISJUNCTION);
+                for (int i = disjuncts.size()-1; i >= 0; i--) {
+                    BooleanExpr disjunct = disjuncts.get(i);
+                    TransferFunctionParam param = p.setDefaultPolicy(null).setChainContext(TransferFunctionParam.ChainContext.CONJUNCTION);
                     TransferFunctionResult r = compute(disjunct, param);
                     result.addChangedVariables(r);
-                    acc = _enc.Or(acc, r.getReturnValue());
+                    acc = _enc.If(r.getFallthroughValue(), acc, r.getReturnValue());
                 }
+                p.debug("DisjunctionChain Result: " + acc);
                 return result.setReturnValue(acc);
             }
         }
@@ -380,7 +396,10 @@ class TransferFunctionSSA {
             String name = c.getCalledPolicyName();
             RoutingPolicy pol = _conf.getRoutingPolicies().get(name);
             p = p.setCallContext(TransferFunctionParam.CallContext.EXPR_CALL);
-            return compute(pol.getStatements(), p.indent().enterScope(name));
+            TransferFunctionResult r = compute(pol.getStatements(), p.indent().enterScope(name), initialResult());
+            p.debug("CallExpr (return): " + r.getReturnValue());
+            p.debug("CallExpr (fallthrough): " + r.getFallthroughValue());
+            return r;
 
         } else if (expr instanceof WithEnvironmentExpr) {
             p.debug("WithEnvironmentExpr");
@@ -624,6 +643,15 @@ class TransferFunctionSSA {
     }
 
 
+    private TransferFunctionResult fallthrough(TransferFunctionParam p, TransferFunctionResult r) {
+        BoolExpr b = _enc.If(r.getReturnAssignedValue(), r.getFallthroughValue(), _enc.True());
+        BoolExpr newFallthrough = createBoolVariableWith(p, "FALLTHROUGH", b);
+        return r.setFallthroughValue(newFallthrough)
+                .setReturnAssignedValue(_enc.True())
+                .addChangedVariable("FALLTHROUGH", newFallthrough);
+    }
+
+
     /*
      * The [phi] function from SSA that merges variables that may differ across
      * different branches of an If statement.
@@ -633,15 +661,16 @@ class TransferFunctionSSA {
         Expr trueBranch = values.getSecond().getFirst();
         Expr falseBranch = values.getSecond().getSecond();
 
-        if (variableName.equals("RETURN")) {
-            Expr t = (trueBranch == null ? r.getReturnValue() : trueBranch);
-            Expr f = (falseBranch == null ? r.getReturnValue() : falseBranch);
-            BoolExpr newValue = _enc.If(guard, (BoolExpr) t, (BoolExpr) f);
-            BoolExpr ret = createBoolVariableWith(p, "RETURN", newValue);
+        if (variableName.equals("RETURN") || variableName.equals("FALLTHROUGH")) {
+            Expr t = (trueBranch == null ? _enc.False() : trueBranch); // can use False because the value has not been assigned
+            Expr f = (falseBranch == null ? _enc.False() : falseBranch);
             Expr tass = (trueBranch == null ? r.getReturnAssignedValue() : _enc.True());
             Expr fass = (falseBranch == null ? r.getReturnAssignedValue() : _enc.True());
             BoolExpr newAss = _enc.If(guard, (BoolExpr) tass, (BoolExpr) fass);
             BoolExpr retAss = createBoolVariableWith(p, "ASSIGNED", newAss);
+            BoolExpr variable = (variableName.equals("RETURN") ? r.getReturnValue() : r.getFallthroughValue());
+            BoolExpr newValue = _enc.If(r.getReturnAssignedValue(), variable, _enc.If(guard, (BoolExpr) t, (BoolExpr) f));
+            BoolExpr ret = createBoolVariableWith(p, variableName, newValue);
             return new Pair<>(ret, retAss);
         }
 
@@ -708,17 +737,10 @@ class TransferFunctionSSA {
     }
 
 
-    // TODO: make fewer copies of mods
     /*
      * Convert a list of statements into a Z3 boolean expression for the transfer function.
      */
-    private TransferFunctionResult compute(List<Statement> statements, TransferFunctionParam p) {
-
-        // initialize the return variable
-        TransferFunctionResult result = new TransferFunctionResult()
-                .setReturnValue(_enc.False())
-                .setReturnAssignedValue(_enc.False());
-
+    private TransferFunctionResult compute(List<Statement> statements, TransferFunctionParam p, TransferFunctionResult result) {
         boolean doesReturn = false;
 
         for (Statement stmt : statements) {
@@ -783,16 +805,7 @@ class TransferFunctionSSA {
 
                     case FallThrough:
                         p.debug("Fallthrough");
-                        switch (p.getChainContext()) {
-                            case NONE:
-                                throw new BatfishException("Fallthrough found without chain context");
-                            case CONJUNCTION:
-                                result = returnValue(p, result, true);
-                                break;
-                            case DISJUNCTION:
-                                result = returnValue(p, result, false);
-                                break;
-                        }
+                        result = fallthrough(p, result);
                         break;
 
                     case Return:
@@ -810,33 +823,57 @@ class TransferFunctionSSA {
                 If i = (If) stmt;
                 TransferFunctionResult r = compute(i.getGuard(), p);
                 result = result.addChangedVariables(r);
-                BoolExpr guard = r.getReturnValue();
-                p.debug("guard: " + guard.simplify());
-                p.debug("True Branch");
-                TransferFunctionResult trueBranch = compute(i.getTrueStatements(), p.indent().copyRecord());
-                p.debug("False Branch");
-                TransferFunctionResult falseBranch = compute(i.getFalseStatements(), p.indent().copyRecord());
-                p.debug("JOIN");
-                PList<Pair<String, Pair<Expr,Expr>>> pairs = trueBranch.mergeChangedVariables(falseBranch);
+                BoolExpr guard = (BoolExpr) r.getReturnValue().simplify();
+                String str = guard.toString();
+                p.debug("guard: " + str);
+                // If we know the branch ahead of time, then specialize
+                switch (str) {
+                    case "true":
+                        p.debug("True Branch");
+                        result = compute(i.getTrueStatements(), p.indent(), result);
+                        break;
+                    case "false":
+                        p.debug("False Branch");
+                        compute(i.getFalseStatements(), p.indent(), result);
+                        break;
+                    default:
+                        p.debug("True Branch");
+                        // clear changed variables before proceeding
+                        TransferFunctionResult trueBranch = compute(i.getTrueStatements(), p.indent().copyRecord(), initialResult());
+                        p.debug("False Branch");
+                        TransferFunctionResult falseBranch = compute(i.getFalseStatements(), p.indent().copyRecord(), initialResult());
+                        p.debug("JOIN");
+                        PList<Pair<String, Pair<Expr, Expr>>> pairs = trueBranch.mergeChangedVariables(falseBranch);
 
-                // Extract and deal with the return value first so that other
-                // variables have this reflected in their value
-                int idx = pairs.find(pair -> pair.getFirst().equals("RETURN"));
-                if (idx >= 0) {
-                    Pair<String, Pair<Expr,Expr>> ret = pairs.get(idx);
-                    pairs = pairs.minus(idx);
-                    pairs = pairs.plus(pairs.size(), ret);
-                }
+                        // Extract and deal with the return value first so that other
+                        // variables have this reflected in their value
+                        int idx = pairs.find(pair -> pair.getFirst().equals("RETURN"));
+                        if (idx >= 0) {
+                            Pair<String, Pair<Expr, Expr>> ret = pairs.get(idx);
+                            pairs = pairs.minus(idx);
+                            pairs = pairs.plus(pairs.size(), ret);
+                        }
 
-                for (Pair<String, Pair<Expr, Expr>> pair : pairs) {
-                    String s = pair.getFirst();
-                    Pair<Expr,Expr> x = joinPoint(p, result, guard, pair);
-                    result = result.addChangedVariable(s, x.getFirst());
-                    if (s.equals("RETURN")) {
-                        result = result
-                                .setReturnValue((BoolExpr) x.getFirst())
-                                .setReturnAssignedValue((BoolExpr) x.getSecond());
-                    }
+                        // TODO: same for fallthrough
+
+                        for (Pair<String, Pair<Expr, Expr>> pair : pairs) {
+                            String s = pair.getFirst();
+                            p.debug("CHANGED: " + s);
+                            Pair<Expr, Expr> x = joinPoint(p, result, guard, pair);
+                            result = result.addChangedVariable(s, x.getFirst());
+                            if (s.equals("RETURN")) {
+                                result = result
+                                        .setReturnValue((BoolExpr) x.getFirst())
+                                        .setReturnAssignedValue((BoolExpr) x.getSecond());
+                            }
+                            if (s.equals("FALLTHROUGH")) {
+                                result = result
+                                        .setFallthroughValue((BoolExpr) x.getFirst())
+                                        .setReturnAssignedValue((BoolExpr) x.getSecond());
+                            }
+                        }
+
+                        break;
                 }
 
             } else if (stmt instanceof SetDefaultPolicy) {
@@ -935,15 +972,31 @@ class TransferFunctionSSA {
                 if (p.getDefaultAccept()) {
                     result = returnValue(p, result, true);
                 } else {
+                    p.debug("NOW return = " + result.getReturnValue());
+                    p.debug("NOW assigned = " + result.getReturnAssignedValue());
                     result = returnValue(p, result, false);
                 }
             }
-
             BoolExpr related = relateVariables(p, result);
             BoolExpr retValue = _enc.If(result.getReturnValue(), related, _enc.Not(_current.getPermitted()) );
             result = result.setReturnValue(retValue);
         }
         return result;
+    }
+
+    /*
+     * Check if we can inline a new SSA variable. We can simply conservatively check
+     * if the size of the term will get no larger after inlining. Right now we only
+     * check for True and False values because z3 seems to have some issue with
+     * identifying the AST expression kind (e.g., e.isTrue() throws an exception).
+     */
+    private boolean canInline(TransferFunctionParam p, Expr e) {
+        // TODO: such a huge hack
+        String s = e.toString();
+        // p.debug("[STRING]: " + s);
+        boolean b = s.length() <= INLINE_HEURISTIC;
+        // p.debug("Can Inline: " + b);
+        return b;
     }
 
 
@@ -952,30 +1005,46 @@ class TransferFunctionSSA {
      * while also simultaneously setting their value based on an old value.
      */
     private ArithExpr createArithVariableWith(TransferFunctionParam p, String name, ArithExpr e) {
+        e = (ArithExpr) e.simplify();
+        if (canInline(p, e)) {
+            p.debug(name + "=" + e);
+            return e;
+        }
         String s = "SSA_" + name + generateId();
         ArithExpr x = _enc.getCtx().mkIntConst(s);
         // _enc.getAllVariables().add(x);
-        BoolExpr eq = _enc.Eq(x, e.simplify());
+        BoolExpr eq = _enc.Eq(x, e);
         _enc.add(eq);
         p.debug(eq.toString());
         return x;
     }
 
     private BoolExpr createBoolVariableWith(TransferFunctionParam p, String name, BoolExpr e) {
+        e = (BoolExpr) e.simplify();
+        if (canInline(p, e)) {
+            p.debug(name + "=" + e);
+            return e;
+        }
         String s = "SSA_" + name + generateId();
         BoolExpr x = _enc.getCtx().mkBoolConst(s);
         // _enc.getAllVariables().add(x);
-        BoolExpr eq = _enc.Eq(x, e.simplify());
+        BoolExpr eq = _enc.Eq(x, e);
         _enc.add(eq);
-        p.debug(eq.toString());;
+        p.debug(eq.toString());
+        ;
         return x;
     }
 
     private BitVecExpr createBitVecVariableWith(TransferFunctionParam p, String name, int size, BitVecExpr e) {
+        e = (BitVecExpr) e.simplify();
+        if (canInline(p, e)) {
+            p.debug(name + "=" + e);
+            return e;
+        }
         String s = "SSA_" + name + generateId();
         BitVecExpr x = _enc.getCtx().mkBVConst(s, size);
         // _enc.getAllVariables().add(x);
-        BoolExpr eq = _enc.Eq(x, e.simplify());
+        BoolExpr eq = _enc.Eq(x, e);
         _enc.add(eq);
         p.debug(eq.toString());
         return x;
@@ -1028,7 +1097,7 @@ class TransferFunctionSSA {
         computeIntermediatePrefixLen(p);
         applyMetricUpdate(p);
         setDefaultLocalPref(p);
-        TransferFunctionResult result = compute(_statements, p);
+        TransferFunctionResult result = compute(_statements, p, initialResult());
         return result.getReturnValue();
     }
 

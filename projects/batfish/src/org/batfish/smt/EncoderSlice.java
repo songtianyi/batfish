@@ -336,7 +336,8 @@ class EncoderSlice {
         _namedCommunities = findNamedCommunities();
 
         // Add an other variable for each regex community
-        if (_optimizations.getHasExternalCommunity()) {
+        // Don't do this by default
+        if (_optimizations.getHasExternalCommunity() && Encoder.MODEL_EXTERNAL_COMMUNITIES) {
 
             List<CommunityVar> others = new ArrayList<>();
             for (CommunityVar c : _allCommunities) {
@@ -346,9 +347,7 @@ class EncoderSlice {
                     others.add(x);
                 }
             }
-            for (CommunityVar c : others) {
-                _allCommunities.add(c);
-            }
+            _allCommunities.addAll(others);
         }
 
         // Map community regex matches to Java regex
@@ -1779,8 +1778,7 @@ class EncoderSlice {
         BoolExpr acc = False();
         for (IpWildcard wc : wcs) {
             if (!wc.isPrefix()) {
-                throw new BatfishException("ERROR: computeDstWildcards, non sequential mask " +
-                        "detected");
+                throw new BatfishException("ERROR: computeDstWildcards, non sequential mask detected");
             }
             acc = Or(acc, isRelevantFor(wc.toPrefix(), field));
         }
@@ -2665,6 +2663,15 @@ class EncoderSlice {
             }
         });
 
+
+        /* getLogicalGraph().getEnvironmentVars().forEach((lge, record) -> {
+            record.getCommunities().forEach((cvar, var) -> {
+                if (var.toString().contains("$") && var.toString().contains("[0-9]") && var.toString().contains("10.160.109.51")) {
+                    System.out.println("ADDING: " + var);
+                    add( var );
+                }
+            });
+        }); */
 
         // TESTING no environments
         // getLogicalGraph().getEnvironmentVars().forEach((le,vars) -> {

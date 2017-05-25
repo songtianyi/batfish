@@ -242,7 +242,8 @@ class SymbolicRecord {
                 if (cvar.getType() == CommunityVar.Type.OTHER) {
                     s = s + "_OTHER";
                 }
-                _communities.put(cvar, ctx.mkBoolConst(_name + "_community_" + s));
+                BoolExpr var = ctx.mkBoolConst(_name + "_community_" + s);
+                _communities.put(cvar, var);
             }
         }
 

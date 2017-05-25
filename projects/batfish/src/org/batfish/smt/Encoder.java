@@ -36,6 +36,8 @@ public class Encoder {
 
     public static final String MAIN_SLICE_NAME = "SLICE-MAIN_";
 
+    public static final boolean MODEL_EXTERNAL_COMMUNITIES = true;
+
     static final int DEFAULT_CISCO_VLAN_OSPF_COST = 1;
 
     private int _encodingId;
@@ -703,9 +705,11 @@ public class Encoder {
         VerificationStats stats = new VerificationStats(numNodes, numEdges, numVariables,
                 numConstraints, time);
 
-        // System.out.println("Constraints: " + stats.getNumConstraints());
-        // System.out.println("Variables: " + stats.getNumVariables());
-        // System.out.println("Z3 Time: " + stats.getTime());
+        if (ENABLE_DEBUGGING) {
+            System.out.println("Constraints: " + stats.getNumConstraints());
+            System.out.println("Variables: " + stats.getNumVariables());
+            System.out.println("Z3 Time: " + stats.getTime());
+        }
 
         if (status == Status.UNSATISFIABLE) {
             return new VerificationResult(true, null, null, null, null, null);

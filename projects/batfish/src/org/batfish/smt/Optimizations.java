@@ -60,6 +60,8 @@ class Optimizations {
 
     private boolean _keepOspfType;
 
+    private boolean _needIPv6;
+
     Optimizations(EncoderSlice encoderSlice) {
         _encoderSlice = encoderSlice;
         _hasEnvironment = false;
@@ -77,6 +79,7 @@ class Optimizations {
         _keepAdminDist = true;
         _keepMed = true;
         _keepOspfType = true;
+        _needIPv6 = true;
     }
 
     void computeOptimizations() {

@@ -618,11 +618,11 @@ public class PropertyChecker {
                     BoolExpr dataFwd2 = slice2.getSymbolicDecisions().getDataForwarding().get(r2, ge2);
                     sameForwarding = ctx.mkAnd(sameForwarding, ctx.mkEq(dataFwd1, dataFwd2));
                 }
-                required = ctx.mkAnd(sameForwarding); //, equalOutputs); //, equalOutputs, equalIncomingAcls);
+                required = ctx.mkAnd(sameForwarding, equalOutputs); //, equalOutputs); //, equalOutputs, equalIncomingAcls);
             }
 
-            //System.out.println("Assumptions: ");
-            //System.out.println(assumptions.simplify());
+            // System.out.println("Assumptions: ");
+            // System.out.println(assumptions.simplify());
 
             // System.out.println("Required: ");
             // System.out.println(required.simplify());
@@ -632,7 +632,7 @@ public class PropertyChecker {
 
             VerificationResult res = e2.verify();
 
-            // res.debug(e1.getMainSlice(), false, null);
+            // res.debug(e1.getMainSlice(), true, null);
 
             String name = r1 + "<-->" + r2;
             result.put(name, res);
