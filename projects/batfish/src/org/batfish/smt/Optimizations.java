@@ -13,8 +13,13 @@ import java.util.*;
 
 
 /**
- * <p>A class containing all the information pertinent for
- * optimizations of the network encoding.</p>
+ * A class containing all the information pertinent for
+ * optimizations of the network encoding.
+ *
+ * Right now, the optimizations here are mainly network-wide. For example,
+ * if we remove the local-pref attribute, then it is done so for all records
+ * in the network. In the future, there might be good optimizations involving part
+ * of the network only.
  *
  * @author Ryan Beckett
  */
@@ -46,8 +51,6 @@ class Optimizations {
 
     private Table2<String, Protocol, List<GraphEdge>> _sliceCanCombineImportExportVars;
 
-    private Table2<String, Protocol, Boolean> _needRouterIdProto;
-
     private Set<String> _needBgpInternal;
 
     private Set<String> _needRouterId;
@@ -62,6 +65,8 @@ class Optimizations {
 
     private boolean _needIPv6;
 
+    private boolean _needOriginatorIds;
+
     Optimizations(EncoderSlice encoderSlice) {
         _encoderSlice = encoderSlice;
         _hasEnvironment = false;
@@ -72,7 +77,6 @@ class Optimizations {
         _sliceHasSingleProtocol = new HashSet<>();
         _sliceCanCombineImportExportVars = new Table2<>();
         _sliceCanKeepSingleExportVar = new Table2<>();
-        _needRouterIdProto = new Table2<>();
         _needRouterId = new HashSet<>();
         _needBgpInternal = new HashSet<>();
         _keepLocalPref = true;
@@ -80,6 +84,7 @@ class Optimizations {
         _keepMed = true;
         _keepOspfType = true;
         _needIPv6 = true;
+        _needOriginatorIds = true;
     }
 
     void computeOptimizations() {
@@ -90,13 +95,22 @@ class Optimizations {
         _keepMed = computeKeepMed();
         _keepOspfType = computeKeepOspfType();
         initProtocols();
-        computeRouterIdNeeded();
         computeBgpInternalNeeded();
         computeCanUseSingleBest();
         computeCanMergeExportVars();
         computeCanMergeImportExportVars();
         computeRelevantAggregates();
         computeSuppressedAggregates();
+        computeNeedClientIds();
+        computeRouterIdNeeded();
+    }
+
+    /*
+     * Check if we need to remember which client the original route was sent from.
+     * This will be the case if there is at least one route reflector client in use.
+     */
+    private void computeNeedClientIds() {
+        _needOriginatorIds = _encoderSlice.getGraph().getRouteReflectorParent().size() > 0;
     }
 
     /*
@@ -290,17 +304,19 @@ class Optimizations {
      */
     private void computeRouterIdNeeded() {
         _encoderSlice.getGraph().getConfigurations().forEach((router, conf) -> {
-            Map<Protocol, Boolean> map = new HashMap<>();
-            _needRouterIdProto.put(router, map);
-            for (Protocol proto : getProtocols().get(router)) {
-                if (_encoderSlice.isMultipath(conf, proto)) {
-                    map.put(proto, false);
-                } else {
-                    map.put(proto, true);
-                    _needRouterId.add(router);
-                }
 
+            // If iBGP is used, then we need the routerId
+            boolean usesIbgp = false;
+            for (GraphEdge ge : _encoderSlice.getGraph().getEdgeMap().get(router)) {
+                if (_encoderSlice.getGraph().getIbgpNeighbors().get(ge) != null) {
+                    usesIbgp = true;
+                    break;
+                }
             }
+            if (usesIbgp) {
+                _needRouterId.add(router);
+            }
+
         });
     }
 
@@ -561,6 +577,10 @@ class Optimizations {
      * Getters and Setters
      */
 
+    public boolean getNeedOriginatorIds() {
+        return _needOriginatorIds;
+    }
+
     Map<String, List<Protocol>> getProtocols() {
         return _protocols;
     }
@@ -575,10 +595,6 @@ class Optimizations {
 
     Set<String> getNeedRouterId() {
         return _needRouterId;
-    }
-
-    Table2<String, Protocol, Boolean> getNeedRouterIdProto() {
-        return _needRouterIdProto;
     }
 
     Set<String> getNeedBgpInternal() {

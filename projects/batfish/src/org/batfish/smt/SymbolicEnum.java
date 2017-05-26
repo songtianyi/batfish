@@ -10,10 +10,9 @@ import java.util.Map;
 
 
 /**
- * <p>Represents a symbolic variable for a small, finite number of choices.
+ * Represents a symbolic variable for a small, finite number of choices.
  * For optimization purposes, we use a small domain bitvector to represent the possble
- * choices. For most cases where a single protocol is redistributed, this will result
- * in a single new bit added to the record.</p>
+ * choices.
  *
  * @param <T> The underlying domain of values
  * @author Ryan Beckett
@@ -43,14 +42,16 @@ class SymbolicEnum<T> {
         } else {
 
             _bitvec = _enc.getCtx().mkBVConst(name, _numBits);
-            slice.getAllVariables().add(_bitvec);
+
+            if (name != null) {
+                slice.getAllVariables().put(_bitvec.toString(), _bitvec);
+            }
 
             if (!isPowerOfTwo(size)) {
                 BitVecExpr maxValue = slice.getCtx().mkBV(size-1, _numBits);
                 BoolExpr constraint = slice.getCtx().mkBVULE(_bitvec, maxValue);
                 slice.add( constraint );
             }
-
         }
     }
 
@@ -105,18 +106,18 @@ class SymbolicEnum<T> {
         return (x & -x) == x;
     }
 
-    void setBitVec(BitVecExpr bv) {
+    public void setBitVec(BitVecExpr bv) {
         this._bitvec = bv;
     }
 
-    BoolExpr Eq(SymbolicEnum<T> other) {
+    public BoolExpr Eq(SymbolicEnum<T> other) {
         if (_bitvec == null || other._bitvec == null) {
             return _enc.True();
         }
         return _enc.Eq(_bitvec, other._bitvec);
     }
 
-    BoolExpr checkIfValue(T p) {
+    public BoolExpr checkIfValue(T p) {
         if (_bitvec == null) {
             T q = _values.get(0);
             return _enc.Bool(p == q);
@@ -130,22 +131,22 @@ class SymbolicEnum<T> {
         return _enc.Eq(_bitvec, bv);
     }
 
-    BoolExpr isDefaultValue() {
+    public BoolExpr isDefaultValue() {
         if (_bitvec == null) {
             return _enc.True();
         }
         return _enc.Eq(_bitvec, _enc.getCtx().mkBV(0, _numBits));
     }
 
-    BitVecExpr defaultValue() {
+    public BitVecExpr defaultValue() {
         return _enc.getCtx().mkBV(0, _numBits);
     }
 
-    T value(int i) {
+    public T value(int i) {
         return _values.get(i);
     }
 
-    BitVecExpr getBitVec() {
+    public BitVecExpr getBitVec() {
         return _bitvec;
     }
 

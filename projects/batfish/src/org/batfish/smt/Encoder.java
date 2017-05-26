@@ -50,6 +50,8 @@ public class Encoder {
 
     private boolean _fullModel;
 
+    private boolean _noEnvironment;
+
     private Map<String, EncoderSlice> _slices;
 
     private Map<String, Map<String, BoolExpr>> _sliceReachability;
@@ -58,7 +60,7 @@ public class Encoder {
 
     private SymbolicFailures _symbolicFailures;
 
-    private List<Expr> _allVariables;
+    private Map<String, Expr> _allVariables;
 
     private List<SymbolicRecord> _allSymbolicRecords;
 
@@ -75,8 +77,8 @@ public class Encoder {
      * @param h  The packet headerspace of interest
      * @param batfish  The Batfish object
      */
-    public Encoder(IBatfish batfish, HeaderSpace h, int failures, boolean fullModel) {
-        this(new Graph(batfish), h, failures, fullModel);
+    public Encoder(IBatfish batfish, HeaderSpace h, int failures, boolean fullModel, boolean noEnvironment) {
+        this(new Graph(batfish), h, failures, fullModel, noEnvironment);
     }
 
     /**
@@ -84,8 +86,8 @@ public class Encoder {
      * @param h  The packet headerspace of interest
      * @param graph  The network graph
      */
-    public Encoder(Graph graph, HeaderSpace h, int failures, boolean fullModel) {
-        this(null, graph, h, failures, false, fullModel, null, null, null, 0);
+    public Encoder(Graph graph, HeaderSpace h, int failures, boolean fullModel, boolean noEnvironment) {
+        this(null, graph, h, failures, false, fullModel, noEnvironment, null, null, null, 0);
     }
 
     /**
@@ -94,7 +96,7 @@ public class Encoder {
      * @param g An existing network graph
      */
     Encoder(Encoder e, Graph g) {
-        this(e, g, e.getMainSlice().getHeaderSpace(), e.getFailures(), false, e.getFullModel(),  e.getCtx(), e.getSolver(), e.getAllVariables()
+        this(e, g, e.getMainSlice().getHeaderSpace(), e.getFailures(), false, e.getFullModel(), e.getNoEnvironment(),  e.getCtx(), e.getSolver(), e.getAllVariables()
                 , e.getId() + 1);
     }
 
@@ -103,10 +105,11 @@ public class Encoder {
      * of another encoder. If the context and solver are null, then a new
      * encoder is created. Otherwise the old encoder is used.
      */
-    private Encoder(Encoder enc, Graph graph, HeaderSpace h, int failures, boolean minimize, boolean fullModel, Context ctx, Solver solver, List<Expr> vars, int id) {
+    private Encoder(Encoder enc, Graph graph, HeaderSpace h, int failures, boolean minimize, boolean fullModel, boolean noEnvironment, Context ctx, Solver solver, Map<String, Expr> vars, int id) {
         _graph = graph;
         _failures = failures;
         _fullModel = fullModel;
+        _noEnvironment = noEnvironment;
         _previousEncoder = enc;
         _modelIgp = true;
         _encodingId = id;
@@ -143,7 +146,7 @@ public class Encoder {
         _allSymbolicRecords = new ArrayList<>();
 
         if (vars == null) {
-            _allVariables = new ArrayList<>();
+            _allVariables = new HashMap<>();
         } else {
             _allVariables = vars;
         }
@@ -461,8 +464,7 @@ public class Encoder {
         SortedMap<Expr, String> valuation = new TreeMap<>();
 
         // If user asks for the full model
-        for (Expr e : _allVariables) {
-            String name = e.toString();
+        _allVariables.forEach((name, e) -> {
             Expr val = m.evaluate(e, false);
             if (!val.equals(e)) {
                 String s = val.toString();
@@ -471,7 +473,7 @@ public class Encoder {
                 }
                 valuation.put(e, s);
             }
-        }
+        });
 
         // Packet model
         SymbolicPacket p = enc.getMainSlice().getSymbolicPacket();
@@ -540,7 +542,6 @@ public class Encoder {
         if (tcpUrg != null && tcpUrg.equals("true")) {
             packetModel.put("tcpUrg", "set");
         }
-
 
         enc.getSlices().forEach((name, slice) -> {
 
@@ -771,7 +772,7 @@ public class Encoder {
      * Getters and setters
      */
 
-    SymbolicFailures getSymbolicFailures() {
+    public SymbolicFailures getSymbolicFailures() {
         return _symbolicFailures;
     }
 
@@ -780,27 +781,31 @@ public class Encoder {
         return _slices.get(s);
     }
 
-    Context getCtx() {
+    public Context getCtx() {
         return _ctx;
     }
 
-    EncoderSlice getMainSlice() {
+    public EncoderSlice getMainSlice() {
         return _slices.get(MAIN_SLICE_NAME);
     }
 
-    Solver getSolver() {
+    public Solver getSolver() {
         return _solver;
     }
 
-    List<Expr> getAllVariables() {
+    public Map<String, Expr> getAllVariables() {
         return _allVariables;
     }
 
-    int getId() {
+    public boolean getNoEnvironment() {
+        return _noEnvironment;
+    }
+
+    public int getId() {
         return _encodingId;
     }
 
-    boolean getModelIgp() {
+    public boolean getModelIgp() {
         return _modelIgp;
     }
 
@@ -808,11 +813,11 @@ public class Encoder {
         return _sliceReachability;
     }
 
-    List<SymbolicRecord> getAllSymbolicRecords() {
+    public List<SymbolicRecord> getAllSymbolicRecords() {
         return _allSymbolicRecords;
     }
 
-    UnsatCore getUnsatCore() {
+    public UnsatCore getUnsatCore() {
         return _unsatCore;
     }
 

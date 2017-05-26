@@ -63,7 +63,7 @@ public interface IBatfish extends IPluginConsumer {
          Topology edgeBlacklist, boolean dp);
 
 
-   AnswerElement smtForwarding(HeaderSpace h, int failures, boolean fullModel);
+   AnswerElement smtForwarding(HeaderSpace h, int failures, boolean fullModel, boolean noEnvironment);
 
    AnswerElement smtReachability(HeaderSpace h,
            int failures, boolean fullModel,

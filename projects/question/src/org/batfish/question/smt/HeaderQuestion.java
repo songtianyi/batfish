@@ -58,6 +58,8 @@ public class HeaderQuestion extends Question implements IQuestion {
 
     private static final String FULL_MODEL_VAR = "fullModel";
 
+    private static final String NO_ENVIRONMENT = "noEnvironment";
+
     private Set<ForwardingAction> _actions;
 
     private final HeaderSpace _headerSpace;
@@ -66,11 +68,14 @@ public class HeaderQuestion extends Question implements IQuestion {
 
     private boolean _fullModel;
 
+    private boolean _noEnvironment;
+
     public HeaderQuestion() {
         _actions = EnumSet.of(ForwardingAction.ACCEPT);
         _headerSpace = new HeaderSpace();
         _failures = 0;
         _fullModel = false;
+        _noEnvironment = false;
     }
 
     @Override
@@ -186,6 +191,11 @@ public class HeaderQuestion extends Question implements IQuestion {
     @JsonProperty(FULL_MODEL_VAR)
     public boolean getFullModel() {
         return _fullModel;
+    }
+
+    @JsonProperty(NO_ENVIRONMENT)
+    public boolean getNoEnvironment() {
+        return _noEnvironment;
     }
 
     @Override
@@ -360,6 +370,11 @@ public class HeaderQuestion extends Question implements IQuestion {
     @JsonProperty(FULL_MODEL_VAR)
     public void setFullModel(boolean b) {
         _fullModel = b;
+    }
+
+    @JsonProperty(NO_ENVIRONMENT)
+    public void setNoEnvironment(boolean b) {
+        _noEnvironment = b;
     }
 
 }

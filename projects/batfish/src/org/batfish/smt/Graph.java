@@ -43,6 +43,12 @@ public class Graph {
 
     private Map<GraphEdge, BgpNeighbor> _ibgpNeighbors;
 
+    private Map<String, String> _routeReflectorParent;
+
+    private Map<String, Set<String>> _routeReflectorClients;
+
+    private Map<String, Integer> _originatorId;
+
     /*
      * Create a graph from a Batfish object
      */
@@ -63,6 +69,9 @@ public class Graph {
         _neighbors = new HashMap<>();
         _ebgpNeighbors = new HashMap<>();
         _ibgpNeighbors = new HashMap<>();
+        _routeReflectorParent = new HashMap<>();
+        _routeReflectorClients = new HashMap<>();
+        _originatorId = new HashMap<>();
 
         // Remove the routers we don't want to model
         if (routers != null) {
@@ -322,6 +331,52 @@ public class Graph {
             GraphEdge ge2 = reverse.get(r2, r1);
             _otherEnd.put(ge1, ge2);
         });
+
+        // Configure Route Reflector information
+        Integer[] id = new Integer[1];
+        id[0] = 1;
+        neighbors.forEach((r1,ns) -> {
+            if (!_originatorId.containsKey(r1)) {
+                _originatorId.put(r1, id[0]);
+                id[0]++;
+            }
+            Set<String> clients = new HashSet<>();
+            ns.forEach((r2,n) -> {
+                if (n.getRouteReflectorClient()) {
+                    clients.add(r2);
+                    _routeReflectorParent.put(r2,r1);
+                }
+            });
+            _routeReflectorClients.put(r1, clients);
+        });
+
+        /* _routeReflectorClients.forEach((r1, cs) -> {
+            System.out.println("Router: " + r1);
+            for (String r2 : cs) {
+                System.out.println("  client: " + r2 + ", id: " + _originatorId.get(r2));
+            }
+        }); */
+
+    }
+
+    public enum BgpSendType {TO_EBGP, TO_NONCLIENT, TO_CLIENT, TO_RR}
+
+    public BgpSendType peerType(GraphEdge ge) {
+        if (_ebgpNeighbors.get(ge) != null) {
+            return BgpSendType.TO_EBGP;
+        }
+        if (_ibgpNeighbors.get(ge) != null) {
+            Set<String> clients = _routeReflectorClients.get(ge.getPeer());
+            Set<String> clients2 = _routeReflectorClients.get(ge.getRouter());
+            if (clients != null && clients.contains(ge.getRouter())) {
+                return BgpSendType.TO_RR;
+            } else if (clients2 != null && clients2.contains(ge.getPeer())) {
+                return BgpSendType.TO_CLIENT;
+            } else {
+                return BgpSendType.TO_NONCLIENT;
+            }
+        }
+        throw new BatfishException("Invalid BGP edge: " + ge);
     }
 
     /*
@@ -522,6 +577,18 @@ public class Graph {
     /*
      * Getters and setters
      */
+
+    public Map<String, String> getRouteReflectorParent() {
+        return _routeReflectorParent;
+    }
+
+    public Map<String, Set<String>> getRouteReflectorClients() {
+        return _routeReflectorClients;
+    }
+
+    public Map<String, Integer> getOriginatorId() {
+        return _originatorId;
+    }
 
     public Map<GraphEdge, BgpNeighbor> getEbgpNeighbors() {
         return _ebgpNeighbors;

@@ -3,18 +3,12 @@
     {
       "class" : "org.batfish.smt.answers.SmtOneAnswerElement",
       "result" : {
-        "environmentModel" : {
-          "as2border2,FastEthernet0/0 (BGP)" : {
-            "community 3:2" : "",
-            "community as3_community" : "",
-            "prefix" : "2.128.0.0/15",
-            "protocol metric" : "1"
-          }
-        },
         "forwardingModel" : [
+          "as2border1,FastEthernet0/1 --> as2core1,FastEthernet0/0",
+          "as2border1,FastEthernet1/0 --> as2core2,FastEthernet0/1",
+          "as2border2,FastEthernet0/1 --> as2core1,FastEthernet0/1",
+          "as2border2,FastEthernet1/0 --> as2core2,FastEthernet0/0",
           "as2core1,FastEthernet1/0 --> as2dist2,FastEthernet0/1",
-          "as2core1,FastEthernet2/0 --> as2dist1,FastEthernet0/1",
-          "as2core2,FastEthernet1/0 --> as2dist1,FastEthernet0/0",
           "as2core2,FastEthernet2/0 --> as2dist2,FastEthernet0/0",
           "as2dept1,FastEthernet1/0 --> _,_",
           "as2dist1,FastEthernet1/0 --> as2dept1,FastEthernet0/0",
@@ -40,6 +34,7 @@
     "ipProtocols" : [
       "IP"
     ],
+    "noEnvironment" : true,
     "srcIps" : [
       "1.0.1.2"
     ]

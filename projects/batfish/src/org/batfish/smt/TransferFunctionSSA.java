@@ -88,7 +88,7 @@ class TransferFunctionSSA {
 
     private static int id = 0;
 
-    private static int INLINE_HEURISTIC = 1500;
+    private static int INLINE_HEURISTIC = 3000;
 
     private EncoderSlice _enc;
 
@@ -538,6 +538,7 @@ class TransferFunctionSSA {
      * Relate the symbolic control plane route variables
      */
     private BoolExpr relateVariables(TransferFunctionParam p, TransferFunctionResult result) {
+
         ArithExpr defaultLen = _enc.Int(_enc.defaultLength());
         ArithExpr defaultAd = _enc.Int(_enc.defaultAdminDistance(_conf, _from));
         ArithExpr defaultMed = _enc.Int(_enc.defaultMed(_from));
@@ -564,16 +565,39 @@ class TransferFunctionSSA {
 
         // Set the IGP metric accordingly
         BoolExpr igpMet = _enc.True();
+        boolean isNonClient = _graphEdge.isAbstract() && (_enc.getGraph().peerType(_graphEdge) != Graph.BgpSendType.TO_EBGP);
+        boolean isClient = _graphEdge.isAbstract() && (_enc.getGraph().peerType(_graphEdge) == Graph.BgpSendType.TO_RR);
+
         if (_graphEdge.isAbstract() && _current.getIgpMetric() != null) {
             String router = _graphEdge.getRouter();
             String peer = _graphEdge.getPeer();
-            EncoderSlice s = _enc.getEncoder().getSlice(peer);
-            SymbolicRecord r = s.getSymbolicDecisions().getBestNeighbor().get(router);
-            igpMet = _enc.Eq(_current.getIgpMetric(), r.getMetric());
+
+            // Case where it is a non client, we lookup the next-hop
+            if (isNonClient) {
+                EncoderSlice s = _enc.getEncoder().getSlice(peer);
+                SymbolicRecord r = s.getSymbolicDecisions().getBestNeighbor().get(router);
+                igpMet = _enc.Eq(_current.getIgpMetric(), r.getMetric());
+            }
+
+            // Case where it is a client, next-hop depends on the clientId tag we added
+            if (isClient) {
+                BoolExpr acc = _enc.True();
+                for (Map.Entry<String, Integer> entry : _enc.getGraph().getOriginatorId().entrySet()) {
+                    String r = entry.getKey();
+                    Integer clientId = entry.getValue();
+                    if (!r.equals(router)) {
+                        EncoderSlice s = _enc.getEncoder().getSlice(r);
+                        SymbolicRecord record = s.getSymbolicDecisions().getBestNeighbor().get(r);
+                        BoolExpr eq = _enc.Eq(_current.getIgpMetric(), record.getMetric());
+                        acc = _enc.And(acc, _enc.Implies(p.getOther().getClientId().checkIfValue(clientId), eq));
+                    }
+                }
+                igpMet = acc;
+            }
         }
 
         // Set whether or not is iBGP or not on import
-        BoolExpr isInternal = _enc.safeEq(_current.getBgpInternal(), _enc.Bool(isIbgp));
+        BoolExpr isInternal = _enc.safeEq(_current.getBgpInternal(), _enc.Bool(isIbgp)); // TODO: and !isExport?
 
         // Update OSPF type
         BoolExpr type;
@@ -626,8 +650,25 @@ class TransferFunctionSSA {
         BoolExpr  met = _enc.safeEq(_current.getMetric(), otherMet);
         BoolExpr lp = _enc.safeEq(_current.getLocalPref(), otherLp);
 
-        BoolExpr updates = _enc.And(per, len, ad, med, lp, met, id, type, area, comms, history, isInternal, igpMet);
+        // If this was an external route, then we need to add the correct next-hop tag
+        BoolExpr cid = _enc.True();
+        if (_isExport && _to.isBgp() && p.getOther().getClientId() != null) {
+            cid = _enc.safeEqEnum(_current.getClientId(), p.getOther().getClientId());;
+        }
+        if (!_isExport && _to.isBgp() && p.getOther().getClientId() != null) {
+            BoolExpr fromExternal = p.getOther().getClientId().checkIfValue(0);
+            BoolExpr edgeIsInternal = _enc.Bool(!isClient && !isNonClient);
+            BoolExpr copyOver = _enc.safeEqEnum(_current.getClientId(), p.getOther().getClientId());
+
+            Integer x = _enc.getGraph().getOriginatorId().get(_graphEdge.getRouter());
+
+            BoolExpr setNewValue = _current.getClientId().checkIfValue(x);
+            cid = _enc.If(_enc.And(fromExternal, edgeIsInternal), setNewValue, copyOver);
+        }
+
+        BoolExpr updates = _enc.And(per, len, ad, med, lp, met, id, cid, type, area, comms, history, isInternal, igpMet);
         BoolExpr noOverflow = noOverflow(otherMet, _to);
+
         return _enc.If(noOverflow, updates, _enc.Not(_current.getPermitted()));
     }
 
@@ -972,8 +1013,6 @@ class TransferFunctionSSA {
                 if (p.getDefaultAccept()) {
                     result = returnValue(p, result, true);
                 } else {
-                    p.debug("NOW return = " + result.getReturnValue());
-                    p.debug("NOW assigned = " + result.getReturnAssignedValue());
                     result = returnValue(p, result, false);
                 }
             }
@@ -1057,7 +1096,7 @@ class TransferFunctionSSA {
      */
     private void computeIntermediatePrefixLen(TransferFunctionParam param) {
         ArithExpr prefixLen = param.getOther().getPrefixLength();
-        if (_isExport) {
+        if (_isExport && _to.isBgp()) {
             _aggregates = aggregateRoutes();
             if (_aggregates.size() > 0) {
                 for (Map.Entry<Prefix, Boolean> entry : _aggregates.entrySet()) {

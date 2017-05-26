@@ -30,15 +30,15 @@ public class PropertyChecker {
      * determined only for a particular network environment, failure scenario,
      * and data plane packet.
      */
-    public static AnswerElement computeForwarding(IBatfish batfish, HeaderSpace h, int failures, boolean fullModel) {
-        Encoder encoder = new Encoder(batfish, h, failures, fullModel);
+    public static AnswerElement computeForwarding(IBatfish batfish, HeaderSpace h, int failures, boolean fullModel, boolean noEnvironment) {
+        Encoder encoder = new Encoder(batfish, h, failures, fullModel, noEnvironment);
         encoder.computeEncoding();
         if (encoder.getMainSlice().getLogicalGraph().getEnvironmentVars().size() > 0) {
             System.out.println("Warning: forwarding computed for only a single concrete " +
                     "environment");
         }
         VerificationResult result = encoder.verify();
-        //result.debug(encoder.getMainSlice(), false, null);
+        // result.debug(encoder.getMainSlice(), true, null);
         SmtOneAnswerElement answer = new SmtOneAnswerElement();
         answer.setResult(result);
         return answer;
@@ -72,7 +72,7 @@ public class PropertyChecker {
                 h.getDstIps().add(dst);
             }
 
-            Encoder enc = new Encoder(graph, h, failures, fullModel);
+            Encoder enc = new Encoder(graph, h, failures, fullModel, false);
             enc.computeEncoding();
 
             EncoderSlice slice = enc.getMainSlice();
@@ -112,7 +112,7 @@ public class PropertyChecker {
 
         HeaderSpace h = new HeaderSpace();
 
-        Encoder enc = new Encoder(graph, h, failures, fullModel);
+        Encoder enc = new Encoder(graph, h, failures, fullModel, false);
         enc.computeEncoding();
 
         Context ctx = enc.getCtx();
@@ -200,7 +200,7 @@ public class PropertyChecker {
                 h.getDstIps().add(dst);
             }
 
-            Encoder enc = new Encoder(graph, h, failures, fullModel);
+            Encoder enc = new Encoder(graph, h, failures, fullModel, false);
             enc.computeEncoding();
 
             EncoderSlice slice = enc.getMainSlice();
@@ -261,7 +261,7 @@ public class PropertyChecker {
                 h.getDstIps().add(dst);
             }
 
-            Encoder enc = new Encoder(graph, h, failures, fullModel);
+            Encoder enc = new Encoder(graph, h, failures, fullModel, false);
             enc.computeEncoding();
 
             EncoderSlice slice = enc.getMainSlice();
@@ -338,7 +338,7 @@ public class PropertyChecker {
                 h.getDstIps().add(dst);
             }
 
-            Encoder enc = new Encoder(graph, h, failures, fullModel);
+            Encoder enc = new Encoder(graph, h, failures, fullModel, false);
             enc.computeEncoding();
 
             EncoderSlice slice = enc.getMainSlice();
@@ -410,7 +410,7 @@ public class PropertyChecker {
             Set<String> toModel1 = new TreeSet<>();
             toModel1.add(r1);
             Graph g1 = new Graph(batfish, toModel1);
-            Encoder e1 = new Encoder(g1, h, 0, fullModel);
+            Encoder e1 = new Encoder(g1, h, 0, fullModel, false);
             e1.computeEncoding();
 
             Context ctx = e1.getCtx();
@@ -743,7 +743,7 @@ public class PropertyChecker {
                 h.getDstIps().add(dst);
             }
 
-            Encoder enc = new Encoder(graph, h, failures, fullModel);
+            Encoder enc = new Encoder(graph, h, failures, fullModel, false);
             enc.computeEncoding();
 
             EncoderSlice slice = enc.getMainSlice();
@@ -823,7 +823,7 @@ public class PropertyChecker {
             }
         });
 
-        Encoder enc = new Encoder(graph, h, failures, fullModel);
+        Encoder enc = new Encoder(graph, h, failures, fullModel, false);
         enc.computeEncoding();
         Context ctx = enc.getCtx();
 

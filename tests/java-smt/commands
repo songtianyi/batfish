@@ -91,13 +91,13 @@ test tests/java-smt/ibgp1-forwarding.ref get smt-forwarding dstIps=["20.20.20.20
 # Check correctness of multiple ASes using both iBGP and eBGP. Also ensures
 # correct handling of transitivity and path metric update
 test tests/java-smt/ibgp2-init.ref init-testrig test_rigs/smt-examples/IBGP2
-test tests/java-smt/ibgp2-forwarding.ref get smt-forwarding dstIps=["4.4.4.4"] | fullModel=True
+test tests/java-smt/ibgp2-forwarding.ref get smt-forwarding dstIps=["4.4.4.4"] | fullModel=True | noEnvironment=True
 
 # Check correct handling of IGP metric cost for iBGP with eBGP
 test tests/java-smt/ibgp3-init.ref init-testrig test_rigs/smt-examples/IBGP3
-test tests/java-smt/ibgp3-forwarding.ref get smt-forwarding dstIps=["4.4.4.4"] | fullModel=True
+test tests/java-smt/ibgp3-forwarding.ref get smt-forwarding dstIps=["4.4.4.4"] | fullModel=True | noEnvironment=True
 
 # Putting everything together, check the campus network
 test tests/java-smt/campus1-init.ref init-testrig test_rigs/smt-examples/CAMPUS1
-test tests/java-smt/campus1-forwarding.ref get smt-forwarding dstIps=["2.128.0.101"] | srcIps=["1.0.1.2"] | ipProtocols=["IP"]
+test tests/java-smt/campus1-forwarding.ref get smt-forwarding dstIps=["2.128.0.101"] | srcIps=["1.0.1.2"] | ipProtocols=["IP"] | noEnvironment=True
 test tests/java-smt/campus1-local.ref get smt-local-consistency nodeRegex=".*border.*"

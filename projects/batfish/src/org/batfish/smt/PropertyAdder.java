@@ -55,7 +55,7 @@ public class PropertyAdder {
         _encoderSlice.getGraph().getConfigurations().forEach((router, conf) -> {
             BoolExpr var = ctx.mkBoolConst(sliceName + "reachable_" + router);
             reachableVars.put(router, var);
-            _encoderSlice.getAllVariables().add(var);
+            _encoderSlice.getAllVariables().put(var.toString(), var);
         });
 
         BoolExpr baseRouterReachable = reachableVars.get(ge.getRouter());
@@ -101,7 +101,7 @@ public class PropertyAdder {
         _encoderSlice.getGraph().getConfigurations().forEach((r, conf) -> {
             BoolExpr var = ctx.mkBoolConst(sliceName + "reachable_" + r);
             reachableVars.put(r, var);
-            _encoderSlice.getAllVariables().add(var);
+            _encoderSlice.getAllVariables().put(var.toString(), var);
         });
 
         BoolExpr baseRouterReachable = reachableVars.get(router);
@@ -143,7 +143,7 @@ public class PropertyAdder {
         _encoderSlice.getGraph().getConfigurations().forEach((router, conf) -> {
             ArithExpr var = ctx.mkIntConst("path-length_" + router);
             lenVars.put(router, var);
-            _encoderSlice.getAllVariables().add(var);
+            _encoderSlice.getAllVariables().put(var.toString(), var);
         });
 
         // Lower bound for all lengths
@@ -202,7 +202,7 @@ public class PropertyAdder {
         _encoderSlice.getGraph().getConfigurations().forEach((router, conf) -> {
             ArithExpr var = ctx.mkIntConst("load_" + router);
             loadVars.put(router, var);
-            _encoderSlice.getAllVariables().add(var);
+            _encoderSlice.getAllVariables().put(var.toString(), var);
         });
 
         // Lower bound for all lengths
@@ -250,7 +250,7 @@ public class PropertyAdder {
         _encoderSlice.getGraph().getConfigurations().forEach((r, conf) -> {
             BoolExpr var = ctx.mkBoolConst("on-loop_" + router + "_" + r);
             onLoop.put(r, var);
-            _encoderSlice.getAllVariables().add(var);
+            _encoderSlice.getAllVariables().put(var.toString(), var);
         });
 
         // Transitive closure for other routers

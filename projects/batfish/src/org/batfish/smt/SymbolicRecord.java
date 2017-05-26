@@ -21,6 +21,8 @@ class SymbolicRecord {
 
     private Protocol _proto;
 
+    private EncoderSlice _enc;
+
     private boolean _isUsed;
 
     private boolean _isEnv;
@@ -47,6 +49,8 @@ class SymbolicRecord {
 
     private ArithExpr _igpMetric;
 
+    private SymbolicOriginatorId _clientId;
+
     private SymbolicEnum<Long> _ospfArea;
 
     private SymbolicOspfType _ospfType;
@@ -61,6 +65,7 @@ class SymbolicRecord {
     SymbolicRecord() {
         _name = null;
         _proto = null;
+        _enc = null;
         _isUsed = false;
         _isBest = false;
         _isBestOverall = false;
@@ -72,6 +77,7 @@ class SymbolicRecord {
         _med = null;
         _localPref = null;
         _bgpInternal = null;
+        _clientId = null;
         _igpMetric = null;
         _routerId = null;
         _permitted = null;
@@ -82,6 +88,7 @@ class SymbolicRecord {
     SymbolicRecord(String name, Protocol proto) {
         _name = name;
         _proto = proto;
+        _enc = null;
         _isUsed = false;
         _isBest = false;
         _isBestOverall = false;
@@ -93,6 +100,7 @@ class SymbolicRecord {
         _med = null;
         _localPref = null;
         _bgpInternal = null;
+        _clientId = null;
         _igpMetric = null;
         _routerId = null;
         _permitted = null;
@@ -109,6 +117,7 @@ class SymbolicRecord {
     SymbolicRecord(SymbolicRecord other) {
         _name = other._name;
         _proto = other._proto;
+        _enc = other._enc;
         _isUsed = other._isUsed;
         _isBest = other._isBest;
         _isBestOverall = other._isBestOverall;
@@ -120,6 +129,7 @@ class SymbolicRecord {
         _med = other._med;
         _localPref = other._localPref;
         _bgpInternal = other._bgpInternal;
+        _clientId = other._clientId;
         _igpMetric = other._igpMetric;
         _routerId = other._routerId;
         _permitted = other._permitted;
@@ -136,6 +146,7 @@ class SymbolicRecord {
 
         _name = name;
         _proto = proto;
+        _enc = enc;
         _isUsed = true;
         _isExport = _name.contains("EXPORT");
         _isEnv = _name.contains("_ENV-");
@@ -155,6 +166,7 @@ class SymbolicRecord {
         _ospfArea = null;
         _ospfType = null;
         _igpMetric = null;
+
 
         if (proto.isBest()) {
             _metric = ctx.mkIntConst(_name + "_metric");
@@ -216,13 +228,7 @@ class SymbolicRecord {
             }
         }
 
-        boolean needId;
-        if (proto.isBest()) {
-            needId = _isBest && opts.getNeedRouterId().contains(router);
-        } else {
-            needId = _isBest && opts.getNeedRouterIdProto().get(router).get(proto);
-        }
-
+        boolean needId = false; // (_isBestOverall || (_isBest && proto.isBgp())) && opts.getNeedRouterId().contains(router);
         if (needId) {
             _routerId = ctx.mkIntConst(_name + "_routerID");
         } else {
@@ -233,10 +239,8 @@ class SymbolicRecord {
         _permitted = ctx.mkBoolConst(_name + "_permitted");
 
         _communities = new HashMap<>();
-
-        boolean comms = (proto.isBgp() || (hasBgp && proto.isBest()));
-
-        if ( comms ) {
+        boolean usesBgp = (proto.isBgp() || (hasBgp && proto.isBest()));
+        if ( usesBgp ) {
             for (CommunityVar cvar : enc.getAllCommunities()) {
                 String s = cvar.getValue();
                 if (cvar.getType() == CommunityVar.Type.OTHER) {
@@ -247,39 +251,53 @@ class SymbolicRecord {
             }
         }
 
+        // client id
+        if (usesBgp && opts.getNeedOriginatorIds()) {
+            _clientId = new SymbolicOriginatorId(enc, _name + "_clientId");
+        }
+
         addExprs(enc);
     }
 
     private void addExprs(EncoderSlice enc) {
-        List<Expr> all = enc.getAllVariables();
+        Map<String, Expr> all = enc.getAllVariables();
 
-        all.add(_permitted);
+        all.put(_permitted.toString(), _permitted);
         if (_adminDist != null) {
-            all.add(_adminDist);
+            all.put(_adminDist.toString(), _adminDist);
         }
         if (_med != null) {
-            all.add(_med);
+            all.put(_med.toString(), _med);
         }
         if (_localPref != null) {
-            all.add(_localPref);
+            all.put(_localPref.toString(), _localPref);
         }
         if (_metric != null) {
-            all.add(_metric);
+            all.put(_metric.toString(), _metric);
         }
         if (_prefixLength != null) {
-            all.add(_prefixLength);
+            all.put(_prefixLength.toString(), _prefixLength);
         }
         if (_routerId != null) {
-            all.add(_routerId);
+            all.put(_routerId.toString(), _routerId);
         }
         if (_bgpInternal != null) {
-            all.add(_bgpInternal);
+            all.put(_bgpInternal.toString(), _bgpInternal);
+        }
+        if (_ospfArea != null) {
+            all.put(_ospfArea.getBitVec().toString(), _ospfArea.getBitVec());
+        }
+        if (_ospfType != null) {
+            all.put(_ospfType.getBitVec().toString(), _ospfType.getBitVec());
+        }
+        if (_clientId != null) {
+            all.put(_clientId.getBitVec().toString(), _clientId.getBitVec());
         }
         if (_igpMetric != null) {
-            all.add(_igpMetric);
+            all.put(_igpMetric.toString(), _igpMetric);
         }
         _communities.forEach((name, var) -> {
-            all.add(var);
+            all.put(var.toString(), var);
         });
     }
 
@@ -344,6 +362,10 @@ class SymbolicRecord {
         return _protocolHistory;
     }
 
+    public SymbolicOriginatorId getClientId() {
+        return _clientId;
+    }
+
     BoolExpr getBgpInternal() {
         return _bgpInternal;
     }
@@ -402,6 +424,10 @@ class SymbolicRecord {
 
     public void setProtocolHistory(SymbolicEnum<Protocol> _protocolHistory) {
         this._protocolHistory = _protocolHistory;
+    }
+
+    public void setClientId(SymbolicOriginatorId _clientId) {
+        this._clientId = _clientId;
     }
 
     public void setCommunities(Map<CommunityVar, BoolExpr> _communities) {

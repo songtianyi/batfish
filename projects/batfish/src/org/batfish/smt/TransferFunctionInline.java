@@ -910,7 +910,7 @@ class TransferFunctionInline {
 
                 ArithExpr i = _enc.getCtx().mkIntConst(name + "_NEW-LEN(" + _iface
                         .getName() + ")");
-                _enc.getAllVariables().add(i);
+                _enc.getAllVariables().put(i.toString(), i);
 
                 _aggregates.forEach((prefix, isSuppressed) -> {
                     Prefix p = prefix.getNetworkPrefix();
