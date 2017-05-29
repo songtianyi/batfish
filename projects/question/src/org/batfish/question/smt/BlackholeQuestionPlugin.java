@@ -22,7 +22,7 @@ public class BlackholeQuestionPlugin extends QuestionPlugin {
         @Override
         public AnswerElement answer() {
             BlackholeQuestion q = (BlackholeQuestion) _question;
-            return _batfish.smtBlackhole(q.getFailures(), q.getFullModel());
+            return _batfish.smtBlackhole(q.getFailures(), q.getFullModel(), q.getNoEnvironment());
         }
     }
 

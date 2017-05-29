@@ -22,7 +22,7 @@ public class RoutingLoopQuestionPlugin extends QuestionPlugin {
         @Override
         public AnswerElement answer() {
             RoutingLoopQuestion q = (RoutingLoopQuestion) _question;
-            return _batfish.smtRoutingLoop(q.getFailures(), q.getFullModel());
+            return _batfish.smtRoutingLoop(q.getFailures(), q.getFullModel(), q.getNoEnvironment());
         }
     }
 

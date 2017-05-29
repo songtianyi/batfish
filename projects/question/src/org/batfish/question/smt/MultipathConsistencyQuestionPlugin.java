@@ -24,7 +24,7 @@ public class MultipathConsistencyQuestionPlugin extends QuestionPlugin {
             MultipathConsistencyQuestion q = (MultipathConsistencyQuestion) _question;
 
             return _batfish.smtMultipathConsistency(q.getHeaderSpace(),
-                    q.getFailures(), q.getFullModel(),
+                    q.getFailures(), q.getFullModel(), q.getNoEnvironment(),
                     q.getFinalNodeRegex(), q.getNotFinalNodeRegex(),
                     q.getFinalIfaceRegex(), q.getNotFinalIfaceRegex());
         }

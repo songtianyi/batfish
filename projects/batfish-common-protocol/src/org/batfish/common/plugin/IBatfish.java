@@ -66,34 +66,34 @@ public interface IBatfish extends IPluginConsumer {
    AnswerElement smtForwarding(HeaderSpace h, int failures, boolean fullModel, boolean noEnvironment);
 
    AnswerElement smtReachability(HeaderSpace h,
-           int failures, boolean fullModel,
+           int failures, boolean fullModel, boolean noEnvironment,
            String ingressNodeRegexStr, String notIngressNodeRegexStr,
            String finalNodeRegexStr, String notFinalNodeRegexStr,
            String finalIfaceRegexStr, String notFinalIfaceRegexStr);
 
-   AnswerElement smtBlackhole(int failures, boolean fullModel);
+   AnswerElement smtBlackhole(int failures, boolean fullModel, boolean noEnvironment);
 
-   AnswerElement smtRoutingLoop(int failures, boolean fullModel);
+   AnswerElement smtRoutingLoop(int failures, boolean fullModel, boolean noEnvironment);
 
    AnswerElement smtBoundedLength(HeaderSpace h,
-           int failures, boolean fullModel,
+           int failures, boolean fullModel, boolean noEnvironment,
            String ingressNodeRegexStr, String notIngressNodeRegexStr,
            String finalNodeRegexStr, String notFinalNodeRegexStr,
            String finalIfaceRegexStr, String notFinalIfaceRegexStr, Integer bound);
 
    AnswerElement smtEqualLength(HeaderSpace h,
-           int failures, boolean fullModel,
+           int failures, boolean fullModel, boolean noEnvironment,
            String ingressNodeRegexStr, String notIngressNodeRegexStr,
            String finalNodeRegexStr, String notFinalNodeRegexStr,
            String finalIfaceRegexStr, String notFinalIfaceRegexStr);
 
    AnswerElement smtMultipathConsistency(HeaderSpace h,
-           int failures, boolean fullModel,
+           int failures, boolean fullModel, boolean noEnvironment,
            String finalNodeRegexStr, String notFinalNodeRegexStr,
            String finalIfaceRegexStr, String notFinalIfaceRegexStr);
 
    AnswerElement smtLoadBalance(HeaderSpace h,
-           int failures, boolean fullModel,
+           int failures, boolean fullModel, boolean noEnvironment,
            String ingressNodeRegexStr, String notIngressNodeRegexStr,
            String finalNodeRegexStr, String notFinalNodeRegexStr,
            String finalIfaceRegexStr, String notFinalIfaceRegexStr, int threshold);

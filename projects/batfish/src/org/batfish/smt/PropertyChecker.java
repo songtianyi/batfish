@@ -49,7 +49,7 @@ public class PropertyChecker {
      * ports. This is broken up into multiple queries, one for each destination port.
      */
     public static AnswerElement computeReachability(IBatfish batfish, HeaderSpace h,
-            int failures, boolean fullModel,
+            int failures, boolean fullModel, boolean noEnvironment,
             String ingressNodeRegexStr, String notIngressNodeRegexStr, String finalNodeRegexStr,
             String notFinalNodeRegexStr, String finalIfaceRegexStr, String notFinalIfaceRegexStr) {
 
@@ -72,7 +72,7 @@ public class PropertyChecker {
                 h.getDstIps().add(dst);
             }
 
-            Encoder enc = new Encoder(graph, h, failures, fullModel, false);
+            Encoder enc = new Encoder(graph, h, failures, fullModel, noEnvironment);
             enc.computeEncoding();
 
             EncoderSlice slice = enc.getMainSlice();
@@ -114,12 +114,12 @@ public class PropertyChecker {
      * Compute if there can ever be a black hole for routers that are
      * not at the edge of the network. This is almost certainly a bug.
      */
-    public static AnswerElement computeBlackHole(IBatfish batfish, int failures, boolean fullModel) {
+    public static AnswerElement computeBlackHole(IBatfish batfish, int failures, boolean fullModel, boolean noEnvironment) {
         Graph graph = new Graph(batfish);
 
         HeaderSpace h = new HeaderSpace();
 
-        Encoder enc = new Encoder(graph, h, failures, fullModel, false);
+        Encoder enc = new Encoder(graph, h, failures, fullModel, noEnvironment);
         enc.computeEncoding();
 
         Context ctx = enc.getCtx();
@@ -184,7 +184,7 @@ public class PropertyChecker {
      * for a collection of source routers to any of a number of destination ports.
      */
     public static AnswerElement computeBoundedLength(IBatfish batfish, HeaderSpace h,
-            int failures, boolean fullModel,
+            int failures, boolean fullModel, boolean noEnvironment,
             String ingressNodeRegexStr, String notIngressNodeRegexStr, String finalNodeRegexStr,
             String notFinalNodeRegexStr, String finalIfaceRegexStr, String notFinalIfaceRegexStr, int k) {
 
@@ -207,7 +207,7 @@ public class PropertyChecker {
                 h.getDstIps().add(dst);
             }
 
-            Encoder enc = new Encoder(graph, h, failures, fullModel, false);
+            Encoder enc = new Encoder(graph, h, failures, fullModel, noEnvironment);
             enc.computeEncoding();
 
             EncoderSlice slice = enc.getMainSlice();
@@ -245,7 +245,7 @@ public class PropertyChecker {
      * equal path length to destination port(s).
      */
     public static AnswerElement computeEqualLength(IBatfish batfish, HeaderSpace h,
-            int failures, boolean fullModel,
+            int failures, boolean fullModel, boolean noEnvironment,
             String ingressNodeRegexStr, String notIngressNodeRegexStr, String finalNodeRegexStr,
             String notFinalNodeRegexStr, String finalIfaceRegexStr, String notFinalIfaceRegexStr) {
 
@@ -268,7 +268,7 @@ public class PropertyChecker {
                 h.getDstIps().add(dst);
             }
 
-            Encoder enc = new Encoder(graph, h, failures, fullModel, false);
+            Encoder enc = new Encoder(graph, h, failures, fullModel, noEnvironment);
             enc.computeEncoding();
 
             EncoderSlice slice = enc.getMainSlice();
@@ -307,7 +307,7 @@ public class PropertyChecker {
      * within some threshold k of the each other.
      */
     public static AnswerElement computeLoadBalance(IBatfish batfish, HeaderSpace h,
-            int failures, boolean fullModel,
+            int failures, boolean fullModel, boolean noEnvironment,
             String ingressNodeRegexStr, String notIngressNodeRegexStr, String finalNodeRegexStr,
             String notFinalNodeRegexStr, String finalIfaceRegexStr, String notFinalIfaceRegexStr, int k) {
 
@@ -345,7 +345,7 @@ public class PropertyChecker {
                 h.getDstIps().add(dst);
             }
 
-            Encoder enc = new Encoder(graph, h, failures, fullModel, false);
+            Encoder enc = new Encoder(graph, h, failures, fullModel, noEnvironment);
             enc.computeEncoding();
 
             EncoderSlice slice = enc.getMainSlice();
@@ -729,7 +729,7 @@ public class PropertyChecker {
      * (i.e., dropped or accepted by each).
      */
     public static AnswerElement computeMultipathConsistency(IBatfish batfish, HeaderSpace h,
-            int failures, boolean fullModel,
+            int failures, boolean fullModel, boolean noEnvironment,
             String finalNodeRegexStr, String notFinalNodeRegexStr, String finalIfaceRegexStr,
             String notFinalIfaceRegexStr) {
 
@@ -750,7 +750,7 @@ public class PropertyChecker {
                 h.getDstIps().add(dst);
             }
 
-            Encoder enc = new Encoder(graph, h, failures, fullModel, false);
+            Encoder enc = new Encoder(graph, h, failures, fullModel, noEnvironment);
             enc.computeEncoding();
 
             EncoderSlice slice = enc.getMainSlice();
@@ -800,7 +800,7 @@ public class PropertyChecker {
      * we only check for loops with routers that use static routes since
      * these can override the usual loop-prevention mechanisms.
      */
-    public static AnswerElement computeRoutingLoop(IBatfish batfish, int failures, boolean fullModel) {
+    public static AnswerElement computeRoutingLoop(IBatfish batfish, int failures, boolean fullModel, boolean noEnvironment) {
         Graph graph = new Graph(batfish);
 
         // Collect all relevant destinations
@@ -830,7 +830,7 @@ public class PropertyChecker {
             }
         });
 
-        Encoder enc = new Encoder(graph, h, failures, fullModel, false);
+        Encoder enc = new Encoder(graph, h, failures, fullModel, noEnvironment);
         enc.computeEncoding();
         Context ctx = enc.getCtx();
 
