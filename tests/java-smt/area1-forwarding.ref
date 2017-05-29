@@ -21,6 +21,10 @@
           "DATA-FORWARDING_R2_Serial1" : "true",
           "DATA-FORWARDING_R3_Loopback0" : "true",
           "DATA-FORWARDING_R3_Serial0" : "false",
+          "FAILED-EDGE_R1_Loopback0" : "0",
+          "FAILED-EDGE_R3_Loopback0" : "0",
+          "FAILED-INTERNAL_R1_R2" : "0",
+          "FAILED-INTERNAL_R2_R3" : "0",
           "R1_CONNECTED_Loopback0_IMPORT_choice" : "true",
           "R1_CONNECTED_Loopback0_IMPORT_permitted" : "true",
           "R1_CONNECTED_Loopback0_IMPORT_prefixLength" : "32",
@@ -120,7 +124,8 @@
       "70.70.70.70"
     ],
     "failures" : 0,
-    "fullModel" : true
+    "fullModel" : true,
+    "noEnvironment" : false
   },
   "status" : "SUCCESS"
 }

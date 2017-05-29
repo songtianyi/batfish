@@ -23,6 +23,11 @@
           "DATA-FORWARDING_R2_Serial1" : "false",
           "DATA-FORWARDING_R3_Loopback0" : "false",
           "DATA-FORWARDING_R3_Serial0" : "true",
+          "FAILED-EDGE_R1_Loopback0" : "0",
+          "FAILED-EDGE_R2_Loopback0" : "0",
+          "FAILED-EDGE_R3_Loopback0" : "0",
+          "FAILED-INTERNAL_R1_R2" : "0",
+          "FAILED-INTERNAL_R2_R3" : "0",
           "R1_BGP_None_BEST_history" : "0",
           "R1_BGP_None_BEST_metric" : "0",
           "R1_BGP_None_BEST_permitted" : "false",
@@ -90,7 +95,8 @@
       "41.41.41.1"
     ],
     "failures" : 0,
-    "fullModel" : true
+    "fullModel" : true,
+    "noEnvironment" : false
   },
   "status" : "SUCCESS"
 }

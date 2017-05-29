@@ -18,6 +18,11 @@
           "R2,Serial1 --> _,_"
         ],
         "model" : {
+          "FAILED-EDGE_R1_Loopback0" : "0",
+          "FAILED-EDGE_R1_Serial1" : "0",
+          "FAILED-EDGE_R2_Loopback0" : "0",
+          "FAILED-EDGE_R2_Serial1" : "0",
+          "FAILED-INTERNAL_R1_R2" : "0",
           "SLICE-MAIN_CONTROL-FORWARDING_R1_Loopback0" : "false",
           "SLICE-MAIN_CONTROL-FORWARDING_R1_Serial0" : "false",
           "SLICE-MAIN_CONTROL-FORWARDING_R1_Serial1" : "true",

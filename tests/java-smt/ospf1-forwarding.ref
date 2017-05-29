@@ -17,6 +17,9 @@
           "DATA-FORWARDING_R2_Serial0" : "false",
           "DATA-FORWARDING_R2_Serial1" : "false",
           "DATA-FORWARDING_R3_Serial0" : "false",
+          "FAILED-EDGE_R1_Serial2" : "0",
+          "FAILED-INTERNAL_R1_R2" : "0",
+          "FAILED-INTERNAL_R2_R3" : "0",
           "R1_CONNECTED_None_BEST_history" : "1",
           "R1_CONNECTED_None_BEST_permitted" : "true",
           "R1_CONNECTED_None_BEST_prefixLength" : "32",
@@ -88,7 +91,8 @@
       "70.70.70.70"
     ],
     "failures" : 0,
-    "fullModel" : true
+    "fullModel" : true,
+    "noEnvironment" : false
   },
   "status" : "SUCCESS"
 }

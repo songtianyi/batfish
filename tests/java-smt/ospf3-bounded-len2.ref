@@ -30,6 +30,11 @@
             "DATA-FORWARDING_R3_Loopback0" : "true",
             "DATA-FORWARDING_R3_Serial0" : "false",
             "DATA-FORWARDING_R3_Serial1" : "false",
+            "FAILED-EDGE_R3_Loopback0" : "0",
+            "FAILED-INTERNAL_R0_R1" : "0",
+            "FAILED-INTERNAL_R0_R2" : "0",
+            "FAILED-INTERNAL_R1_R3" : "0",
+            "FAILED-INTERNAL_R2_R3" : "0",
             "R0_OSPF_Serial0_IMPORT_choice" : "true",
             "R0_OSPF_Serial1_IMPORT_choice" : "true",
             "R0_OSPF__SINGLE-EXPORT_metric" : "3",
@@ -116,7 +121,8 @@
     "finalIfaceRegex" : "Loopback.*",
     "finalNodeRegex" : "R3",
     "fullModel" : true,
-    "ingressNodeRegex" : ".*"
+    "ingressNodeRegex" : ".*",
+    "noEnvironment" : false
   },
   "status" : "SUCCESS"
 }

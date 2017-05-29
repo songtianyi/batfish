@@ -214,17 +214,18 @@ public class Encoder {
                     String name = "FAILED-EDGE_" + ge.getRouter() + "_" + i.getName();
                     ArithExpr var = getCtx().mkIntConst(name);
                     _symbolicFailures.getFailedEdgeLinks().put(ge, var);
+                    _allVariables.put(var.toString(), var);
                 }
             }
         });
         _graph.getNeighbors().forEach((router, peers) -> {
             for (String peer : peers) {
                 // sort names for unique
-                String pair = (router.compareTo(peer) < 0 ? router + "_" + peer : peer + "_" +
-                        router);
+                String pair = (router.compareTo(peer) < 0 ? router + "_" + peer : peer + "_" + router);
                 String name = "FAILED-INTERNAL_" + pair;
                 ArithExpr var = _ctx.mkIntConst(name);
                 _symbolicFailures.getFailedInternalLinks().put(router, peer, var);
+                _allVariables.put(var.toString(), var);
             }
         });
     }
@@ -419,13 +420,9 @@ public class Encoder {
      * link_1 + link_2 + ... + link_n <= k
      */
     private void addFailedConstraints(int k) {
-        List<ArithExpr> vars = new ArrayList<>();
-        getSymbolicFailures().getFailedInternalLinks().forEach((router, peer, var) -> {
-            vars.add(var);
-        });
-        getSymbolicFailures().getFailedEdgeLinks().forEach((ge, var) -> {
-            vars.add(var);
-        });
+        Set<ArithExpr> vars = new HashSet<>();
+        getSymbolicFailures().getFailedInternalLinks().forEach((router, peer, var) -> vars.add(var));
+        getSymbolicFailures().getFailedEdgeLinks().forEach((ge, var) -> vars.add(var));
 
         ArithExpr sum = Int(0);
         for (ArithExpr var : vars) {
@@ -629,13 +626,14 @@ public class Encoder {
 
         _symbolicFailures.getFailedInternalLinks().forEach((x, y, e) -> {
             String s = valuation.get(e);
-            if (s != null && s.equals("true")) {
-                failures.add("link(" + x + "," + y + ")");
+            if (s != null && s.equals("1")) {
+                String pair = (x.compareTo(y) < 0 ? x + "," + y : y + "," + x);
+                failures.add("link(" + pair + ")");
             }
         });
         _symbolicFailures.getFailedEdgeLinks().forEach((ge, e) -> {
             String s = valuation.get(e);
-            if (s != null && s.equals("true")) {
+            if (s != null && s.equals("1")) {
                 failures.add("link(" + ge.getRouter() + "," + ge.getStart().getName() + ")");
             }
         });

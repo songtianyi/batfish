@@ -18,6 +18,10 @@
           "DATA-FORWARDING_R2_Loopback0" : "false",
           "DATA-FORWARDING_R2_Serial0" : "false",
           "DATA-FORWARDING_R2_Serial1" : "true",
+          "FAILED-EDGE_R1_Loopback0" : "0",
+          "FAILED-EDGE_R2_Loopback0" : "0",
+          "FAILED-EDGE_R2_Serial1" : "0",
+          "FAILED-INTERNAL_R1_R2" : "0",
           "R1_OSPF_Serial0_IMPORT_choice" : "true",
           "R1_OSPF__SINGLE-EXPORT_adminDist" : "1",
           "R1_OSPF__SINGLE-EXPORT_metric" : "21",
@@ -88,7 +92,8 @@
       "140.0.0.0"
     ],
     "failures" : 0,
-    "fullModel" : true
+    "fullModel" : true,
+    "noEnvironment" : false
   },
   "status" : "SUCCESS"
 }

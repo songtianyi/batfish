@@ -12,6 +12,7 @@
           "CONTROL-FORWARDING_R2_Serial0" : "true",
           "DATA-FORWARDING_R1_Serial0" : "true",
           "DATA-FORWARDING_R2_Serial0" : "true",
+          "FAILED-INTERNAL_R1_R2" : "0",
           "R1_OVERALL_None_BEST_metric" : "0",
           "R1_OVERALL_None_BEST_permitted" : "true",
           "R1_OVERALL_None_BEST_prefixLength" : "8",
@@ -50,7 +51,8 @@
       "172.0.0.0"
     ],
     "failures" : 0,
-    "fullModel" : true
+    "fullModel" : true,
+    "noEnvironment" : false
   },
   "status" : "SUCCESS"
 }

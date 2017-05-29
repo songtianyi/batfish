@@ -1160,7 +1160,7 @@ public class Batfish extends PluginConsumer implements AutoCloseable, IBatfish {
 
    @Override
    public AnswerElement smtForwarding(HeaderSpace h, int failures, boolean fullModel, boolean noEnvironment) {
-      return PropertyChecker.computeForwarding(this, h, failures, fullModel, noEnvironment);
+      return PropertyChecker.computeForwarding(this, h, failures, fullModel, noEn);
    }
 
    @Override

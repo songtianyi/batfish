@@ -89,7 +89,14 @@ public class PropertyChecker {
             }
             enc.add(allReach);
 
+            // We don't really care about the case where the interface is directly failed
+            ArithExpr f = enc.getSymbolicFailures().getFailedVariable(ge);
+            enc.add( enc.Eq(f, enc.Int(0)) );
+
             VerificationResult res = enc.verify();
+
+            // res.debug(enc.getMainSlice(), true, null);
+
             result.put(ge.getRouter() + "," + ge.getStart().getName(), res);
 
             // Remove the interface
