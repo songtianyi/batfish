@@ -7,6 +7,7 @@ import org.batfish.common.BatfishException;
 import org.batfish.common.Pair;
 import org.batfish.common.plugin.IBatfish;
 import org.batfish.datamodel.*;
+import org.batfish.datamodel.questions.smt.HeaderQuestion;
 
 import java.util.*;
 
@@ -42,15 +43,9 @@ public class Encoder {
 
     private int _encodingId;
 
-    private boolean _minimizeExamples;
-
     private boolean _modelIgp;
 
-    private int _failures;
-
-    private boolean _fullModel;
-
-    private boolean _noEnvironment;
+    private HeaderQuestion _question;
 
     private Map<String, EncoderSlice> _slices;
 
@@ -74,20 +69,18 @@ public class Encoder {
 
     /**
      * Create an encoder object that will consider all packets in the provided headerspace.
-     * @param h  The packet headerspace of interest
      * @param batfish  The Batfish object
      */
-    public Encoder(IBatfish batfish, HeaderSpace h, int failures, boolean fullModel, boolean noEnvironment) {
-        this(new Graph(batfish), h, failures, fullModel, noEnvironment);
+    public Encoder(IBatfish batfish, HeaderQuestion q) {
+        this(new Graph(batfish), q);
     }
 
     /**
      * Create an encoder object that will consider all packets in the provided headerspace.
-     * @param h  The packet headerspace of interest
      * @param graph  The network graph
      */
-    public Encoder(Graph graph, HeaderSpace h, int failures, boolean fullModel, boolean noEnvironment) {
-        this(null, graph, h, failures, false, fullModel, noEnvironment, null, null, null, 0);
+    public Encoder(Graph graph, HeaderQuestion q) {
+        this(null, graph, q, null, null, null, 0);
     }
 
     /**
@@ -96,8 +89,7 @@ public class Encoder {
      * @param g An existing network graph
      */
     Encoder(Encoder e, Graph g) {
-        this(e, g, e.getMainSlice().getHeaderSpace(), e.getFailures(), false, e.getFullModel(), e.getNoEnvironment(),  e.getCtx(), e.getSolver(), e.getAllVariables()
-                , e.getId() + 1);
+        this(e, g, e._question,  e.getCtx(), e.getSolver(), e.getAllVariables(), e.getId() + 1);
     }
 
     /**
@@ -105,15 +97,12 @@ public class Encoder {
      * of another encoder. If the context and solver are null, then a new
      * encoder is created. Otherwise the old encoder is used.
      */
-    private Encoder(Encoder enc, Graph graph, HeaderSpace h, int failures, boolean minimize, boolean fullModel, boolean noEnvironment, Context ctx, Solver solver, Map<String, Expr> vars, int id) {
+    private Encoder(Encoder enc, Graph graph, HeaderQuestion q, Context ctx, Solver solver, Map<String, Expr> vars, int id) {
         _graph = graph;
-        _failures = failures;
-        _fullModel = fullModel;
-        _noEnvironment = noEnvironment;
         _previousEncoder = enc;
         _modelIgp = true;
         _encodingId = id;
-        _minimizeExamples = minimize;
+        _question = q;
         _slices = new HashMap<>();
         _sliceReachability = new HashMap<>();
 
@@ -159,7 +148,7 @@ public class Encoder {
 
         initConfigurations();
         initFailedLinkVariables();
-        initSlices(h, graph);
+        initSlices(_question.getHeaderSpace(), graph);
     }
 
     /*
@@ -465,7 +454,7 @@ public class Encoder {
             Expr val = m.evaluate(e, false);
             if (!val.equals(e)) {
                 String s = val.toString();
-                if (_fullModel) {
+                if (_question.getFullModel()) {
                     model.put(name, s);
                 }
                 valuation.put(e, s);
@@ -731,7 +720,7 @@ public class Encoder {
 
                 result = new VerificationResult(false, model, packetModel, envModel, fwdModel, failures);
 
-                if (!_minimizeExamples) {
+                if (!_question.getMinimize()) {
                     break;
                 }
 
@@ -757,7 +746,7 @@ public class Encoder {
      * to calling the <b>verify method</b></p>
      */
     public void computeEncoding() {
-        addFailedConstraints(_failures);
+        addFailedConstraints(_question.getFailures());
         getMainSlice().computeEncoding();
         _slices.forEach((name, slice) -> {
             if (!name.equals(MAIN_SLICE_NAME)) {
@@ -796,7 +785,7 @@ public class Encoder {
     }
 
     public boolean getNoEnvironment() {
-        return _noEnvironment;
+        return _question.getNoEnvironment();
     }
 
     public int getId() {
@@ -820,11 +809,11 @@ public class Encoder {
     }
 
     public int getFailures() {
-        return _failures;
+        return _question.getFailures();
     }
 
     public boolean getFullModel() {
-        return _fullModel;
+        return _question.getFullModel();
     }
 
     public Map<String, EncoderSlice> getSlices() {

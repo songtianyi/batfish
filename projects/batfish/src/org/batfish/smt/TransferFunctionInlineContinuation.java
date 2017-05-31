@@ -6,7 +6,7 @@ import org.batfish.smt.collections.PList;
 
 import java.util.List;
 
-public class Continuation {
+public class TransferFunctionInlineContinuation {
 
     public enum ChainContext {CONJUNCTION, DISJUNCTION, NONE}
 
@@ -16,20 +16,20 @@ public class Continuation {
 
     public PList<PList<BooleanExpr>> continuationChain;
 
-    Continuation() {
+    TransferFunctionInlineContinuation() {
         this.trace = PList.empty();
         this.continuationChainContexts = PList.empty();
         this.continuationChain = PList.empty();
     }
 
-    private Continuation(Continuation c) {
+    private TransferFunctionInlineContinuation(TransferFunctionInlineContinuation c) {
         this.trace = c.trace;
         this.continuationChainContexts = c.continuationChainContexts;
         this.continuationChain = c.continuationChain;
     }
 
-    public Continuation addConjunctionChain(List<BooleanExpr> exprs) {
-        Continuation ret = new Continuation(this);
+    public TransferFunctionInlineContinuation addConjunctionChain(List<BooleanExpr> exprs) {
+        TransferFunctionInlineContinuation ret = new TransferFunctionInlineContinuation(this);
         PList<BooleanExpr> es = PList.from(exprs);
         ret.continuationChain = ret.continuationChain.plus(es);
         ret.continuationChainContexts = ret.continuationChainContexts.plus(ChainContext.CONJUNCTION);
@@ -37,16 +37,16 @@ public class Continuation {
     }
 
 
-    public Continuation addDisjunctionChain(List<BooleanExpr> exprs) {
-        Continuation ret = new Continuation(this);
+    public TransferFunctionInlineContinuation addDisjunctionChain(List<BooleanExpr> exprs) {
+        TransferFunctionInlineContinuation ret = new TransferFunctionInlineContinuation(this);
         PList<BooleanExpr> es = PList.from(exprs);
         ret.continuationChain = ret.continuationChain.plus(es);
         ret.continuationChainContexts = ret.continuationChainContexts.plus(ChainContext.DISJUNCTION);
         return ret;
     }
 
-    public Continuation popChainElement() {
-        Continuation ret = new Continuation(this);
+    public TransferFunctionInlineContinuation popChainElement() {
+        TransferFunctionInlineContinuation ret = new TransferFunctionInlineContinuation(this);
         PList<BooleanExpr> elem = ret.continuationChain.get(0);
         PList<BooleanExpr> remaining = elem.minus(0);
         if (remaining.isEmpty()) {
@@ -70,8 +70,8 @@ public class Continuation {
         return this.continuationChain.get(0).get(0);
     }
 
-    public Continuation indent(String n) {
-        Continuation ret = new Continuation(this);
+    public TransferFunctionInlineContinuation indent(String n) {
+        TransferFunctionInlineContinuation ret = new TransferFunctionInlineContinuation(this);
         if (n != null) {
             ret.trace = ret.trace.plus(n);
         }

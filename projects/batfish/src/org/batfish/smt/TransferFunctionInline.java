@@ -219,7 +219,7 @@ class TransferFunctionInline {
      * by performing inlining of stateful side effects.
      */
     private BoolExpr compute(BooleanExpr expr, Modifications mods, boolean pure, boolean
-            inExprCall, boolean inStmtCall, Continuation cont) {
+            inExprCall, boolean inStmtCall, TransferFunctionInlineContinuation cont) {
 
         Modifications freshMods = new Modifications(mods);
 
@@ -694,7 +694,7 @@ class TransferFunctionInline {
     /*
      * Handle a return true statement
      */
-    private BoolExpr returnTrue(Modifications mods, boolean inExprCall, boolean inStmtCall, Continuation cont) {
+    private BoolExpr returnTrue(Modifications mods, boolean inExprCall, boolean inStmtCall, TransferFunctionInlineContinuation cont) {
         Modifications newMods = new Modifications(mods);
         newMods.setDefaultAcceptLocal(false);
         if (cont.isConjunctionChainContext()) {
@@ -721,7 +721,7 @@ class TransferFunctionInline {
     /*
      * Handle a return false statement
      */
-    private BoolExpr returnFalse(Modifications mods, boolean inExprCall, boolean inStmtCall, Continuation cont) {
+    private BoolExpr returnFalse(Modifications mods, boolean inExprCall, boolean inStmtCall, TransferFunctionInlineContinuation cont) {
         Modifications newMods = new Modifications(mods);
         newMods.setDefaultAcceptLocal(false);
         if (cont.isDisjunctionChainContext()) {
@@ -751,7 +751,7 @@ class TransferFunctionInline {
      * Convert a list of statements into a Z3 boolean expression for the transfer function.
      */
     private BoolExpr compute(List<Statement> statements, Modifications mods, boolean inExprCall,
-            boolean inStmtCall, Continuation cont) {
+            boolean inStmtCall, TransferFunctionInlineContinuation cont) {
         Modifications freshMods = new Modifications(mods);
 
         ListIterator<Statement> it = statements.listIterator();
@@ -934,7 +934,7 @@ class TransferFunctionInline {
         _logicType = new Stack<>();
         _contTrue = new Stack<>();
         _contFalse = new Stack<>();
-        Continuation c = new Continuation();
+        TransferFunctionInlineContinuation c = new TransferFunctionInlineContinuation();
         return compute(_statements, mods, false, false, c);
     }
 

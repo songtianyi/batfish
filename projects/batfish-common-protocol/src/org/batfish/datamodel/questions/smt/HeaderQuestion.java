@@ -1,4 +1,4 @@
-package org.batfish.question.smt;
+package org.batfish.datamodel.questions.smt;
 
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -58,7 +58,9 @@ public class HeaderQuestion extends Question implements IQuestion {
 
     private static final String FULL_MODEL_VAR = "fullModel";
 
-    private static final String NO_ENVIRONMENT = "noEnvironment";
+    private static final String NO_ENVIRONMENT_VAR = "noEnvironment";
+
+    private static final String MINIMIZE_VAR = "minimize";
 
     private Set<ForwardingAction> _actions;
 
@@ -70,12 +72,15 @@ public class HeaderQuestion extends Question implements IQuestion {
 
     private boolean _noEnvironment;
 
+    private boolean _minimize;
+
     public HeaderQuestion() {
         _actions = EnumSet.of(ForwardingAction.ACCEPT);
         _headerSpace = new HeaderSpace();
         _failures = 0;
         _fullModel = false;
         _noEnvironment = false;
+        _minimize = false;
     }
 
     @Override
@@ -193,9 +198,14 @@ public class HeaderQuestion extends Question implements IQuestion {
         return _fullModel;
     }
 
-    @JsonProperty(NO_ENVIRONMENT)
+    @JsonProperty(NO_ENVIRONMENT_VAR)
     public boolean getNoEnvironment() {
         return _noEnvironment;
+    }
+
+    @JsonProperty(MINIMIZE_VAR)
+    public boolean getMinimize() {
+        return _minimize;
     }
 
     @Override
@@ -372,9 +382,14 @@ public class HeaderQuestion extends Question implements IQuestion {
         _fullModel = b;
     }
 
-    @JsonProperty(NO_ENVIRONMENT)
+    @JsonProperty(NO_ENVIRONMENT_VAR)
     public void setNoEnvironment(boolean b) {
         _noEnvironment = b;
+    }
+
+    @JsonProperty(MINIMIZE_VAR)
+    public void setMinimize(boolean b) {
+        _minimize = b;
     }
 
 }

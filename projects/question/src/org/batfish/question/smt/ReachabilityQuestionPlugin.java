@@ -1,14 +1,11 @@
 package org.batfish.question.smt;
 
 import org.batfish.common.Answerer;
-import org.batfish.common.BatfishException;
 import org.batfish.common.plugin.IBatfish;
 import org.batfish.datamodel.answers.AnswerElement;
 import org.batfish.datamodel.questions.Question;
+import org.batfish.datamodel.questions.smt.HeaderLocationQuestion;
 import org.batfish.question.QuestionPlugin;
-import org.codehaus.jettison.json.JSONObject;
-
-import java.util.Iterator;
 
 
 public class ReachabilityQuestionPlugin extends QuestionPlugin {
@@ -32,12 +29,7 @@ public class ReachabilityQuestionPlugin extends QuestionPlugin {
         @Override
         public AnswerElement answer() {
             ReachabilityQuestion q = (ReachabilityQuestion) _question;
-
-            return _batfish.smtReachability(q.getHeaderSpace(),
-                    q.getFailures(), q.getFullModel(), q.getNoEnvironment(),
-                    q.getIngressNodeRegex(), q.getNotIngressNodeRegex(),
-                    q.getFinalNodeRegex(), q.getNotFinalNodeRegex(),
-                    q.getFinalIfaceRegex(), q.getNotFinalIfaceRegex());
+            return _batfish.smtReachability(q);
         }
     }
 

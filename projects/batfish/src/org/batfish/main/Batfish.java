@@ -125,6 +125,8 @@ import org.batfish.datamodel.collections.TreeMultiSet;
 import org.batfish.datamodel.questions.Question;
 import org.batfish.datamodel.questions.Question.InstanceData;
 import org.batfish.datamodel.questions.Question.InstanceData.Variable;
+import org.batfish.datamodel.questions.smt.HeaderLocationQuestion;
+import org.batfish.datamodel.questions.smt.HeaderQuestion;
 import org.batfish.grammar.BatfishCombinedParser;
 import org.batfish.grammar.BgpTableFormat;
 import org.batfish.grammar.GrammarSettings;
@@ -1159,89 +1161,47 @@ public class Batfish extends PluginConsumer implements AutoCloseable, IBatfish {
    }
 
    @Override
-   public AnswerElement smtForwarding(HeaderSpace h, int failures, boolean fullModel, boolean noEnvironment) {
-      return PropertyChecker.computeForwarding(this, h, failures, fullModel, noEnvironment);
+   public AnswerElement smtForwarding(HeaderQuestion q) {
+      return PropertyChecker.computeForwarding(this, q);
    }
 
    @Override
-   public AnswerElement smtReachability(HeaderSpace h,
-           int failures, boolean fullModel, boolean noEnvironment,
-           String ingressNodeRegexStr, String notIngressNodeRegexStr,
-           String finalNodeRegexStr, String notFinalNodeRegexStr,
-           String finalIfaceRegexStr, String notFinalIfaceRegexStr) {
-
-      return PropertyChecker.computeReachability(this, h,
-              failures, fullModel, noEnvironment,
-              ingressNodeRegexStr, notIngressNodeRegexStr,
-              finalNodeRegexStr, notFinalNodeRegexStr,
-              finalIfaceRegexStr, notFinalIfaceRegexStr);
+   public AnswerElement smtReachability(HeaderLocationQuestion q) {
+      return PropertyChecker.computeReachability(this, q);
    }
 
    @Override
-   public AnswerElement smtBlackhole(int failures, boolean fullModel, boolean noEnvironment) {
-      return PropertyChecker.computeBlackHole(this, failures, fullModel, noEnvironment);
+   public AnswerElement smtBlackhole(HeaderQuestion q) {
+      return PropertyChecker.computeBlackHole(this, q);
    }
 
    @Override
-   public AnswerElement smtRoutingLoop(int failures, boolean fullModel, boolean noEnvironment) {
-      return PropertyChecker.computeRoutingLoop(this, failures, fullModel, noEnvironment);
+   public AnswerElement smtRoutingLoop(HeaderQuestion q) {
+      return PropertyChecker.computeRoutingLoop(this, q);
    }
 
    @Override
-   public AnswerElement smtBoundedLength(HeaderSpace h,
-           int failures, boolean fullModel, boolean noEnvironment,
-           String ingressNodeRegexStr, String notIngressNodeRegexStr,
-           String finalNodeRegexStr, String notFinalNodeRegexStr,
-           String finalIfaceRegexStr, String notFinalIfaceRegexStr, Integer bound) {
+   public AnswerElement smtBoundedLength(HeaderLocationQuestion q, Integer bound) {
       if (bound == null) {
          throw new BatfishException("Missing parameter length bound: (e.g., bound=3)");
       }
-
-      return PropertyChecker.computeBoundedLength(this, h,
-              failures, fullModel, noEnvironment,
-              ingressNodeRegexStr, notIngressNodeRegexStr,
-              finalNodeRegexStr, notFinalNodeRegexStr,
-              finalIfaceRegexStr, notFinalIfaceRegexStr, bound);
+      return PropertyChecker.computeBoundedLength(this, q, bound);
    }
 
    @Override
-   public AnswerElement smtEqualLength(HeaderSpace h,
-           int failures, boolean fullModel, boolean noEnvironment,
-           String ingressNodeRegexStr, String notIngressNodeRegexStr,
-           String finalNodeRegexStr, String notFinalNodeRegexStr,
-           String finalIfaceRegexStr, String notFinalIfaceRegexStr) {
+   public AnswerElement smtEqualLength(HeaderLocationQuestion q) {
 
-      return PropertyChecker.computeEqualLength(this, h,
-              failures, fullModel, noEnvironment,
-              ingressNodeRegexStr, notIngressNodeRegexStr,
-              finalNodeRegexStr, notFinalNodeRegexStr,
-              finalIfaceRegexStr, notFinalIfaceRegexStr);
+      return PropertyChecker.computeEqualLength(this, q);
    }
 
    @Override
-   public AnswerElement smtMultipathConsistency(HeaderSpace h,
-           int failures, boolean fullModel, boolean noEnvironment,
-           String finalNodeRegexStr, String notFinalNodeRegexStr,
-           String finalIfaceRegexStr, String notFinalIfaceRegexStr) {
-
-      return PropertyChecker.computeMultipathConsistency(this, h,
-              failures, fullModel, noEnvironment,
-              finalNodeRegexStr, notFinalNodeRegexStr,
-              finalIfaceRegexStr, notFinalIfaceRegexStr);
+   public AnswerElement smtMultipathConsistency(HeaderLocationQuestion q) {
+      return PropertyChecker.computeMultipathConsistency(this, q);
    }
 
    @Override
-   public AnswerElement smtLoadBalance(HeaderSpace h,
-           int failures, boolean fullModel, boolean noEnvironment,
-           String ingressNodeRegexStr, String notIngressNodeRegexStr,
-           String finalNodeRegexStr, String notFinalNodeRegexStr,
-           String finalIfaceRegexStr, String notFinalIfaceRegexStr, int threshold) {
-
-      return PropertyChecker.computeLoadBalance(this, h,
-              failures, fullModel, noEnvironment,
-              ingressNodeRegexStr, notIngressNodeRegexStr,
-              finalNodeRegexStr, notFinalNodeRegexStr,
-              finalIfaceRegexStr, notFinalIfaceRegexStr, threshold);
+   public AnswerElement smtLoadBalance(HeaderLocationQuestion q, int threshold) {
+      return PropertyChecker.computeLoadBalance(this, q, threshold);
    }
 
    @Override

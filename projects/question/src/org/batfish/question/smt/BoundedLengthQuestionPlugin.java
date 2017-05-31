@@ -2,15 +2,11 @@ package org.batfish.question.smt;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import org.batfish.common.Answerer;
-import org.batfish.common.BatfishException;
 import org.batfish.common.plugin.IBatfish;
 import org.batfish.datamodel.answers.AnswerElement;
 import org.batfish.datamodel.questions.Question;
+import org.batfish.datamodel.questions.smt.HeaderLocationQuestion;
 import org.batfish.question.QuestionPlugin;
-import org.codehaus.jettison.json.JSONException;
-import org.codehaus.jettison.json.JSONObject;
-
-import java.util.Iterator;
 
 
 public class BoundedLengthQuestionPlugin extends QuestionPlugin {
@@ -25,11 +21,7 @@ public class BoundedLengthQuestionPlugin extends QuestionPlugin {
         public AnswerElement answer() {
             BoundedLengthQuestion q = (BoundedLengthQuestion) _question;
 
-            return _batfish.smtBoundedLength(q.getHeaderSpace(),
-                    q.getFailures(), q.getFullModel(), q.getNoEnvironment(),
-                    q.getIngressNodeRegex(), q.getNotIngressNodeRegex(),
-                    q.getFinalNodeRegex(), q.getNotFinalNodeRegex(),
-                    q.getFinalIfaceRegex(), q.getNotFinalIfaceRegex(), q.getBound());
+            return _batfish.smtBoundedLength(q, q.getBound());
         }
     }
 

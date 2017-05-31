@@ -51,8 +51,12 @@
   "question" : {
     "class" : "org.batfish.question.smt.RoutingLoopQuestionPlugin$RoutingLoopQuestion",
     "differential" : false,
+    "dstIps" : [
+      "172.0.0.0/8"
+    ],
     "failures" : 0,
     "fullModel" : true,
+    "minimize" : false,
     "noEnvironment" : false
   },
   "status" : "SUCCESS"

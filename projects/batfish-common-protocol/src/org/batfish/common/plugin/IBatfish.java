@@ -28,6 +28,8 @@ import org.batfish.datamodel.collections.NodeInterfacePair;
 import org.batfish.datamodel.collections.NodeSet;
 import org.batfish.datamodel.collections.RoutesByVrf;
 import org.batfish.datamodel.questions.Question;
+import org.batfish.datamodel.questions.smt.HeaderLocationQuestion;
+import org.batfish.datamodel.questions.smt.HeaderQuestion;
 import org.batfish.grammar.BgpTableFormat;
 import org.batfish.grammar.GrammarSettings;
 
@@ -63,40 +65,21 @@ public interface IBatfish extends IPluginConsumer {
          Topology edgeBlacklist, boolean dp);
 
 
-   AnswerElement smtForwarding(HeaderSpace h, int failures, boolean fullModel, boolean noEnvironment);
+   AnswerElement smtForwarding(HeaderQuestion q);
 
-   AnswerElement smtReachability(HeaderSpace h,
-           int failures, boolean fullModel, boolean noEnvironment,
-           String ingressNodeRegexStr, String notIngressNodeRegexStr,
-           String finalNodeRegexStr, String notFinalNodeRegexStr,
-           String finalIfaceRegexStr, String notFinalIfaceRegexStr);
+   AnswerElement smtReachability(HeaderLocationQuestion q);
 
-   AnswerElement smtBlackhole(int failures, boolean fullModel, boolean noEnvironment);
+   AnswerElement smtBlackhole(HeaderQuestion q);
 
-   AnswerElement smtRoutingLoop(int failures, boolean fullModel, boolean noEnvironment);
+   AnswerElement smtRoutingLoop(HeaderQuestion q);
 
-   AnswerElement smtBoundedLength(HeaderSpace h,
-           int failures, boolean fullModel, boolean noEnvironment,
-           String ingressNodeRegexStr, String notIngressNodeRegexStr,
-           String finalNodeRegexStr, String notFinalNodeRegexStr,
-           String finalIfaceRegexStr, String notFinalIfaceRegexStr, Integer bound);
+   AnswerElement smtBoundedLength(HeaderLocationQuestion q, Integer bound);
 
-   AnswerElement smtEqualLength(HeaderSpace h,
-           int failures, boolean fullModel, boolean noEnvironment,
-           String ingressNodeRegexStr, String notIngressNodeRegexStr,
-           String finalNodeRegexStr, String notFinalNodeRegexStr,
-           String finalIfaceRegexStr, String notFinalIfaceRegexStr);
+   AnswerElement smtEqualLength(HeaderLocationQuestion q);
 
-   AnswerElement smtMultipathConsistency(HeaderSpace h,
-           int failures, boolean fullModel, boolean noEnvironment,
-           String finalNodeRegexStr, String notFinalNodeRegexStr,
-           String finalIfaceRegexStr, String notFinalIfaceRegexStr);
+   AnswerElement smtMultipathConsistency(HeaderLocationQuestion q);
 
-   AnswerElement smtLoadBalance(HeaderSpace h,
-           int failures, boolean fullModel, boolean noEnvironment,
-           String ingressNodeRegexStr, String notIngressNodeRegexStr,
-           String finalNodeRegexStr, String notFinalNodeRegexStr,
-           String finalIfaceRegexStr, String notFinalIfaceRegexStr, int threshold);
+   AnswerElement smtLoadBalance(HeaderLocationQuestion q, int threshold);
 
    AnswerElement smtLocalConsistency(Pattern routerRegex, boolean strict, boolean fullModel);
 

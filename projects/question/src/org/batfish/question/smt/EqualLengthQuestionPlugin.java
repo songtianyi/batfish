@@ -1,14 +1,11 @@
 package org.batfish.question.smt;
 
 import org.batfish.common.Answerer;
-import org.batfish.common.BatfishException;
 import org.batfish.common.plugin.IBatfish;
 import org.batfish.datamodel.answers.AnswerElement;
 import org.batfish.datamodel.questions.Question;
+import org.batfish.datamodel.questions.smt.HeaderLocationQuestion;
 import org.batfish.question.QuestionPlugin;
-import org.codehaus.jettison.json.JSONObject;
-
-import java.util.Iterator;
 
 
 public class EqualLengthQuestionPlugin extends QuestionPlugin {
@@ -22,12 +19,7 @@ public class EqualLengthQuestionPlugin extends QuestionPlugin {
         @Override
         public AnswerElement answer() {
             EqualLengthQuestion q = (EqualLengthQuestion) _question;
-
-            return _batfish.smtEqualLength(q.getHeaderSpace(),
-                    q.getFailures(), q.getFullModel(), q.getNoEnvironment(),
-                    q.getIngressNodeRegex(), q.getNotIngressNodeRegex(),
-                    q.getFinalNodeRegex(), q.getNotFinalNodeRegex(),
-                    q.getFinalIfaceRegex(), q.getNotFinalIfaceRegex());
+            return _batfish.smtEqualLength(q);
         }
     }
 

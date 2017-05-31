@@ -1,14 +1,11 @@
 package org.batfish.question.smt;
 
 import org.batfish.common.Answerer;
-import org.batfish.common.BatfishException;
 import org.batfish.common.plugin.IBatfish;
 import org.batfish.datamodel.answers.AnswerElement;
 import org.batfish.datamodel.questions.Question;
+import org.batfish.datamodel.questions.smt.HeaderQuestion;
 import org.batfish.question.QuestionPlugin;
-import org.codehaus.jettison.json.JSONObject;
-
-import java.util.Iterator;
 
 
 public class ForwardingQuestionPlugin extends QuestionPlugin {
@@ -22,7 +19,7 @@ public class ForwardingQuestionPlugin extends QuestionPlugin {
         @Override
         public AnswerElement answer() {
             ForwardingQuestion q = (ForwardingQuestion) _question;
-            return _batfish.smtForwarding(q.getHeaderSpace(), q.getFailures(), q.getFullModel(), q.getNoEnvironment());
+            return _batfish.smtForwarding(q);
         }
     }
 

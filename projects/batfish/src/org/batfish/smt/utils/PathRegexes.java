@@ -2,6 +2,7 @@ package org.batfish.smt.utils;
 
 
 import org.batfish.common.BatfishException;
+import org.batfish.datamodel.questions.smt.HeaderLocationQuestion;
 
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
@@ -20,14 +21,14 @@ public class PathRegexes {
 
     private Pattern _notSrcRegex;
 
-    public PathRegexes(String dst, String notDst, String iface, String notIface, String src, String notSrc) {
+    public PathRegexes(HeaderLocationQuestion q) {
         try {
-            _dstRegex = (dst == null ? null : Pattern.compile(dst));
-            _notDstRegex = (notDst == null ? null : Pattern.compile(notDst));
-            _ifaceRegex = (iface == null ? null : Pattern.compile(iface));
-            _notIfaceRegex = (notIface == null ? null : Pattern.compile(notIface));
-            _srcRegex = (src == null ? null : Pattern.compile(src));
-            _notSrcRegex = (notSrc == null ? null : Pattern.compile(notSrc));
+            _dstRegex = (q.getFinalNodeRegex() == null ? null : Pattern.compile(q.getFinalNodeRegex()));
+            _notDstRegex = (q.getNotFinalNodeRegex() == null ? null : Pattern.compile(q.getNotFinalNodeRegex()));
+            _ifaceRegex = (q.getFinalIfaceRegex() == null ? null : Pattern.compile(q.getFinalIfaceRegex()));
+            _notIfaceRegex = (q.getNotFinalIfaceRegex() == null ? null : Pattern.compile(q.getNotFinalIfaceRegex()));
+            _srcRegex = (q.getIngressNodeRegex() == null ? null : Pattern.compile(q.getIngressNodeRegex()));
+            _notSrcRegex = (q.getNotIngressNodeRegex() == null ? null : Pattern.compile(q.getNotIngressNodeRegex()));
         } catch (PatternSyntaxException e) {
             throw new BatfishException(String.format("One of the supplied regexes  is not a " +
                     "valid java regex."), e);

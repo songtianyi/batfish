@@ -1,12 +1,7 @@
-package org.batfish.question.smt;
+package org.batfish.datamodel.questions.smt;
 
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import org.batfish.common.BatfishException;
-import org.codehaus.jettison.json.JSONException;
-import org.codehaus.jettison.json.JSONObject;
-
-import java.util.Iterator;
 
 public class HeaderLocationQuestion extends HeaderQuestion {
 
