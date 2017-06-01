@@ -50,21 +50,21 @@ class SymbolicPacket {
 
     SymbolicPacket(Context ctx, int id, String sliceName) {
         _ctx = ctx;
-        _dstIp = ctx.mkIntConst(sliceName + "dst-ip" + id);
-        _srcIp = ctx.mkIntConst(sliceName + "src-ip" + id);
-        _dstPort = ctx.mkIntConst(sliceName + "dst-port" + id);
-        _srcPort = ctx.mkIntConst(sliceName + "src-port" + id);
-        _icmpCode = ctx.mkIntConst(sliceName + "icmp-code" + id);
-        _icmpType = ctx.mkIntConst(sliceName + "icmp-type" + id);
-        _tcpAck = ctx.mkBoolConst(sliceName + "tcp-ack" + id);
-        _tcpCwr = ctx.mkBoolConst(sliceName + "tcp-cwr" + id);
-        _tcpEce = ctx.mkBoolConst(sliceName + "tcp-ece" + id);
-        _tcpFin = ctx.mkBoolConst(sliceName + "tcp-fin" + id);
-        _tcpPsh = ctx.mkBoolConst(sliceName + "tcp-psh" + id);
-        _tcpRst = ctx.mkBoolConst(sliceName + "tcp-rst" + id);
-        _tcpSyn = ctx.mkBoolConst(sliceName + "tcp-syn" + id);
-        _tcpUrg = ctx.mkBoolConst(sliceName + "tcp-urg" + id);
-        _ipProtocol = ctx.mkIntConst(sliceName + "ip-protocol" + id);
+        _dstIp = ctx.mkIntConst(id + "_" + sliceName + "dst-ip");
+        _srcIp = ctx.mkIntConst(id + "_" + sliceName + "src-ip");
+        _dstPort = ctx.mkIntConst(id + "_" + sliceName + "dst-port");
+        _srcPort = ctx.mkIntConst(id + "_" + sliceName + "src-port");
+        _icmpCode = ctx.mkIntConst(id + "_" + sliceName + "icmp-code");
+        _icmpType = ctx.mkIntConst(id + "_" + sliceName + "icmp-type");
+        _tcpAck = ctx.mkBoolConst(id + "_" + sliceName + "tcp-ack");
+        _tcpCwr = ctx.mkBoolConst(id + "_" + sliceName + "tcp-cwr");
+        _tcpEce = ctx.mkBoolConst(id + "_" + sliceName + "tcp-ece");
+        _tcpFin = ctx.mkBoolConst(id + "_" + sliceName + "tcp-fin");
+        _tcpPsh = ctx.mkBoolConst(id + "_" + sliceName + "tcp-psh");
+        _tcpRst = ctx.mkBoolConst(id + "_" + sliceName + "tcp-rst");
+        _tcpSyn = ctx.mkBoolConst(id + "_" + sliceName + "tcp-syn");
+        _tcpUrg = ctx.mkBoolConst(id + "_" + sliceName + "tcp-urg");
+        _ipProtocol = ctx.mkIntConst(id + "_" + sliceName + "ip-protocol");
     }
 
     BoolExpr mkEqual(SymbolicPacket other) {

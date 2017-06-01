@@ -2,7 +2,6 @@ package org.batfish.smt;
 
 
 import com.microsoft.z3.*;
-import org.apache.commons.lang.StringUtils;
 import org.batfish.common.BatfishException;
 import org.batfish.common.Pair;
 import org.batfish.common.plugin.IBatfish;
@@ -200,7 +199,7 @@ public class Encoder {
             for (GraphEdge ge : edges) {
                 if (ge.getPeer() == null) {
                     Interface i = ge.getStart();
-                    String name = "FAILED-EDGE_" + ge.getRouter() + "_" + i.getName();
+                    String name = getId() + "_FAILED-EDGE_" + ge.getRouter() + "_" + i.getName();
                     ArithExpr var = getCtx().mkIntConst(name);
                     _symbolicFailures.getFailedEdgeLinks().put(ge, var);
                     _allVariables.put(var.toString(), var);
@@ -211,7 +210,7 @@ public class Encoder {
             for (String peer : peers) {
                 // sort names for unique
                 String pair = (router.compareTo(peer) < 0 ? router + "_" + peer : peer + "_" + router);
-                String name = "FAILED-INTERNAL_" + pair;
+                String name = getId() + "_FAILED-EDGE_" + pair;
                 ArithExpr var = _ctx.mkIntConst(name);
                 _symbolicFailures.getFailedInternalLinks().put(router, peer, var);
                 _allVariables.put(var.toString(), var);
@@ -818,5 +817,13 @@ public class Encoder {
 
     public Map<String, EncoderSlice> getSlices() {
         return _slices;
+    }
+
+    public HeaderQuestion getQuestion() {
+        return _question;
+    }
+
+    public void setQuestion(HeaderQuestion _question) {
+        this._question = _question;
     }
 }

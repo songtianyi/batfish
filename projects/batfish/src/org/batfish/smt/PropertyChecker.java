@@ -35,15 +35,23 @@ public class PropertyChecker {
     public static AnswerElement computeForwarding(IBatfish batfish, HeaderQuestion q) {
         Encoder encoder = new Encoder(batfish, q);
         encoder.computeEncoding();
-        if (encoder.getMainSlice().getLogicalGraph().getEnvironmentVars().size() > 0) {
-            System.out.println("Warning: forwarding computed for only a single concrete " +
-                    "environment");
-        }
         VerificationResult result = encoder.verify();
         // result.debug(encoder.getMainSlice(), true, null);
         SmtOneAnswerElement answer = new SmtOneAnswerElement();
         answer.setResult(result);
         return answer;
+    }
+
+    private static BoolExpr allReachable(Encoder enc, GraphEdge ge, List<String> sourceRouters) {
+        EncoderSlice slice = enc.getMainSlice();
+        PropertyAdder pa = new PropertyAdder(slice);
+        Map<String, BoolExpr> reachableVars = pa.instrumentReachability(ge);
+        BoolExpr allReach = enc.True();
+        for (String router : sourceRouters) {
+            BoolExpr reach = reachableVars.get(router);
+            allReach = enc.And(allReach, reach);
+        }
+        return allReach;
     }
 
     /*
@@ -72,19 +80,19 @@ public class PropertyChecker {
             Encoder enc = new Encoder(graph, q);
             enc.computeEncoding();
 
-            EncoderSlice slice = enc.getMainSlice();
-
-            PropertyAdder pa = new PropertyAdder(slice);
-            Map<String, BoolExpr> reachableVars = pa.instrumentReachability(ge);
-
-            Context ctx = enc.getCtx();
-
-            BoolExpr allReach = ctx.mkBool(false);
-            for (String router : sourceRouters) {
-                BoolExpr reach = reachableVars.get(router);
-                allReach = ctx.mkOr(allReach, ctx.mkNot(reach));
+            // If this is a differential query
+            Encoder enc2 = null;
+            if (q.getDifferential()) {
+                enc2 = new Encoder(enc, graph);
+                HeaderQuestion q2 = new HeaderQuestion(enc.getQuestion());
+                q2.setFailures(0);
+                enc2.setQuestion(q2);
+                enc2.computeEncoding();
             }
-            enc.add(allReach);
+
+            BoolExpr allReach = allReachable(enc, ge, sourceRouters);
+
+            enc.add(enc.Not(allReach));
 
             // We don't really care about the case where the interface is directly failed
             ArithExpr f = enc.getSymbolicFailures().getFailedVariable(ge);

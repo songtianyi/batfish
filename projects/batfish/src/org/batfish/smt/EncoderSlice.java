@@ -780,14 +780,14 @@ class EncoderSlice {
             for (GraphEdge edge : edges) {
                 String iface = edge.getStart().getName();
 
-                String cName = _sliceName + "CONTROL-FORWARDING_" + router + "_" + iface;
+                String cName = _encoder.getId() + "_" + _sliceName + "CONTROL-FORWARDING_" + router + "_" + iface;
                 BoolExpr cForward = getCtx().mkBoolConst(cName);
                 getAllVariables().put(cForward.toString(), cForward);
                 _symbolicDecisions.getControlForwarding().put(router, edge, cForward);
 
                 // Don't add data forwarding variable for abstract edge
                 if (!edge.isAbstract()) {
-                    String dName = _sliceName + "DATA-FORWARDING_" + router + "_" + iface;
+                    String dName = _encoder.getId() + "_" + _sliceName + "DATA-FORWARDING_" + router + "_" + iface;
                     BoolExpr dForward = getCtx().mkBoolConst(dName);
                     getAllVariables().put(dForward.toString(), dForward);
                     _symbolicDecisions.getDataForwarding().put(router, edge, dForward);
@@ -809,7 +809,7 @@ class EncoderSlice {
 
             // Overall best
             for (int len = 0; len <= BITS; len++) {
-                String name = String.format("%s%s_%s_%s_%s", _sliceName, router, "OVERALL", "None", "BEST");
+                String name = String.format("%d_%s%s_%s_%s_%s", _encoder.getId(), _sliceName, router, "OVERALL", "BEST", "None");
                 String historyName = name + "_history";
 
                 SymbolicEnum<Protocol> h = new SymbolicEnum<>(this, allProtos, historyName);
@@ -823,8 +823,8 @@ class EncoderSlice {
             // Best per protocol
             if (!_optimizations.getSliceHasSingleProtocol().contains(router)) {
                 for (Protocol proto : getProtocols().get(router)) {
-                    String name = String.format("%s%s_%s_%s_%s", _sliceName, router, proto.name(),
-                            "None", "BEST");
+                    String name = String.format("%d_%s%s_%s_%s_%s", _encoder.getId(), _sliceName, router, proto.name(),
+                            "BEST", "None");
                     String historyName = name + "_history";
 
                     SymbolicEnum<Protocol> h = new SymbolicEnum<>(this, allProtos,
@@ -849,7 +849,7 @@ class EncoderSlice {
         getGraph().getConfigurations().forEach((router,conf) -> {
             for (Protocol proto : getProtocols().get(router)) {
                 if (proto.isBgp() || proto.isOspf()) {
-                    String name = String.format("%s%s_%s_%s_%s", _sliceName, router, proto.name(), "None", "ORIGINATE");
+                    String name = String.format("%d_%s%s_%s_%s_%s", _encoder.getId(), _sliceName, router, proto.name(), "ORIGINATE", "None");
                     SymbolicRecord origin = new SymbolicRecord(this, name, router, Protocol.BEST
                             , _optimizations, null, false);
                     getAllSymbolicRecords().add(origin);
@@ -916,8 +916,8 @@ class EncoderSlice {
                                 SymbolicRecord singleVars = singleExportMap.get(router).get(proto);
                                 SymbolicRecord ev1;
                                 if (singleVars == null) {
-                                    String name = String.format("%s%s_%s_%s_%s", _sliceName, router, proto
-                                            .name(), "", "SINGLE-EXPORT");
+                                    String name = String.format("%d_%s%s_%s_%s_%s", _encoder.getId(), _sliceName, router, proto
+                                            .name(), "SINGLE-EXPORT", "");
                                     ev1 = new SymbolicRecord(this, name, router, proto,
                                             _optimizations, null, e.isAbstract());
                                     singleProtoMap.put(proto, ev1);
@@ -929,8 +929,8 @@ class EncoderSlice {
                                 exportEdgeList.add(eExport);
 
                             } else {
-                                String name = String.format("%s%s_%s_%s_%s", _sliceName, router, proto
-                                        .name(), ifaceName, "EXPORT");
+                                String name = String.format("%d_%s%s_%s_%s_%s", _encoder.getId(), _sliceName, router, proto
+                                        .name(), "EXPORT", ifaceName);
 
                                 SymbolicRecord ev1 = new SymbolicRecord(this, name, router,
                                         proto, _optimizations, null, e.isAbstract());
@@ -943,15 +943,15 @@ class EncoderSlice {
                                     ().get(router).get(proto).contains(e);
 
                             if (notNeeded) {
-                                String name = String.format("%s%s_%s_%s_%s", _sliceName, router, proto
-                                        .name(), ifaceName, "IMPORT");
+                                String name = String.format("%d_%s%s_%s_%s_%s", _encoder.getId(), _sliceName, router, proto
+                                        .name(), "IMPORT", ifaceName);
                                 SymbolicRecord ev2 = new SymbolicRecord(name, proto);
                                 LogicalEdge eImport = new LogicalEdge(e, EdgeType.IMPORT, ev2);
                                 importEdgeList.add(eImport);
                             } else {
 
-                                String name = String.format("%s%s_%s_%s_%s", _sliceName, router, proto
-                                        .name(), ifaceName, "IMPORT");
+                                String name = String.format("%d_%s%s_%s_%s_%s", _encoder.getId(), _sliceName, router, proto
+                                        .name(), "IMPORT", ifaceName);
                                 SymbolicRecord ev2 = new SymbolicRecord(this, name, router,
                                         proto, _optimizations, null, e.isAbstract());
                                 LogicalEdge eImport = new LogicalEdge(e, EdgeType.IMPORT, ev2);
@@ -1061,7 +1061,7 @@ class EncoderSlice {
                                             address = n.getAddress().toString();
                                         }
                                         String ifaceName = "ENV-" + address;
-                                        String name = String.format("%s%s_%s_%s_%s", _sliceName, router, proto.name(), ifaceName, "EXPORT");
+                                        String name = String.format("%d_%s%s_%s_%s_%s", _encoder.getId(), _sliceName, router, proto.name(), "EXPORT", ifaceName);
                                         SymbolicRecord vars = new SymbolicRecord(this, name, router, proto, _optimizations, null, ge.isAbstract());
                                         getAllSymbolicRecords().add(vars);
                                         _logicalGraph.getEnvironmentVars().put(e, vars);

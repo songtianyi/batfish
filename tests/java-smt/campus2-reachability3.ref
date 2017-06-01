@@ -13,8 +13,7 @@
           ],
           "packetModel" : {
             "dstIp" : "2.128.0.0",
-            "protocol" : "CBT",
-            "srcIp" : "2.128.0.0"
+            "dstPort" : "24"
           },
           "verified" : false
         }
@@ -29,6 +28,7 @@
     "finalNodeRegex" : "as2dept1",
     "fullModel" : false,
     "ingressNodeRegex" : "as2border.*",
+    "minimize" : false,
     "noEnvironment" : true
   },
   "status" : "SUCCESS"

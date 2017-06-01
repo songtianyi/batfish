@@ -3,18 +3,14 @@ package org.batfish.datamodel.questions.smt;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.batfish.common.BatfishException;
 import org.batfish.datamodel.*;
 import org.batfish.datamodel.questions.IQuestion;
 import org.batfish.datamodel.questions.Question;
-import org.codehaus.jettison.json.JSONException;
-import org.codehaus.jettison.json.JSONObject;
 
-import java.io.IOException;
-import java.util.*;
+import java.util.EnumSet;
+import java.util.Set;
+import java.util.TreeSet;
 
 public class HeaderQuestion extends Question implements IQuestion {
 
@@ -62,6 +58,8 @@ public class HeaderQuestion extends Question implements IQuestion {
 
     private static final String MINIMIZE_VAR = "minimize";
 
+    private static final String DIFFERENTIAL_VAR = "differential";
+
     private Set<ForwardingAction> _actions;
 
     private final HeaderSpace _headerSpace;
@@ -74,6 +72,8 @@ public class HeaderQuestion extends Question implements IQuestion {
 
     private boolean _minimize;
 
+    private boolean _differential;
+
     public HeaderQuestion() {
         _actions = EnumSet.of(ForwardingAction.ACCEPT);
         _headerSpace = new HeaderSpace();
@@ -81,6 +81,17 @@ public class HeaderQuestion extends Question implements IQuestion {
         _fullModel = false;
         _noEnvironment = false;
         _minimize = false;
+        _differential = false;
+    }
+
+    public HeaderQuestion(HeaderQuestion q) {
+        _actions = q._actions;
+        _headerSpace = q._headerSpace;
+        _failures = q._failures;
+        _fullModel = q._fullModel;
+        _noEnvironment = q._noEnvironment;
+        _minimize = q._minimize;
+        _differential = q._differential;
     }
 
     @Override
@@ -206,6 +217,11 @@ public class HeaderQuestion extends Question implements IQuestion {
     @JsonProperty(MINIMIZE_VAR)
     public boolean getMinimize() {
         return _minimize;
+    }
+
+    @JsonProperty(DIFFERENTIAL_VAR)
+    public boolean getDifferential() {
+        return _differential;
     }
 
     @Override
@@ -390,6 +406,11 @@ public class HeaderQuestion extends Question implements IQuestion {
     @JsonProperty(MINIMIZE_VAR)
     public void setMinimize(boolean b) {
         _minimize = b;
+    }
+
+    @JsonProperty(DIFFERENTIAL_VAR)
+    public void setDifferential(boolean b) {
+        _differential = b;
     }
 
 }

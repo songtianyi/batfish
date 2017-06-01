@@ -29,7 +29,6 @@ public class HeaderLocationQuestion extends HeaderQuestion {
 
     private static final String NOT_INGRESS_NODE_REGEX_VAR = "notIngressNodeRegex";
 
-
     private String _finalNodeRegex;
 
     private String _finalIfaceRegex;

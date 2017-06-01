@@ -9,7 +9,7 @@
           "as2border2,FastEthernet0/1 --> as2core1,FastEthernet0/1",
           "as2border2,FastEthernet1/0 --> as2core2,FastEthernet0/0",
           "as2core1,FastEthernet1/0 --> as2dist2,FastEthernet0/1",
-          "as2core2,FastEthernet2/0 --> as2dist2,FastEthernet0/0",
+          "as2core2,FastEthernet1/0 --> as2dist1,FastEthernet0/0",
           "as2dept1,FastEthernet1/0 --> _,_",
           "as2dist1,FastEthernet1/0 --> as2dept1,FastEthernet0/0",
           "as2dist2,FastEthernet1/0 --> as2dept1,FastEthernet0/1"
@@ -34,6 +34,7 @@
     "ipProtocols" : [
       "IP"
     ],
+    "minimize" : false,
     "noEnvironment" : true,
     "srcIps" : [
       "1.0.1.2"

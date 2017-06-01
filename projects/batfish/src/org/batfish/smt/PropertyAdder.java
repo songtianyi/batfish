@@ -53,7 +53,7 @@ public class PropertyAdder {
 
         Map<String, BoolExpr> reachableVars = new HashMap<>();
         _encoderSlice.getGraph().getConfigurations().forEach((router, conf) -> {
-            BoolExpr var = ctx.mkBoolConst(sliceName + "reachable_" + router);
+            BoolExpr var = ctx.mkBoolConst(_encoderSlice.getEncoder().getId() + "_" + sliceName + "_reachable_" + router);
             reachableVars.put(router, var);
             _encoderSlice.getAllVariables().put(var.toString(), var);
         });
@@ -99,7 +99,7 @@ public class PropertyAdder {
 
         Map<String, BoolExpr> reachableVars = new HashMap<>();
         _encoderSlice.getGraph().getConfigurations().forEach((r, conf) -> {
-            BoolExpr var = ctx.mkBoolConst(sliceName + "reachable_" + r);
+            BoolExpr var = ctx.mkBoolConst(_encoderSlice.getEncoder().getId() + "_" + sliceName + "_reachable_" + r);
             reachableVars.put(r, var);
             _encoderSlice.getAllVariables().put(var.toString(), var);
         });
@@ -139,9 +139,12 @@ public class PropertyAdder {
 
         BoolExpr fwdIface = _encoderSlice.getForwardsAcross().get(ge.getRouter(), ge);
 
+        String sliceName = _encoderSlice.getSliceName();
+
         Map<String, ArithExpr> lenVars = new HashMap<>();
         _encoderSlice.getGraph().getConfigurations().forEach((router, conf) -> {
-            ArithExpr var = ctx.mkIntConst("path-length_" + router);
+            String name = _encoderSlice.getEncoder().getId() + "_" + sliceName + "_path-length_" + router;
+            ArithExpr var = ctx.mkIntConst(name);
             lenVars.put(router, var);
             _encoderSlice.getAllVariables().put(var.toString(), var);
         });
@@ -195,12 +198,14 @@ public class PropertyAdder {
     public Map<String, ArithExpr> instrumentLoad(GraphEdge ge) {
         Context ctx = _encoderSlice.getCtx();
         Solver solver = _encoderSlice.getSolver();
+        String sliceName = _encoderSlice.getSliceName();
 
         BoolExpr fwdIface = _encoderSlice.getForwardsAcross().get(ge.getRouter(), ge);
 
         Map<String, ArithExpr> loadVars = new HashMap<>();
         _encoderSlice.getGraph().getConfigurations().forEach((router, conf) -> {
-            ArithExpr var = ctx.mkIntConst("load_" + router);
+            String name = _encoderSlice.getEncoder().getId() + "_" + sliceName + "_load_" + router;
+            ArithExpr var = ctx.mkIntConst(name);
             loadVars.put(router, var);
             _encoderSlice.getAllVariables().put(var.toString(), var);
         });
@@ -244,11 +249,13 @@ public class PropertyAdder {
     public BoolExpr instrumentLoop(String router) {
         Context ctx = _encoderSlice.getCtx();
         Solver solver = _encoderSlice.getSolver();
+        String sliceName = _encoderSlice.getSliceName();
 
         // Add on-loop variables to track a loop
         Map<String, BoolExpr> onLoop = new HashMap<>();
         _encoderSlice.getGraph().getConfigurations().forEach((r, conf) -> {
-            BoolExpr var = ctx.mkBoolConst("on-loop_" + router + "_" + r);
+            String name = _encoderSlice.getEncoder().getId() + "_" + sliceName + "_on-loop_" + router + "_" + r;
+            BoolExpr var = ctx.mkBoolConst(name);
             onLoop.put(r, var);
             _encoderSlice.getAllVariables().put(var.toString(), var);
         });

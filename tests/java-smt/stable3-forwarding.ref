@@ -22,7 +22,9 @@
       "42.42.42.0"
     ],
     "failures" : 0,
-    "fullModel" : false
+    "fullModel" : false,
+    "minimize" : false,
+    "noEnvironment" : false
   },
   "status" : "SUCCESS"
 }
