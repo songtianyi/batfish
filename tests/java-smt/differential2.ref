@@ -3,17 +3,18 @@
     {
       "class" : "org.batfish.smt.answers.SmtManyAnswerElement",
       "result" : {
-        "as2dept1,FastEthernet1/0" : {
+        "R3,Loopback0" : {
           "failuresModel" : [
-            "link(as2dept1,as2dist1)",
-            "link(as2dept1,as2dist2)"
+            "link(R1,R3)",
+            "link(R2,R3)"
           ],
           "forwardingModel" : [
-            "as2dept1,FastEthernet1/0 --> _,_"
+            "R1,Serial1 --> R3,Serial0",
+            "R2,Serial1 --> R3,Serial1",
+            "R3,Loopback0 --> _,_"
           ],
           "packetModel" : {
-            "dstIp" : "2.128.0.0",
-            "protocol" : "CBT"
+            "dstIp" : "70.70.70.70"
           },
           "verified" : false
         }
@@ -23,14 +24,14 @@
   "question" : {
     "class" : "org.batfish.question.smt.ReachabilityQuestionPlugin$ReachabilityQuestion",
     "differential" : false,
-    "equivalence" : false,
+    "equivalence" : true,
     "failures" : 2,
-    "finalIfaceRegex" : "FastEthernet1/0",
-    "finalNodeRegex" : "as2dept1",
+    "finalIfaceRegex" : "Loopback.*",
+    "finalNodeRegex" : "R3",
     "fullModel" : false,
-    "ingressNodeRegex" : "as2border.*",
+    "ingressNodeRegex" : ".*",
     "minimize" : false,
-    "noEnvironment" : true
+    "noEnvironment" : false
   },
   "status" : "SUCCESS"
 }

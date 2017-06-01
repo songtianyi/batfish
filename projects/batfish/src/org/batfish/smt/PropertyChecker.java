@@ -80,9 +80,9 @@ public class PropertyChecker {
             Encoder enc = new Encoder(graph, q);
             enc.computeEncoding();
 
-            // If this is a differential query
+            // If this is a equivalence query
             Encoder enc2 = null;
-            if (q.getDifferential()) {
+            if (q.getEquivalence()) {
                 enc2 = new Encoder(enc, graph);
                 HeaderQuestion q2 = new HeaderQuestion(enc.getQuestion());
                 q2.setFailures(0);
@@ -92,7 +92,32 @@ public class PropertyChecker {
 
             BoolExpr allReach = allReachable(enc, ge, sourceRouters);
 
-            enc.add(enc.Not(allReach));
+            // TODO: refactor into separate function
+            if (q.getEquivalence()) {
+
+                BoolExpr related = enc.True();
+
+                // relate environments
+                Map<LogicalEdge, SymbolicRecord> map = enc.getMainSlice().getLogicalGraph().getEnvironmentVars();
+                for (Map.Entry<LogicalEdge, SymbolicRecord> entry : map.entrySet()) {
+                    LogicalEdge le = entry.getKey();
+                    SymbolicRecord r1 = entry.getValue();
+                    String router = le.getEdge().getRouter();
+                    Configuration conf = enc.getMainSlice().getGraph().getConfigurations().get(router);
+                    SymbolicRecord r2 = enc2.getMainSlice().getLogicalGraph().getEnvironmentVars().get(le);
+                    BoolExpr x = enc.getMainSlice().equal(conf, Protocol.BEST, r1, r2, le, true);
+                    related = enc.And(related, x);
+                }
+
+                BoolExpr allReach2 = allReachable(enc2, ge, sourceRouters);
+
+                enc.add( related );
+                enc.add( enc.Not( enc.Eq(allReach, allReach2) ) );
+
+            } else {
+                enc.add( enc.Not(allReach) );
+            }
+
 
             // We don't really care about the case where the interface is directly failed
             ArithExpr f = enc.getSymbolicFailures().getFailedVariable(ge);

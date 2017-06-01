@@ -109,3 +109,8 @@ init-testrig test_rigs/smt-examples/CAMPUS2
 test tests/java-smt/campus2-reachability1.ref get smt-reachability ingressNodeRegex="as2border.*" | finalNodeRegex="as2dept1" | finalIfaceRegex="FastEthernet1/0"  | failures=0
 test tests/java-smt/campus2-reachability2.ref get smt-reachability ingressNodeRegex="as2border.*" | finalNodeRegex="as2dept1" | finalIfaceRegex="FastEthernet1/0"  | failures=1
 test tests/java-smt/campus2-reachability3.ref get smt-reachability ingressNodeRegex="as2border.*" | finalNodeRegex="as2dept1" | finalIfaceRegex="FastEthernet1/0"  | failures=2 | noEnvironment=True
+
+# Test differential reachabililty 
+init-testrig test_rigs/smt-examples/OSPF3
+test tests/java-smt/differential1.ref get smt-reachability finalNodeRegex="R3" | finalIfaceRegex="Loopback.*" | failures=1 | equivalence=True
+test tests/java-smt/differential2.ref get smt-reachability finalNodeRegex="R3" | finalIfaceRegex="Loopback.*" | failures=2 | equivalence=True
