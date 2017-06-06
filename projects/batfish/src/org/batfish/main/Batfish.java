@@ -102,12 +102,12 @@ import org.batfish.datamodel.answers.ParseEnvironmentRoutingTablesAnswerElement;
 import org.batfish.datamodel.answers.ParseStatus;
 import org.batfish.datamodel.answers.ParseVendorConfigurationAnswerElement;
 import org.batfish.datamodel.answers.ReportAnswerElement;
+import org.batfish.datamodel.answers.RunAnalysisAnswerElement;
 import org.batfish.datamodel.answers.StringAnswerElement;
 import org.batfish.datamodel.assertion.AssertionAst;
 import org.batfish.datamodel.answers.AclLinesAnswerElement.AclReachabilityEntry;
 import org.batfish.datamodel.collections.AdvertisementSet;
 import org.batfish.datamodel.collections.BgpAdvertisementsByVrf;
-import org.batfish.datamodel.collections.CommunitySet;
 import org.batfish.datamodel.collections.EdgeSet;
 import org.batfish.datamodel.collections.IbgpTopology;
 import org.batfish.datamodel.collections.InterfaceSet;
@@ -453,6 +453,31 @@ public class Batfish extends PluginConsumer implements AutoCloseable, IBatfish {
       _questionMap = new TreeMap<>();
    }
 
+   private Answer analyze() {
+      Answer answer = new Answer();
+      String analysisName = _settings.getAnalysisName();
+      Path analysisQuestionsDir = _settings.getContainerDir()
+            .resolve(Paths.get(BfConsts.RELPATH_ANALYSES_DIR, analysisName,
+                  BfConsts.RELPATH_QUESTIONS_DIR).toString());
+      if (!Files.exists(analysisQuestionsDir)) {
+         throw new BatfishException("Analysis questions dir does not exist: '"
+               + analysisQuestionsDir.toString() + "'");
+      }
+      RunAnalysisAnswerElement ae = new RunAnalysisAnswerElement();
+      CommonUtil.list(analysisQuestionsDir).forEach(analysisQuestionDir -> {
+         String questionName = analysisQuestionDir.getFileName().toString();
+         Path analysisQuestionPath = analysisQuestionDir
+               .resolve(BfConsts.RELPATH_QUESTION_FILE);
+         _settings.setQuestionPath(analysisQuestionPath);
+         Answer currentAnswer = answer();
+         initAnalysisQuestionPath(analysisName, questionName);
+         outputAnswer(currentAnswer);
+         ae.getAnswers().put(questionName, currentAnswer);
+      });
+      answer.addAnswerElement(ae);
+      return answer;
+   }
+
    private void anonymizeConfigurations() {
       // TODO Auto-generated method stub
 
@@ -460,6 +485,9 @@ public class Batfish extends PluginConsumer implements AutoCloseable, IBatfish {
 
    private Answer answer() {
       Question question = parseQuestion();
+      if (_settings.getDifferential()) {
+         question.setDifferential(true);
+      }
       boolean dp = question.getDataPlane();
       boolean diff = question.getDifferential();
       boolean diffActive = _settings.getDiffActive() && !diff;
@@ -744,17 +772,6 @@ public class Batfish extends PluginConsumer implements AutoCloseable, IBatfish {
       }
    }
 
-   @Override
-   public void checkDataPlaneQuestionDependencies() {
-      checkDataPlaneQuestionDependencies(_testrigSettings);
-   }
-
-   public void checkDataPlaneQuestionDependencies(
-         TestrigSettings testrigSettings) {
-      checkConfigurations(testrigSettings);
-      checkDataPlane(testrigSettings);
-   }
-
    public void checkDiffEnvironmentExists() {
       checkDiffEnvironmentSpecified();
       checkEnvironmentExists(_deltaTestrigSettings);
@@ -950,13 +967,22 @@ public class Batfish extends PluginConsumer implements AutoCloseable, IBatfish {
          Ip ip = prefix.getAddress();
          int lowestPriority = Integer.MAX_VALUE;
          String bestCandidate = null;
+         Set<String> bestCandidates = new HashSet<>();
          for (Interface candidate : candidates) {
             VrrpGroup group = candidate.getVrrpGroups().get(groupNum);
             int currentPriority = group.getPriority();
             if (currentPriority < lowestPriority) {
-               currentPriority = lowestPriority;
+               lowestPriority = currentPriority;
+               bestCandidates.clear();
                bestCandidate = candidate.getOwner().getHostname();
             }
+            if (currentPriority == lowestPriority) {
+               bestCandidates.add(candidate.getOwner().getHostname());
+            }
+         }
+         if (bestCandidates.size() != 1) {
+            throw new BatfishException(
+                  "multiple best vrrp candidates:" + bestCandidates);
          }
          Set<String> owners = ipOwners.get(ip);
          if (owners == null) {
@@ -1956,6 +1982,18 @@ public class Batfish extends PluginConsumer implements AutoCloseable, IBatfish {
       }
    }
 
+   private void initAnalysisQuestionPath(String analysisName,
+         String questionName) {
+      Path questionDir = _testrigSettings.getBasePath()
+            .resolve(Paths
+                  .get(BfConsts.RELPATH_ANALYSES_DIR, analysisName,
+                        BfConsts.RELPATH_QUESTIONS_DIR, questionName)
+                  .toString());
+      questionDir.toFile().mkdirs();
+      Path questionPath = questionDir.resolve(BfConsts.RELPATH_QUESTION_FILE);
+      _settings.setQuestionPath(questionPath);
+   }
+
    @Override
    public void initBgpAdvertisements(
          Map<String, Configuration> configurations) {
@@ -2686,7 +2724,6 @@ public class Batfish extends PluginConsumer implements AutoCloseable, IBatfish {
          _settings.setSequential(true);
       }
       Settings settings = getSettings();
-      checkDataPlaneQuestionDependencies();
       String tag = getFlowTag(_testrigSettings);
       Map<String, Configuration> configurations = loadConfigurations();
       Set<Flow> flows = null;
@@ -2720,30 +2757,128 @@ public class Batfish extends PluginConsumer implements AutoCloseable, IBatfish {
    void outputAnswer(Answer answer) {
       ObjectMapper mapper = new BatfishObjectMapper();
       try {
-         StringBuilder sb = new StringBuilder();
-         Answer answerToOutput = answer;
+         Answer structuredAnswer = answer;
+         Answer prettyAnswer = structuredAnswer.prettyPrintAnswer();
+         StringBuilder structuredAnswerSb = new StringBuilder();
+         String structuredAnswerRawString = mapper
+               .writeValueAsString(structuredAnswer);
+         structuredAnswerSb.append(structuredAnswerRawString);
+         structuredAnswerSb.append("\n");
+         String structuredAnswerString = structuredAnswerSb.toString();
+         StringBuilder prettyAnswerSb = new StringBuilder();
+         String prettyAnswerRawString = mapper.writeValueAsString(prettyAnswer);
+         prettyAnswerSb.append(prettyAnswerRawString);
+         prettyAnswerSb.append("\n");
+         String answerString;
+         String prettyAnswerString = prettyAnswerSb.toString();
          if (_settings.prettyPrintAnswer()) {
-            answerToOutput = answer.prettyPrintAnswer();
+            answerString = prettyAnswerString;
          }
-         String jsonString = mapper.writeValueAsString(answerToOutput);
-         sb.append(jsonString);
-         sb.append("\n");
-         String answerString = sb.toString();
+         else {
+            answerString = structuredAnswerString;
+         }
          _logger.debug(answerString);
-         writeJsonAnswer(answerString);
+         writeJsonAnswer(structuredAnswerString, prettyAnswerString);
       }
       catch (Exception e) {
          BatfishException be = new BatfishException("Error in sending answer",
                e);
-         Answer failureAnswer = Answer.failureAnswer(e.toString(),
-               answer.getQuestion());
-         failureAnswer.addAnswerElement(be.getBatfishStackTrace());
          try {
-            String failureJsonString = mapper
-                  .writeValueAsString(_settings.prettyPrintAnswer()
-                        ? failureAnswer.prettyPrintAnswer() : failureAnswer);
-            _logger.error(failureJsonString);
-            writeJsonAnswer(failureJsonString);
+            Answer failureAnswer = Answer.failureAnswer(e.toString(),
+                  answer.getQuestion());
+            failureAnswer.addAnswerElement(be.getBatfishStackTrace());
+            Answer structuredAnswer = failureAnswer;
+            Answer prettyAnswer = structuredAnswer.prettyPrintAnswer();
+            StringBuilder structuredAnswerSb = new StringBuilder();
+            String structuredAnswerRawString = mapper
+                  .writeValueAsString(structuredAnswer);
+            structuredAnswerSb.append(structuredAnswerRawString);
+            structuredAnswerSb.append("\n");
+            String structuredAnswerString = structuredAnswerSb.toString();
+            StringBuilder prettyAnswerSb = new StringBuilder();
+            String prettyAnswerRawString = mapper
+                  .writeValueAsString(prettyAnswer);
+            prettyAnswerSb.append(prettyAnswerRawString);
+            prettyAnswerSb.append("\n");
+            String answerString;
+            String prettyAnswerString = prettyAnswerSb.toString();
+            if (_settings.prettyPrintAnswer()) {
+               answerString = prettyAnswerString;
+            }
+            else {
+               answerString = structuredAnswerString;
+            }
+            _logger.error(answerString);
+            writeJsonAnswer(structuredAnswerString, prettyAnswerString);
+         }
+         catch (Exception e1) {
+            String errorMessage = String.format(
+                  "Could not serialize failure answer.",
+                  ExceptionUtils.getStackTrace(e1));
+            _logger.error(errorMessage);
+         }
+         throw be;
+      }
+   }
+
+   void outputAnswerWithLog(Answer answer) {
+      ObjectMapper mapper = new BatfishObjectMapper();
+      try {
+         Answer structuredAnswer = answer;
+         Answer prettyAnswer = structuredAnswer.prettyPrintAnswer();
+         StringBuilder structuredAnswerSb = new StringBuilder();
+         String structuredAnswerRawString = mapper
+               .writeValueAsString(structuredAnswer);
+         structuredAnswerSb.append(structuredAnswerRawString);
+         structuredAnswerSb.append("\n");
+         String structuredAnswerString = structuredAnswerSb.toString();
+         StringBuilder prettyAnswerSb = new StringBuilder();
+         String prettyAnswerRawString = mapper.writeValueAsString(prettyAnswer);
+         prettyAnswerSb.append(prettyAnswerRawString);
+         prettyAnswerSb.append("\n");
+         String answerString;
+         String prettyAnswerString = prettyAnswerSb.toString();
+         if (_settings.prettyPrintAnswer()) {
+            answerString = prettyAnswerString;
+         }
+         else {
+            answerString = structuredAnswerString;
+         }
+         _logger.debug(answerString);
+         writeJsonAnswerWithLog(answerString, structuredAnswerString,
+               prettyAnswerString);
+      }
+      catch (Exception e) {
+         BatfishException be = new BatfishException("Error in sending answer",
+               e);
+         try {
+            Answer failureAnswer = Answer.failureAnswer(e.toString(),
+                  answer.getQuestion());
+            failureAnswer.addAnswerElement(be.getBatfishStackTrace());
+            Answer structuredAnswer = failureAnswer;
+            Answer prettyAnswer = structuredAnswer.prettyPrintAnswer();
+            StringBuilder structuredAnswerSb = new StringBuilder();
+            String structuredAnswerRawString = mapper
+                  .writeValueAsString(structuredAnswer);
+            structuredAnswerSb.append(structuredAnswerRawString);
+            structuredAnswerSb.append("\n");
+            String structuredAnswerString = structuredAnswerSb.toString();
+            StringBuilder prettyAnswerSb = new StringBuilder();
+            String prettyAnswerRawString = mapper
+                  .writeValueAsString(prettyAnswer);
+            prettyAnswerSb.append(prettyAnswerRawString);
+            prettyAnswerSb.append("\n");
+            String answerString;
+            String prettyAnswerString = prettyAnswerSb.toString();
+            if (_settings.prettyPrintAnswer()) {
+               answerString = prettyAnswerString;
+            }
+            else {
+               answerString = structuredAnswerString;
+            }
+            _logger.error(answerString);
+            writeJsonAnswerWithLog(answerString, structuredAnswerString,
+                  prettyAnswerString);
          }
          catch (Exception e1) {
             String errorMessage = String.format(
@@ -2822,6 +2957,11 @@ public class Batfish extends PluginConsumer implements AutoCloseable, IBatfish {
       SortedMap<String, Configuration> configurations = loadConfigurations();
       for (Path currentFile : inputData.keySet()) {
          String hostname = currentFile.getFileName().toString();
+         String optionalSuffix = ".bgp";
+         if (hostname.endsWith(optionalSuffix)) {
+            hostname = hostname.substring(0,
+                  hostname.length() - optionalSuffix.length());
+         }
          if (!configurations.containsKey(hostname)) {
             continue;
          }
@@ -2837,7 +2977,8 @@ public class Batfish extends PluginConsumer implements AutoCloseable, IBatfish {
                _settings.printParseTree());
          String fileText = inputData.get(currentFile);
          ParseEnvironmentBgpTableJob job = new ParseEnvironmentBgpTableJob(
-               _settings, fileText, currentFile, warnings, _bgpTablePlugins);
+               _settings, fileText, hostname, currentFile, warnings,
+               _bgpTablePlugins);
          jobs.add(job);
       }
       BatfishJobExecutor<ParseEnvironmentBgpTableJob, ParseEnvironmentBgpTablesAnswerElement, ParseEnvironmentBgpTableResult, SortedMap<String, BgpAdvertisementsByVrf>> executor = new BatfishJobExecutor<>(
@@ -3306,7 +3447,7 @@ public class Batfish extends PluginConsumer implements AutoCloseable, IBatfish {
     */
    public AdvertisementSet processExternalBgpAnnouncements(
          Map<String, Configuration> configurations,
-         CommunitySet allCommunities) {
+         SortedSet<Long> allCommunities) {
       AdvertisementSet advertSet = new AdvertisementSet();
       Path externalBgpAnnouncementsPath = _testrigSettings
             .getEnvironmentSettings().getExternalBgpAnnouncementsPath();
@@ -3377,7 +3518,13 @@ public class Batfish extends PluginConsumer implements AutoCloseable, IBatfish {
       NodeSet blacklistNodes = getNodeBlacklist();
       if (blacklistNodes != null) {
          for (String hostname : blacklistNodes) {
-            configurations.remove(hostname);
+            Configuration node = configurations.get(hostname);
+            if (node != null) {
+               for (Interface iface : node.getInterfaces().values()) {
+                  iface.setActive(false);
+                  iface.setBlacklisted(true);
+               }
+            }
          }
       }
    }
@@ -3763,6 +3910,11 @@ public class Batfish extends PluginConsumer implements AutoCloseable, IBatfish {
 
       if (_settings.getAnswer()) {
          answer.append(answer());
+         action = true;
+      }
+
+      if (_settings.getAnalyze()) {
+         answer.append(analyze());
          action = true;
       }
 
@@ -4156,7 +4308,6 @@ public class Batfish extends PluginConsumer implements AutoCloseable, IBatfish {
          _settings.setSequential(true);
       }
       Settings settings = getSettings();
-      checkDataPlaneQuestionDependencies(_testrigSettings);
       String tag = getFlowTag(_testrigSettings);
       Map<String, Configuration> configurations = loadConfigurations();
       Set<Flow> flows = null;
@@ -4346,10 +4497,45 @@ public class Batfish extends PluginConsumer implements AutoCloseable, IBatfish {
       _logger.info("OK\n");
    }
 
-   private void writeJsonAnswer(String jsonAnswer) {
+   private void writeJsonAnswer(String structuredAnswerString,
+         String prettyAnswerString) {
+      Path questionPath = _settings.getQuestionPath();
+      if (questionPath != null) {
+         Path questionDir = questionPath.getParent();
+         if (!Files.exists(questionDir)) {
+            throw new BatfishException(
+                  "Could not write JSON answer to question dir '"
+                        + questionDir.toString()
+                        + "' because it does not exist");
+         }
+         boolean diff = _settings.getDiffQuestion();
+         String baseEnvName = _testrigSettings.getEnvironmentSettings()
+               .getName();
+         Path answerDir = questionDir.resolve(Paths
+               .get(BfConsts.RELPATH_ENVIRONMENTS_DIR, baseEnvName).toString());
+         if (diff) {
+            String deltaTestrigName = _deltaTestrigSettings.getName();
+            String deltaEnvName = _deltaTestrigSettings.getEnvironmentSettings()
+                  .getName();
+            answerDir = answerDir.resolve(Paths
+                  .get(BfConsts.RELPATH_DELTA, deltaTestrigName, deltaEnvName)
+                  .toString());
+         }
+         Path structuredAnswerPath = answerDir
+               .resolve(BfConsts.RELPATH_ANSWER_JSON);
+         Path prettyAnswerPath = answerDir
+               .resolve(BfConsts.RELPATH_ANSWER_PRETTY_JSON);
+         answerDir.toFile().mkdirs();
+         CommonUtil.writeFile(structuredAnswerPath, structuredAnswerString);
+         CommonUtil.writeFile(prettyAnswerPath, prettyAnswerString);
+      }
+   }
+
+   private void writeJsonAnswerWithLog(String answerString,
+         String structuredAnswerString, String prettyAnswerString) {
       Path jsonPath = _settings.getAnswerJsonPath();
       if (jsonPath != null) {
-         CommonUtil.writeFile(jsonPath, jsonAnswer);
+         CommonUtil.writeFile(jsonPath, answerString);
       }
       Path questionPath = _settings.getQuestionPath();
       if (questionPath != null) {
@@ -4360,8 +4546,26 @@ public class Batfish extends PluginConsumer implements AutoCloseable, IBatfish {
                         + questionDir.toString()
                         + "' because it does not exist");
          }
-         Path answerPath = questionDir.resolve(BfConsts.RELPATH_ANSWER_JSON);
-         CommonUtil.writeFile(answerPath, jsonAnswer);
+         boolean diff = _settings.getDiffQuestion();
+         String baseEnvName = _testrigSettings.getEnvironmentSettings()
+               .getName();
+         Path answerDir = questionDir.resolve(Paths
+               .get(BfConsts.RELPATH_ENVIRONMENTS_DIR, baseEnvName).toString());
+         if (diff) {
+            String deltaTestrigName = _deltaTestrigSettings.getName();
+            String deltaEnvName = _deltaTestrigSettings.getEnvironmentSettings()
+                  .getName();
+            answerDir = answerDir.resolve(Paths
+                  .get(BfConsts.RELPATH_DELTA, deltaTestrigName, deltaEnvName)
+                  .toString());
+         }
+         Path structuredAnswerPath = answerDir
+               .resolve(BfConsts.RELPATH_ANSWER_JSON);
+         Path prettyAnswerPath = answerDir
+               .resolve(BfConsts.RELPATH_ANSWER_PRETTY_JSON);
+         answerDir.toFile().mkdirs();
+         CommonUtil.writeFile(structuredAnswerPath, structuredAnswerString);
+         CommonUtil.writeFile(prettyAnswerPath, prettyAnswerString);
       }
    }
 

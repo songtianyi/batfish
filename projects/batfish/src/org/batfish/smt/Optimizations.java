@@ -258,7 +258,9 @@ class Optimizations {
             if (conf.getDefaultVrf().getOspfProcess() != null) {
                 protos.add(Protocol.OSPF);
             }
-            if (conf.getDefaultVrf().getBgpProcess() != null) {
+            // TODO: re-evaluate this in the future
+            // TODO: do we want to model BGP's impact on IGP in other slices?
+            if (conf.getDefaultVrf().getBgpProcess() != null && _encoderSlice.isMainSlice()) {
                 protos.add(Protocol.BGP);
             }
             if (needToModelConnected(conf)) {

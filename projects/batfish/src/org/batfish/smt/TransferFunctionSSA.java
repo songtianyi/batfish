@@ -405,6 +405,7 @@ class TransferFunctionSSA {
             p.debug("WithEnvironmentExpr");
             // TODO: this is not correct
             WithEnvironmentExpr we = (WithEnvironmentExpr) expr;
+            // TODO: postStatements() and preStatements()
             return compute(we.getExpr(), p);
 
         } else if (expr instanceof MatchCommunitySet) {
@@ -638,7 +639,6 @@ class TransferFunctionSSA {
             }
         }
 
-        // TODO: handle MED correctly (AS-specific? always-compare-med? deterministic-med?)
         ArithExpr otherAd = (p.getOther().getAdminDist() == null ? defaultAd : p.getOther().getAdminDist());
         ArithExpr otherMed = (p.getOther().getMed() == null ? defaultMed : p.getOther().getMed());
         ArithExpr otherMet = getOrDefault(p.getOther().getMetric(), defaultMet);
@@ -655,15 +655,16 @@ class TransferFunctionSSA {
         if (_isExport && _to.isBgp() && p.getOther().getClientId() != null) {
             cid = _enc.safeEqEnum(_current.getClientId(), p.getOther().getClientId());;
         }
-        if (!_isExport && _to.isBgp() && p.getOther().getClientId() != null) {
-            BoolExpr fromExternal = p.getOther().getClientId().checkIfValue(0);
-            BoolExpr edgeIsInternal = _enc.Bool(!isClient && !isNonClient);
-            BoolExpr copyOver = _enc.safeEqEnum(_current.getClientId(), p.getOther().getClientId());
-
-            Integer x = _enc.getGraph().getOriginatorId().get(_graphEdge.getRouter());
-
-            BoolExpr setNewValue = _current.getClientId().checkIfValue(x);
-            cid = _enc.If(_enc.And(fromExternal, edgeIsInternal), setNewValue, copyOver);
+        if (!_isExport && _to.isBgp()) {
+            if (p.getOther().getClientId() != null) {
+                BoolExpr fromExternal = p.getOther().getClientId().checkIfValue(0);
+                BoolExpr edgeIsInternal = _enc.Bool(!isClient && !isNonClient);
+                BoolExpr copyOver = _enc.safeEqEnum(_current.getClientId(), p.getOther().getClientId());
+                Integer x = _enc.getGraph().getOriginatorId().get(_graphEdge.getRouter());
+                SymbolicOriginatorId soid = _current.getClientId();
+                BoolExpr setNewValue = (x == null ? soid.checkIfValue(0) : soid.checkIfValue(x));
+                cid = _enc.If(_enc.And(fromExternal, edgeIsInternal), setNewValue, copyOver);
+            }
         }
 
         BoolExpr updates = _enc.And(per, len, ad, med, lp, met, id, cid, type, area, comms, history, isInternal, igpMet);

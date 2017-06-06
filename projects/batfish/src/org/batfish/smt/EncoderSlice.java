@@ -701,9 +701,12 @@ class EncoderSlice {
         }
 
         if (proto.isBgp()) {
+            // System.out.println(conf.getName());
+
             conf.getRouteFilterLists().forEach((name, list) -> {
                 for (RouteFilterLine line : list.getLines()) {
                     if (name.contains(BGP_NETWORK_FILTER_LIST_NAME)) {
+                        // System.out.println("ORIGINATE: " + line.getPrefix());
                         acc.add(line.getPrefix());
                     }
                 }
@@ -886,8 +889,7 @@ class EncoderSlice {
 
             for (Protocol proto : getProtocols().get(router)) {
 
-                boolean useSingleExport = _optimizations.getSliceCanKeepSingleExportVar().get
-                        (router, proto);
+                boolean useSingleExport = _optimizations.getSliceCanKeepSingleExportVar().get(router, proto);
 
                 Map<GraphEdge, ArrayList<LogicalEdge>> importGraphEdgeMap = new HashMap<>();
                 Map<GraphEdge, ArrayList<LogicalEdge>> exportGraphEdgeMap = new HashMap<>();
@@ -1019,7 +1021,7 @@ class EncoderSlice {
     /*
      * Check if this is the main slice
      */
-    private boolean isMainSlice() {
+    public boolean isMainSlice() {
         return _sliceName.equals("") || _sliceName.equals(Encoder.MAIN_SLICE_NAME);
     }
 
@@ -1317,10 +1319,15 @@ class EncoderSlice {
      * accounting for the possibility of null values.
      */
     private BoolExpr equalClientIds(SymbolicRecord best, SymbolicRecord vars) {
-        if (best.getClientId() == null || vars.getClientId() == null) {
+        if (best.getClientId() == null) {
             return True();
-        } else  {
-            return best.getClientId().Eq(vars.getClientId());
+        } else {
+            if (vars.getClientId() == null) {
+                // Lookup the actual originator id
+                return best.getClientId().checkIfValue(0);
+            } else {
+                return best.getClientId().Eq(vars.getClientId());
+            }
         }
     }
 
@@ -1525,18 +1532,13 @@ class EncoderSlice {
         ArithExpr defaultId = Int(0);
         BitVecExpr defaultOspfType = defaultOspfType();
 
+        BoolExpr betterLen = geBetterHelper(best.getPrefixLength(), vars.getPrefixLength(), defaultLen, false);
+        BoolExpr equalLen = geEqualHelper(best.getPrefixLength(), vars.getPrefixLength(), defaultLen);
 
-        BoolExpr betterLen = geBetterHelper(best.getPrefixLength(), vars.getPrefixLength(),
-                defaultLen, false);
-        BoolExpr equalLen = geEqualHelper(best.getPrefixLength(), vars.getPrefixLength(),
-                defaultLen);
-
-        BoolExpr betterAd = geBetterHelper(best.getAdminDist(), vars.getAdminDist(),
-                defaultAdmin, true);
+        BoolExpr betterAd = geBetterHelper(best.getAdminDist(), vars.getAdminDist(), defaultAdmin, true);
         BoolExpr equalAd = geEqualHelper(best.getAdminDist(), vars.getAdminDist(), defaultAdmin);
 
-        BoolExpr betterLp = geBetterHelper(best.getLocalPref(), vars.getLocalPref(),
-                defaultLocal, false);
+        BoolExpr betterLp = geBetterHelper(best.getLocalPref(), vars.getLocalPref(), defaultLocal, false);
         BoolExpr equalLp = geEqualHelper(best.getLocalPref(), vars.getLocalPref(), defaultLocal);
 
         BoolExpr betterMet = geBetterHelper(best.getMetric(), vars.getMetric(), defaultMet, true);
@@ -1552,7 +1554,7 @@ class EncoderSlice {
         BoolExpr equalOspfType = geEqualHelper(bestType, varsType, defaultOspfType);
 
         BoolExpr betterInternal = geBetterHelper(best.getBgpInternal(), vars.getBgpInternal(), False(), true);
-        BoolExpr equalInternal = geEqualHelper(best.getBgpInternal(), vars.getBgpInternal(), True());
+        BoolExpr equalInternal = geEqualHelper(best.getBgpInternal(), vars.getBgpInternal(), False());
 
         BoolExpr betterIgpMet = geBetterHelper(best.getIgpMetric(), vars.getIgpMetric(), defaultIgp, true);
         BoolExpr equalIgpMet = geEqualHelper(best.getIgpMetric(), vars.getIgpMetric(), defaultIgp);
@@ -2007,6 +2009,23 @@ class EncoderSlice {
         return acc;
     }
 
+
+    private LogicalEdge foo(GraphEdge ge, Protocol proto) {
+        List<ArrayList<LogicalEdge>> es = getLogicalGraph().getLogicalEdges().get(ge.getRouter(), proto);
+        LogicalEdge e = null;
+        if (es != null) {
+            for (ArrayList<LogicalEdge> ess : es) {
+                for (LogicalEdge edge : ess) {
+                    if (edge.getEdge().equals(ge)) {
+                        e = edge;
+                        break;
+                    }
+                }
+            }
+        }
+        return e;
+    }
+
     /*
      * Constraints for the final data plane forwarding behavior.
      * Forwarding occurs in the data plane if the control plane decides
@@ -2024,6 +2043,9 @@ class EncoderSlice {
 
                     BoolExpr fwd = False();
 
+                    BoolExpr cForward = _symbolicDecisions.getControlForwarding().get(router, ge);
+                    BoolExpr dForward = _symbolicDecisions.getDataForwarding().get(router, ge);
+
                     // for each abstract control edge,
                     // if that edge is on and its neighbor slices has next hop forwarding
                     // out the current edge ge, the we use ge.
@@ -2034,27 +2056,35 @@ class EncoderSlice {
                             // If Route reflectors, then next hop based on ID
                             if (st == Graph.BgpSendType.TO_RR) {
                                 SymbolicRecord record = getSymbolicDecisions().getBestNeighbor().get(router);
+
+                                // adjust for iBGP in main slice
                                 BoolExpr acc = False();
-                                for (Map.Entry<String, Integer> entry : getGraph().getOriginatorId().entrySet()) {
-                                    String r = entry.getKey();
-                                    Integer id = entry.getValue();
-                                    EncoderSlice s = _encoder.getSlice(r);
-                                    BoolExpr outEdge = s.getSymbolicDecisions().getDataForwarding().get(router, ge);
-                                    acc = Or(acc, And(record.getClientId().checkIfValue(id), outEdge));
+                                if (isMainSlice()) {
+                                    for (Map.Entry<String, Integer> entry : getGraph().getOriginatorId().entrySet()) {
+                                        String r = entry.getKey();
+                                        Integer id = entry.getValue();
+                                        EncoderSlice s = _encoder.getSlice(r);
+                                        BoolExpr outEdge = s.getSymbolicDecisions().getDataForwarding().get(router, ge);
+                                        acc = Or(acc, And(record.getClientId().checkIfValue(id), outEdge));
+                                    }
                                 }
+
                                 fwd = Or(fwd, And(ctrlFwd, acc));
                             }
+
                             // Otherwise, we know the next hop statically
                             else {
-                                EncoderSlice s = _encoder.getSlice(ge2.getPeer());
-                                BoolExpr outEdge = s.getSymbolicDecisions().getDataForwarding().get(router, ge);
-                                fwd = Or(fwd, And(ctrlFwd, outEdge));
+
+                                // adjust for iBGP in main slice
+                                if (isMainSlice()) {
+                                    EncoderSlice s = _encoder.getSlice(ge2.getPeer());
+                                    BoolExpr outEdge = s.getSymbolicDecisions().getDataForwarding().get(router, ge);
+                                    fwd = Or(fwd, And(ctrlFwd, outEdge));
+                                }
+
                             }
                         }
                     }
-
-                    BoolExpr cForward = _symbolicDecisions.getControlForwarding().get(router, ge);
-                    BoolExpr dForward = _symbolicDecisions.getDataForwarding().get(router, ge);
 
                     fwd = Or(fwd, cForward);
 
@@ -2129,7 +2159,7 @@ class EncoderSlice {
 
                 if (varsOther != null) {
 
-                    BoolExpr isRoot = relevantOrigination(originations);
+                    //BoolExpr isRoot = relevantOrigination(originations);
                     BoolExpr active = interfaceActive(iface, proto);
 
                     // Handle iBGP by checking reachability to the next hop to send messages
@@ -2174,7 +2204,7 @@ class EncoderSlice {
                         loop = False();
                     }
 
-                    BoolExpr usable = And(Not(isRoot), Not(loop), active, varsOther.getPermitted(), receiveMessage);
+                    BoolExpr usable = And(Not(loop), active, varsOther.getPermitted(), receiveMessage);
 
                     BoolExpr importFunction;
                     RoutingPolicy pol = getGraph().findImportRoutingPolicy(router, proto, e.getEdge());

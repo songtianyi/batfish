@@ -8,6 +8,7 @@ import java.util.HashMap;
 import java.util.Set;
 
 import org.batfish.common.util.ComparableStructure;
+import org.batfish.datamodel.ConfigurationFormat;
 import org.batfish.datamodel.Ip;
 import org.batfish.datamodel.Ip6;
 import org.batfish.datamodel.Prefix;
@@ -50,6 +51,14 @@ public class BgpProcess extends ComparableStructure<Integer> {
 
    private MasterBgpPeerGroup _masterBgpPeerGroup;
 
+   private Integer _maximumPaths;
+
+   private Integer _maximumPathsEbgp;
+
+   private Integer _maximumPathsEibgp;
+
+   private Integer _maximumPathsIbgp;
+
    private Map<String, NamedBgpPeerGroup> _namedPeerGroups;
 
    private Map<String, NamedBgpPeerGroup> _peerSessions;
@@ -58,7 +67,7 @@ public class BgpProcess extends ComparableStructure<Integer> {
 
    private Ip _routerId;
 
-   public BgpProcess(int procnum) {
+   public BgpProcess(ConfigurationFormat format, int procnum) {
       super(procnum);
       _afGroups = new HashMap<>();
       _aggregateNetworks = new HashMap<>();
@@ -75,6 +84,17 @@ public class BgpProcess extends ComparableStructure<Integer> {
       _peerSessions = new HashMap<>();
       _redistributionPolicies = new EnumMap<>(RoutingProtocol.class);
       _masterBgpPeerGroup = new MasterBgpPeerGroup();
+      switch (format) {
+      case CISCO_IOS:
+      case CISCO_IOS_XR:
+      case CISCO_NX:
+         _masterBgpPeerGroup.setAdvertiseInactive(true);
+         break;
+
+      // $CASES-OMITTED$
+      default:
+         break;
+      }
       _masterBgpPeerGroup.setDefaultMetric(DEFAULT_BGP_DEFAULT_METRIC);
    }
 
@@ -178,6 +198,22 @@ public class BgpProcess extends ComparableStructure<Integer> {
       return _masterBgpPeerGroup;
    }
 
+   public Integer getMaximumPaths() {
+      return _maximumPaths;
+   }
+
+   public Integer getMaximumPathsEbgp() {
+      return _maximumPathsEbgp;
+   }
+
+   public Integer getMaximumPathsEibgp() {
+      return _maximumPathsEibgp;
+   }
+
+   public Integer getMaximumPathsIbgp() {
+      return _maximumPathsIbgp;
+   }
+
    public Map<String, NamedBgpPeerGroup> getNamedPeerGroups() {
       return _namedPeerGroups;
    }
@@ -200,6 +236,22 @@ public class BgpProcess extends ComparableStructure<Integer> {
 
    public void setClusterId(Ip clusterId) {
       _clusterId = clusterId;
+   }
+
+   public void setMaximumPaths(Integer maximumPaths) {
+      _maximumPaths = maximumPaths;
+   }
+
+   public void setMaximumPathsEbgp(Integer maximumPathsEbgp) {
+      _maximumPathsEbgp = maximumPathsEbgp;
+   }
+
+   public void setMaximumPathsEibgp(Integer maximumPathsEibgp) {
+      _maximumPathsEibgp = maximumPathsEibgp;
+   }
+
+   public void setMaximumPathsIbgp(Integer maximumPathsIbgp) {
+      _maximumPathsIbgp = maximumPathsIbgp;
    }
 
    public void setRouterId(Ip routerId) {

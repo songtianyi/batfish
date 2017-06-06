@@ -87,7 +87,7 @@ test tests/java-smt/acl1-multipath.ref get smt-multipath-consistency finalNodeRe
 
 # Check correctness of iBGP encoding
 init-testrig test_rigs/smt-examples/IBGP1
-test tests/java-smt/ibgp1-forwarding.ref get smt-forwarding dstIps=["20.20.20.20"] | fullModel=True
+test tests/java-smt/ibgp1-forwarding.ref get smt-forwarding dstIps=["20.20.20.20"] | fullModel=True | noEnvironment=True
 
 # Check correctness of multiple ASes using both iBGP and eBGP. Also ensures
 # correct handling of transitivity and path metric update
@@ -101,7 +101,7 @@ test tests/java-smt/ibgp3-forwarding.ref get smt-forwarding dstIps=["4.4.4.4"] |
 # Putting everything together, check the campus network
 init-testrig test_rigs/smt-examples/CAMPUS1
 test tests/java-smt/campus1-forwarding.ref get smt-forwarding dstIps=["2.128.0.101"] | srcIps=["1.0.1.2"] | ipProtocols=["IP"] | noEnvironment=True
-test tests/java-smt/campus1-reachability.ref get smt-reachability ingressNodeRegex="as2border.*" | finalNodeRegex="as2dept1" | finalIfaceRegex="FastEthernet1/0"  | fullModel=True
+test tests/java-smt/campus1-reachability.ref get smt-reachability ingressNodeRegex="as2border.*" | finalNodeRegex="as2dept1" | finalIfaceRegex="FastEthernet1/0"  | fullModel=True | minimize=True
 test tests/java-smt/campus1-local.ref get smt-local-consistency nodeRegex=".*border.*"
 
 # Testing reachability with failures in the campus network with external filters

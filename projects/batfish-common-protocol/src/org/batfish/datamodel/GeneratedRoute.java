@@ -1,5 +1,9 @@
 package org.batfish.datamodel;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.SortedSet;
+
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -12,7 +16,7 @@ public final class GeneratedRoute extends AbstractRoute
 
    public static class Builder extends AbstractRouteBuilder<GeneratedRoute> {
 
-      private AsPath _asPath;
+      private List<SortedSet<Integer>> _asPath;
 
       private String _attributePolicy;
 
@@ -23,7 +27,8 @@ public final class GeneratedRoute extends AbstractRoute
       private String _nextHopInterface;
 
       public Builder() {
-         _asPath = new AsPath();
+         _asPath = new ArrayList<>();
+         _nextHopIp = Route.UNSET_ROUTE_NEXT_HOP_IP;
       }
 
       @Override
@@ -34,12 +39,12 @@ public final class GeneratedRoute extends AbstractRoute
          gr.setGenerationPolicy(_generationPolicy);
          gr.setAttributePolicy(_attributePolicy);
          gr.setDiscard(_discard);
-         gr.setAsPath(_asPath);
+         gr.setAsPath(new AsPath(_asPath));
          gr.setNextHopInterface(_nextHopInterface);
          return gr;
       }
 
-      public void setAsPath(AsPath asPath) {
+      public void setAsPath(List<SortedSet<Integer>> asPath) {
          _asPath = asPath;
       }
 
@@ -85,11 +90,11 @@ public final class GeneratedRoute extends AbstractRoute
 
    @JsonCreator
    public GeneratedRoute(@JsonProperty(NETWORK_VAR) Prefix prefix) {
-      super(prefix, null);
+      super(prefix, Route.UNSET_ROUTE_NEXT_HOP_IP);
    }
 
    public GeneratedRoute(Prefix prefix, int administrativeCost) {
-      super(prefix, null);
+      super(prefix, Route.UNSET_ROUTE_NEXT_HOP_IP);
       _administrativeCost = administrativeCost;
    }
 
@@ -166,6 +171,12 @@ public final class GeneratedRoute extends AbstractRoute
    @Override
    public int hashCode() {
       return _network.hashCode();
+   }
+
+   @Override
+   protected final String protocolRouteString() {
+      return " asPath:" + _asPath + " attributePolicy:" + _attributePolicy
+            + " discard:" + _discard + " generationPolicy:" + _generationPolicy;
    }
 
    @JsonProperty(ADMINISTRATIVE_COST_VAR)

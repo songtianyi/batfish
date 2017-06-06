@@ -9,12 +9,15 @@ import org.batfish.common.BatfishException;
 import org.batfish.common.Pair;
 
 public enum Command {
+   ADD_ANALYSIS_QUESTIONS("add-analysis-questions"),
    ADD_BATFISH_OPTION("add-batfish-option"),
    ANSWER("answer"),
    ANSWER_DELTA("answer-delta"),
    CAT("cat"),
    CHECK_API_KEY("checkapikey"),
    CLEAR_SCREEN("cls"),
+   DEL_ANALYSIS("del-analysis"),
+   DEL_ANALYSIS_QUESTIONS("del-analysis-questions"),
    DEL_BATFISH_OPTION("del-batfish-option"),
    DEL_CONTAINER("del-container"),
    DEL_ENVIRONMENT("del-environment"),
@@ -26,14 +29,21 @@ public enum Command {
    GEN_DELTA_DP("generate-delta-dataplane"),
    GEN_DP("generate-dataplane"),
    GET("get"),
+   GET_ANALYSIS_ANSWERS("get-analysis-answers"),
+   GET_ANALYSIS_ANSWERS_DELTA("get-analysis-answers-delta"),
+   GET_ANALYSIS_ANSWERS_DIFFERENTIAL("get-analysis-answers-differential"),
    GET_ANSWER("get-answer"),
+   GET_ANSWER_DELTA("get-answer-delta"),
+   GET_ANSWER_DIFFERENTIAL("get-answer-differential"),
    GET_DELTA("get-delta"),
    GET_QUESTION("get-question"),
    HELP("help"),
+   INIT_ANALYSIS("init-analysis"),
    INIT_CONTAINER("init-container"),
    INIT_DELTA_ENV("init-delta-environment"),
    INIT_DELTA_TESTRIG("init-delta-testrig"),
    INIT_TESTRIG("init-testrig"),
+   LIST_ANALYSES("list-analyses"),
    LIST_CONTAINERS("list-containers"),
    LIST_ENVIRONMENTS("list-environments"),
    LIST_QUESTIONS("list-questions"),
@@ -44,6 +54,9 @@ public enum Command {
    QUIT("quit"),
    REINIT_DELTA_TESTRIG("reinit-delta-testrig"),
    REINIT_TESTRIG("reinit-testrig"),
+   RUN_ANALYSIS("run-analysis"),
+   RUN_ANALYSIS_DELTA("run-analysis-delta"),
+   RUN_ANALYSIS_DIFFERENTIAL("run-analysis-differential"),
    SET_BATFISH_LOGLEVEL("set-batfish-loglevel"),
    SET_CONTAINER("set-container"),
    SET_DELTA_ENV("set-delta-environment"),
@@ -60,6 +73,7 @@ public enum Command {
    SHOW_DELTA_TESTRIG("show-delta-testrig"),
    SHOW_LOGLEVEL("show-loglevel"),
    SHOW_TESTRIG("show-testrig"),
+   SHOW_VERSION("show-version"),
    TEST("test"),
    UPLOAD_CUSTOM_OBJECT("upload-custom");
 
@@ -78,9 +92,10 @@ public enum Command {
 
    private static Map<Command, Pair<String, String>> buildUsageMap() {
       Map<Command, Pair<String, String>> descs = new TreeMap<>();
+      descs.put(ADD_ANALYSIS_QUESTIONS,
+            new Pair<>("<analysis-name> <question-directory>",
+                  "Add questions from the directory to the analysis"));
       descs.put(ADD_BATFISH_OPTION, new Pair<>("<option-key> <option-value>",
-            "Additional options to pass to Batfish"));
-      descs.put(ADD_BATFISH_OPTION, new Pair<>("<option-key> [<option-value>]",
             "Additional options to pass to Batfish"));
       descs.put(ANSWER, new Pair<>(
             "<question-name>  [param1=value1 [param2=value2] ...]",
@@ -95,6 +110,11 @@ public enum Command {
       // + " <dirname>\n"
       // + "\t Change the working directory");
       descs.put(CLEAR_SCREEN, new Pair<>("", "Clear screen"));
+      descs.put(DEL_ANALYSIS,
+            new Pair<>("<analysis-name>", "Delete the analysis completely"));
+      descs.put(DEL_ANALYSIS_QUESTIONS,
+            new Pair<>("<analysis-name> qname1 [qname2 [qname3] ...]",
+                  "Delete questions from the analysis"));
       descs.put(DEL_BATFISH_OPTION,
             new Pair<>("<option-key>", "Stop passing this option to Batfish"));
       descs.put(DEL_CONTAINER,
@@ -115,7 +135,9 @@ public enum Command {
       descs.put(GET,
             new Pair<>("<question-type>  [param1=value1 [param2=value2] ...]",
                   "Answer the question by type for the base environment"));
-      descs.put(GET_ANSWER, new Pair<>("[-html] <question-name>",
+      descs.put(GET_ANALYSIS_ANSWERS, new Pair<>("<analysis-name>",
+            "Get the answers for a previously run analysis"));
+      descs.put(GET_ANSWER, new Pair<>("<question-name>",
             "Get the answer for a previously answered question"));
       descs.put(GET_DELTA,
             new Pair<>("<question-file>  [param1=value1 [param2=value2] ...]",
@@ -124,6 +146,9 @@ public enum Command {
             "Get the question and parameter files"));
       descs.put(HELP,
             new Pair<>("[command]", "Print the list of supported commands"));
+      descs.put(INIT_ANALYSIS,
+            new Pair<>("<analysis-name> <question-directory>",
+                  "Initialize a new analysis for the container"));
       descs.put(INIT_CONTAINER, new Pair<>("[<container-name-prefix>]",
             "Initialize a new container"));
       descs.put(INIT_DELTA_ENV,
@@ -131,11 +156,13 @@ public enum Command {
                   "<environment zipfile or directory> [<environment-name>]",
                   "Initialize the delta environment"));
       descs.put(INIT_DELTA_TESTRIG,
-            new Pair<>("<testrig zipfile or directory> [<environment name>]",
+            new Pair<>("<testrig zipfile or directory> [<testrig-name>]",
                   "Initialize the delta testrig with default environment"));
       descs.put(INIT_TESTRIG,
-            new Pair<>("<testrig zipfile or directory> [<environment name>]",
+            new Pair<>("<testrig zipfile or directory> [<testrig-name>]",
                   "Initialize the testrig with default environment"));
+      descs.put(LIST_ANALYSES,
+            new Pair<>("", "List the analyses and their configuration"));
       descs.put(LIST_CONTAINERS,
             new Pair<>("", "List the containers to which you have access"));
       descs.put(LIST_ENVIRONMENTS, new Pair<>("",
@@ -154,6 +181,8 @@ public enum Command {
             "Reinitialize the delta testrig with default environment"));
       descs.put(REINIT_TESTRIG, new Pair<>("",
             "Reinitialize the testrig with default environment"));
+      descs.put(RUN_ANALYSIS, new Pair<>("<analysis-name>",
+            "Run the (previously configured) analysis"));
       descs.put(SET_BATFISH_LOGLEVEL,
             new Pair<>("<debug|info|output|warn|error>",
                   "Set the batfish loglevel. Default is warn"));
@@ -183,6 +212,8 @@ public enum Command {
             new Pair<>("", "Show delta testrig and environment"));
       descs.put(SHOW_TESTRIG,
             new Pair<>("", "Show base testrig and environment"));
+      descs.put(SHOW_VERSION,
+            new Pair<>("", "Show the version of Client and Service"));
       descs.put(TEST, new Pair<>("<reference file> <command>",
             "Show base testrig and environment"));
       descs.put(UPLOAD_CUSTOM_OBJECT, new Pair<>("<object-name> <object-file>",

@@ -29,10 +29,12 @@ import org.batfish.client.Settings.RunMode;
 import org.batfish.client.answer.LoadQuestionAnswerElement;
 import org.batfish.common.BatfishException;
 import org.batfish.common.BfConsts;
+import org.batfish.common.CoordConsts;
 import org.batfish.common.BatfishLogger;
 import org.batfish.common.Pair;
 import org.batfish.common.Task;
 import org.batfish.common.Task.Batch;
+import org.batfish.common.Version;
 import org.batfish.common.WorkItem;
 import org.batfish.common.CoordConsts.WorkStatusCode;
 import org.batfish.common.Task.Batch;
@@ -47,14 +49,17 @@ import org.batfish.datamodel.questions.IEnvironmentCreationQuestion;
 import org.batfish.datamodel.questions.Question;
 import org.batfish.datamodel.questions.Question.InstanceData;
 import org.batfish.datamodel.questions.Question.InstanceData.Variable;
+import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 import org.codehaus.jettison.json.JSONTokener;
 
+import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.exc.UnrecognizedPropertyException;
 import com.kjetland.jackson.jsonSchema.JsonSchemaGenerator;
 
 import jline.console.ConsoleReader;
@@ -460,6 +465,63 @@ public class Client extends AbstractClient implements IClient {
       return tempFilePath;
    }
 
+   private boolean delAnalysis(FileWriter outWriter, List<String> options,
+         List<String> parameters) {
+      if (!isSetContainer(true)) {
+         return false;
+      }
+      if (options.size() != 0 || parameters.size() != 1) {
+         _logger.errorf("Invalid arguments: %s %s\n", options.toString(),
+               parameters.toString());
+         printUsage(Command.DEL_ANALYSIS);
+         return false;
+      }
+
+      String analysisName = parameters.get(0);
+
+      boolean result = _workHelper.delAnalysis(_currContainerName,
+            analysisName);
+
+      logOutput(outWriter, "Result of deleting analysis " + analysisName + ": "
+            + result + "\n");
+      return result;
+   }
+
+   private boolean delAnalysisQuestions(FileWriter outWriter,
+         List<String> options, List<String> parameters) {
+      if (!isSetContainer(true)) {
+         return false;
+      }
+      if (options.size() != 0 || parameters.size() < 2) {
+         _logger.errorf("Invalid arguments: %s %s\n", options.toString(),
+               parameters.toString());
+         printUsage(Command.DEL_ANALYSIS_QUESTIONS);
+         return false;
+      }
+
+      String analysisName = parameters.get(0);
+
+      String delQuestionsStr = "[]";
+
+      try {
+         JSONArray delQuestionsArray = new JSONArray();
+         for (int index = 1; index < parameters.size(); index++) {
+            delQuestionsArray.put(parameters.get(index));
+         }
+         delQuestionsStr = delQuestionsArray.toString(1);
+      }
+      catch (JSONException e) {
+         throw new BatfishException("Failed to get JSONObject for analysis", e);
+      }
+
+      boolean result = _workHelper.configureAnalysis(_currContainerName, false,
+            analysisName, null, delQuestionsStr);
+
+      logOutput(outWriter,
+            "Result of deleting analysis questions: " + result + "\n");
+      return result;
+   }
+
    private boolean delBatfishOption(List<String> parameters) {
       String optionKey = parameters.get(0);
 
@@ -502,14 +564,14 @@ public class Client extends AbstractClient implements IClient {
       return true;
    }
 
-   private boolean delTestrig(List<String> parameters) {
+   private boolean delTestrig(FileWriter outWriter, List<String> parameters) {
       if (!isSetContainer(true)) {
          return false;
       }
 
       String testrigName = parameters.get(0);
       boolean result = _workHelper.delTestrig(_currContainerName, testrigName);
-      _logger.outputf("Result of deleting testrig: %s\n", result);
+      logOutput(outWriter, "Result of deleting testrig: " + result + "\n");
       return true;
    }
 
@@ -597,18 +659,8 @@ public class Client extends AbstractClient implements IClient {
             answerStringToPrint = answer.prettyPrint();
          }
 
-         if (outWriter == null) {
-            _logger.output(answerStringToPrint);
-         }
-         else {
-            try {
-               outWriter.write(answerStringToPrint);
-            }
-            catch (IOException e) {
-               throw new BatfishException(
-                     "Failed to record response to output writer", e);
-            }
-         }
+         logOutput(outWriter, answerStringToPrint);
+
          // tests serialization/deserialization when running in debug mode
          if (_logger.getLogLevel() >= BatfishLogger.LEVEL_DEBUG) {
             try {
@@ -665,11 +717,41 @@ public class Client extends AbstractClient implements IClient {
    private void generateDatamodel() {
       try {
          ObjectMapper mapper = new BatfishObjectMapper();
-
          JsonSchemaGenerator schemaGenNew = new JsonSchemaGenerator(mapper);
          JsonNode schemaNew = schemaGenNew
                .generateJsonSchema(Configuration.class);
          _logger.output(mapper.writeValueAsString(schemaNew));
+
+         // Reflections reflections = new Reflections("org.batfish.datamodel");
+         // Set<Class<? extends AnswerElement>> classes =
+         // reflections.getSubTypesOf(AnswerElement.class);
+         // _logger.outputf("Found %d classes that inherit %s\n",
+         // classes.toArray().length, "AnswerElement");
+         //
+         // File dmDir = Paths.get(_settings.getDatamodelDir()).toFile();
+         // if (!dmDir.exists()) {
+         // if (!dmDir.mkdirs()) {
+         // throw new BatfishException("Could not create directory: " +
+         // dmDir.getAbsolutePath());
+         // }
+         // }
+         //
+         // for (Class c : classes) {
+         // String className = c.getCanonicalName()
+         // .replaceAll("org\\.batfish\\.datamodel\\.", "")
+         // .replaceAll("\\.", "-")
+         // + ".json";
+         // _logger.outputf("%s --> %s\n", c, className);
+         // Path file = Paths.get(dmDir.getAbsolutePath(), className);
+         // try (PrintWriter out = new
+         // PrintWriter(file.toAbsolutePath().toString())) {
+         // ObjectMapper mapper = new BatfishObjectMapper();
+         // JsonSchemaGenerator schemaGen = new JsonSchemaGenerator(mapper);
+         // JsonNode schema = schemaGen.generateJsonSchema(c);
+         // String schemaString = mapper.writeValueAsString(schema);
+         // out.println(schemaString);
+         // }
+         // }
 
          // JsonSchemaGenerator schemaGenNew = new JsonSchemaGenerator(mapper,
          // true, JsonSchemaConfig.vanillaJsonSchemaDraft4());
@@ -785,42 +867,111 @@ public class Client extends AbstractClient implements IClient {
       }
    }
 
-   private boolean getAnswer(List<String> options, List<String> parameters) {
+   private boolean getAnalysisAnswers(FileWriter outWriter,
+         List<String> options, List<String> parameters, boolean delta,
+         boolean differential) {
       if (!isSetTestrig() || !isSetContainer(true)) {
          return false;
       }
+      if (options.size() != 0 || parameters.size() != 1) {
+         _logger.errorf("Invalid arguments: %s %s\n", options.toString(),
+               parameters.toString());
+         printUsage(Command.GET_ANALYSIS_ANSWERS);
+         return false;
+      }
 
-      boolean formatJson = true;
+      String analysisName = parameters.get(0);
 
-      if (options.size() == 1) {
-         if (options.get(0).equals("-html")) {
-            formatJson = false;
-         }
-         else {
-            _logger.outputf(
-                  "Unknown option: %s (note that json does not need a flag)\n",
-                  options.get(0));
-            return false;
-         }
+      String baseTestrig;
+      String baseEnvironment;
+      String deltaTestrig;
+      String deltaEnvironment;
+      if (differential) {
+         baseTestrig = _currTestrig;
+         baseEnvironment = _currEnv;
+         deltaTestrig = _currDeltaTestrig;
+         deltaEnvironment = _currDeltaEnv;
+      }
+      else if (delta) {
+         baseTestrig = _currDeltaTestrig;
+         baseEnvironment = _currDeltaEnv;
+         deltaTestrig = null;
+         deltaEnvironment = null;
+      }
+      else {
+         baseTestrig = _currTestrig;
+         baseEnvironment = _currEnv;
+         deltaTestrig = null;
+         deltaEnvironment = null;
+      }
+      String answer = _workHelper.getAnalysisAnswers(_currContainerName,
+            baseTestrig, baseEnvironment, deltaTestrig, deltaEnvironment,
+            analysisName);
+
+      if (answer == null) {
+         return false;
+      }
+
+      logOutput(outWriter, answer + "\n");
+
+      return true;
+   }
+
+   private boolean getAnswer(FileWriter outWriter, List<String> parameters,
+         boolean delta, boolean differential) {
+      if (!isSetTestrig() || !isSetContainer(true)) {
+         return false;
+      }
+      if (parameters.size() != 1) {
+         _logger.error("Invalid arguments: " + parameters.toString());
+         printUsage(Command.GET_ANSWER);
+         return false;
       }
 
       String questionName = parameters.get(0);
 
-      String answerFileName = String.format("%s/%s/%s",
-            BfConsts.RELPATH_QUESTIONS_DIR, questionName,
-            (formatJson) ? BfConsts.RELPATH_ANSWER_JSON
-                  : BfConsts.RELPATH_ANSWER_HTML);
+      String baseTestrig;
+      String baseEnvironment;
+      String deltaTestrig;
+      String deltaEnvironment;
+      if (differential) {
+         baseTestrig = _currTestrig;
+         baseEnvironment = _currEnv;
+         deltaTestrig = _currDeltaTestrig;
+         deltaEnvironment = _currDeltaEnv;
+      }
+      else if (delta) {
+         baseTestrig = _currDeltaTestrig;
+         baseEnvironment = _currDeltaEnv;
+         deltaTestrig = null;
+         deltaEnvironment = null;
+      }
+      else {
+         baseTestrig = _currTestrig;
+         baseEnvironment = _currEnv;
+         deltaTestrig = null;
+         deltaEnvironment = null;
+      }
+      String answerString = _workHelper.getAnswer(_currContainerName,
+            baseTestrig, baseEnvironment, deltaTestrig, deltaEnvironment,
+            questionName);
 
-      String downloadedAnsFile = _workHelper.getObject(_currContainerName,
-            _currTestrig, answerFileName);
-      if (downloadedAnsFile == null) {
-         _logger.errorf("Failed to get answer file %s\n", answerFileName);
-         return false;
+      String answerStringToPrint = answerString;
+      if (outWriter == null && _settings.getPrettyPrintAnswers()) {
+         ObjectMapper mapper = new BatfishObjectMapper(getCurrentClassLoader());
+         Answer answer;
+         try {
+            answer = mapper.readValue(answerString, Answer.class);
+         }
+         catch (IOException e) {
+            throw new BatfishException(
+                  "Response does not appear to be valid JSON representation of "
+                        + Answer.class.getSimpleName());
+         }
+         answerStringToPrint = answer.prettyPrint();
       }
 
-      String answerString = CommonUtil.readFile(Paths.get(downloadedAnsFile));
-      _logger.output(answerString);
-      _logger.output("\n");
+      logOutput(outWriter, answerStringToPrint + "\n");
 
       return true;
    }
@@ -984,6 +1135,55 @@ public class Client extends AbstractClient implements IClient {
       }
    }
 
+   private boolean initOrAddAnalysis(FileWriter outWriter, List<String> options,
+         List<String> parameters, boolean newAnalysis) {
+      if (!isSetContainer(true)) {
+         return false;
+      }
+      if (options.size() != 0 || parameters.size() != 2) {
+         _logger.errorf("Invalid arguments: %s %s", options.toString(),
+               parameters.toString());
+         printUsage(Command.INIT_ANALYSIS);
+         return false;
+      }
+
+      String analysisName = parameters.get(0);
+      String questionsPathStr = parameters.get(1);
+
+      Map<String, String> questionMap = new TreeMap<>();
+
+      if (!loadQuestions(null, questionsPathStr, questionMap)) {
+         return false;
+      }
+
+      String analysisJsonString = "{}";
+
+      try {
+         JSONObject jObject = new JSONObject();
+         for (String qName : questionMap.keySet()) {
+            jObject.put(qName, new JSONObject(questionMap.get(qName)));
+         }
+         analysisJsonString = jObject.toString(1);
+      }
+      catch (JSONException e) {
+         throw new BatfishException("Failed to get JSONObject for analysis", e);
+      }
+
+      Path analysisFile = createTempFile("analysis", analysisJsonString);
+
+      boolean result = _workHelper.configureAnalysis(_currContainerName,
+            newAnalysis, analysisName, analysisFile.toAbsolutePath().toString(),
+            null);
+
+      if (analysisFile != null) {
+         CommonUtil.delete(analysisFile);
+      }
+
+      logOutput(outWriter, "Output of configuring analysis " + analysisName
+            + ": " + result + "\n");
+      return result;
+   }
+
    private boolean initTestrig(FileWriter outWriter, List<String> parameters,
          boolean doDelta) throws Exception {
       String testrigLocation = parameters.get(0);
@@ -1098,6 +1298,58 @@ public class Client extends AbstractClient implements IClient {
       return params;
    }
 
+   private boolean listAnalyses(FileWriter outWriter, List<String> options,
+         List<String> parameters) {
+      if (!isSetContainer(true)) {
+         return false;
+      }
+      if (options.size() != 0 || parameters.size() != 0) {
+         _logger.errorf("Invalid arguments: %s %s\n", options.toString(),
+               parameters.toString());
+         printUsage(Command.LIST_TESTRIGS);
+         return false;
+      }
+
+      JSONObject analysisList = _workHelper.listAnalyses(_currContainerName);
+      logOutput(outWriter,
+            String.format("Found %d analyses\n", analysisList.length()));
+
+      try {
+         logOutput(outWriter, analysisList.toString(1));
+      }
+      catch (JSONException e) {
+         throw new BatfishException("Failed to print analysis list", e);
+      }
+
+      // if (analysisList != null) {
+      // Iterator<?> aIterator = analysisList.keys();
+      // while (aIterator.hasNext()) {
+      // String aName = (String) aIterator.next();
+      // _logger.outputf("Analysis: %s\n", aName);
+      //
+      // try {
+      // JSONObject questionList = analysisList.getJSONObject(aName);
+      // _logger.outputf("Found %d questions\n", questionList.length());
+      //
+      // Iterator<?> qIterator = questionList.keys();
+      // while (qIterator.hasNext()) {
+      // String qName = (String) qIterator.next();
+      // _logger.outputf(" Question: %s\n", qName);
+      //
+      // JSONObject questionJson = questionList.getJSONObject(qName);
+      // _logger.outputf("%s\n", questionJson.toString(1));
+      // }
+      //
+      // }
+      // catch (JSONException e) {
+      // throw new BatfishException("Failed to process analysis list", e);
+      // }
+      // }
+      // }
+
+      return true;
+   }
+
    private boolean listContainers() {
       String[] containerList = _workHelper.listContainers();
       _logger.outputf("Containers: %s\n", Arrays.toString(containerList));
@@ -1126,19 +1378,27 @@ public class Client extends AbstractClient implements IClient {
       return true;
    }
 
-   private boolean listTestrigs() {
+   private boolean listTestrigs(FileWriter outWriter, List<String> options,
+         List<String> parameters) {
+      if (options.size() != 0 || parameters.size() != 0) {
+         _logger.errorf("Invalid arguments: %s %s\n", options.toString(),
+               parameters.toString());
+         printUsage(Command.LIST_TESTRIGS);
+         return false;
+      }
+
       Map<String, String> testrigs = _workHelper
             .listTestrigs(_currContainerName);
       if (testrigs != null) {
          for (String testrigName : testrigs.keySet()) {
-            _logger.outputf("Testrig: %s\n%s\n", testrigName,
-                  testrigs.get(testrigName));
+            logOutput(outWriter, String.format("Testrig: %s\n%s\n", testrigName,
+                  testrigs.get(testrigName)));
          }
       }
       return true;
    }
 
-   private String loadQuestion(Path file) {
+   private String loadQuestion(Path file, Map<String, String> bfq) {
       String questionText = CommonUtil.readFile(file);
       try {
          JSONObject questionObj = new JSONObject(questionText);
@@ -1154,7 +1414,7 @@ public class Client extends AbstractClient implements IClient {
                   });
             validateInstanceData(instanceData);
             String name = instanceData.getInstanceName();
-            _bfq.put(name.toLowerCase(), questionText);
+            bfq.put(name.toLowerCase(), questionText);
             return name;
          }
          else {
@@ -1167,14 +1427,19 @@ public class Client extends AbstractClient implements IClient {
       }
    }
 
-   private boolean loadQuestions(FileWriter outWriter,
-         List<String> parameters) {
+   private boolean loadQuestions(FileWriter outWriter, List<String> parameters,
+         Map<String, String> bfq) {
       if (parameters.size() != 1) {
          _logger.error("Invalid arguments: " + parameters.toString());
          printUsage(Command.LOAD_QUESTIONS);
          return false;
       }
       String questionsPathStr = parameters.get(0);
+      return loadQuestions(outWriter, questionsPathStr, bfq);
+   }
+
+   private boolean loadQuestions(FileWriter outWriter, String questionsPathStr,
+         Map<String, String> bfq) {
       Path questionsPath = Paths.get(questionsPathStr);
       int numLoaded = 0;
       Answer answer = new Answer();
@@ -1199,9 +1464,9 @@ public class Client extends AbstractClient implements IClient {
          throw new BatfishException("Failed to visit questions dir", e);
       }
       for (Path jsonQuestionFile : jsonQuestionFiles) {
-         int numBefore = _bfq.size();
-         String name = loadQuestion(jsonQuestionFile);
-         int numAfter = _bfq.size();
+         int numBefore = bfq.size();
+         String name = loadQuestion(jsonQuestionFile, bfq);
+         int numAfter = bfq.size();
          if (numBefore == numAfter) {
             ae.getReplaced().add(name);
          }
@@ -1223,19 +1488,23 @@ public class Client extends AbstractClient implements IClient {
       if (outWriter == null && _settings.getPrettyPrintAnswers()) {
          answerStringToPrint = answer.prettyPrint();
       }
+
+      logOutput(outWriter, answerStringToPrint);
+      return true;
+   }
+
+   private void logOutput(FileWriter outWriter, String message) {
       if (outWriter == null) {
-         _logger.output(answerStringToPrint);
+         _logger.outputf(message);
       }
       else {
          try {
-            outWriter.write(answerStringToPrint);
+            outWriter.write(message);
          }
          catch (IOException e) {
-            throw new BatfishException(
-                  "Failed to record response to output writer", e);
+            throw new BatfishException("Failed to log output to outWriter", e);
          }
       }
-      return true;
    }
 
    private Map<String, String> parseParams(String paramsLine) {
@@ -1347,6 +1616,8 @@ public class Client extends AbstractClient implements IClient {
          }
 
          switch (command) {
+         case ADD_ANALYSIS_QUESTIONS:
+            return initOrAddAnalysis(outWriter, options, parameters, false);
          case ADD_BATFISH_OPTION:
             return addBatfishOption(words, options, parameters);
          case ANSWER:
@@ -1359,6 +1630,10 @@ public class Client extends AbstractClient implements IClient {
             return checkApiKey();
          case CLEAR_SCREEN:
             return clearScreen();
+         case DEL_ANALYSIS:
+            return delAnalysis(outWriter, options, parameters);
+         case DEL_ANALYSIS_QUESTIONS:
+            return delAnalysisQuestions(outWriter, options, parameters);
          case DEL_BATFISH_OPTION:
             return delBatfishOption(parameters);
          case DEL_CONTAINER:
@@ -1368,7 +1643,7 @@ public class Client extends AbstractClient implements IClient {
          case DEL_QUESTION:
             return delQuestion(parameters);
          case DEL_TESTRIG:
-            return delTestrig(parameters);
+            return delTestrig(outWriter, parameters);
          case DIR:
             return dir(parameters);
          case ECHO:
@@ -1381,12 +1656,27 @@ public class Client extends AbstractClient implements IClient {
             return get(words, outWriter, options, parameters, false);
          case GET_DELTA:
             return get(words, outWriter, options, parameters, true);
+         case GET_ANALYSIS_ANSWERS:
+            return getAnalysisAnswers(outWriter, options, parameters, false,
+                  false);
+         case GET_ANALYSIS_ANSWERS_DELTA:
+            return getAnalysisAnswers(outWriter, options, parameters, true,
+                  false);
+         case GET_ANALYSIS_ANSWERS_DIFFERENTIAL:
+            return getAnalysisAnswers(outWriter, options, parameters, false,
+                  true);
          case GET_ANSWER:
-            return getAnswer(options, parameters);
+            return getAnswer(outWriter, parameters, false, false);
+         case GET_ANSWER_DELTA:
+            return getAnswer(outWriter, parameters, true, false);
+         case GET_ANSWER_DIFFERENTIAL:
+            return getAnswer(outWriter, parameters, false, true);
          case GET_QUESTION:
             return getQuestion(parameters);
          case HELP:
             return help(parameters);
+         case INIT_ANALYSIS:
+            return initOrAddAnalysis(outWriter, options, parameters, true);
          case INIT_CONTAINER:
             return initContainer(words);
          case INIT_DELTA_ENV:
@@ -1395,6 +1685,8 @@ public class Client extends AbstractClient implements IClient {
             return initTestrig(outWriter, parameters, true);
          case INIT_TESTRIG:
             return initTestrig(outWriter, parameters, false);
+         case LIST_ANALYSES:
+            return listAnalyses(outWriter, options, parameters);
          case LIST_CONTAINERS:
             return listContainers();
          case LIST_ENVIRONMENTS:
@@ -1402,15 +1694,21 @@ public class Client extends AbstractClient implements IClient {
          case LIST_QUESTIONS:
             return listQuestions();
          case LIST_TESTRIGS:
-            return listTestrigs();
+            return listTestrigs(outWriter, options, parameters);
          case LOAD_QUESTIONS:
-            return loadQuestions(outWriter, parameters);
+            return loadQuestions(outWriter, parameters, _bfq);
          case PROMPT:
             return prompt();
          case PWD:
             return pwd();
          case REINIT_DELTA_TESTRIG:
             return reinitTestrig(outWriter, true);
+         case RUN_ANALYSIS:
+            return runAnalysis(outWriter, options, parameters, false, false);
+         case RUN_ANALYSIS_DELTA:
+            return runAnalysis(outWriter, options, parameters, true, false);
+         case RUN_ANALYSIS_DIFFERENTIAL:
+            return runAnalysis(outWriter, options, parameters, false, true);
          case REINIT_TESTRIG:
             return reinitTestrig(outWriter, false);
          case SET_BATFISH_LOGLEVEL:
@@ -1445,6 +1743,8 @@ public class Client extends AbstractClient implements IClient {
             return showLogLevel();
          case SHOW_TESTRIG:
             return showTestrig();
+         case SHOW_VERSION:
+            return showVersion();
          case TEST:
             return test(parameters);
          case UPLOAD_CUSTOM_OBJECT:
@@ -1592,6 +1892,28 @@ public class Client extends AbstractClient implements IClient {
          System.exit(1);
       }
 
+   }
+
+   private boolean runAnalysis(FileWriter outWriter, List<String> options,
+         List<String> parameters, boolean delta, boolean differential) {
+      if (!isSetContainer(true) || !isSetTestrig()) {
+         return false;
+      }
+      if (options.size() != 0 || parameters.size() != 1) {
+         _logger.errorf("Invalid arguments: %s %s", options.toString(),
+               parameters.toString());
+         printUsage(Command.RUN_ANALYSIS);
+         return false;
+      }
+
+      String analysisName = parameters.get(0);
+
+      // answer the question
+      WorkItem wItemAs = _workHelper.getWorkItemRunAnalysis(analysisName,
+            _currContainerName, _currTestrig, _currEnv, _currDeltaTestrig,
+            _currDeltaEnv, delta, differential);
+
+      return execute(wItemAs, outWriter);
    }
 
    private void runBatchFile() {
@@ -1770,6 +2092,22 @@ public class Client extends AbstractClient implements IClient {
       return true;
    }
 
+   private boolean showVersion() {
+      _logger.outputf("Client version is %s\n", Version.getVersion());
+
+      Map<String, String> map = _workHelper.getInfo();
+
+      if (!map.containsKey(CoordConsts.SVC_VERSION_KEY)) {
+         _logger.errorf("key '%s' not found in Info\n",
+               CoordConsts.SVC_VERSION_KEY);
+         return false;
+      }
+
+      String version = map.get(CoordConsts.SVC_VERSION_KEY);
+      _logger.outputf("Service version is %s\n", version);
+      return true;
+   }
+
    private boolean test(List<String> parameters) throws IOException {
       boolean failingTest = false;
       boolean missingReferenceFile = false;
@@ -1815,26 +2153,41 @@ public class Client extends AbstractClient implements IClient {
             String testOutput = CommonUtil
                   .readFile(Paths.get(testoutFile.getAbsolutePath()));
 
-            Answer testAnswer = mapper.readValue(testOutput, Answer.class);
-            String testAnswerString = mapper.writeValueAsString(testAnswer);
+            String testAnswerString = testOutput;
+
+            try {
+               Answer testAnswer = mapper.readValue(testOutput, Answer.class);
+               testAnswerString = mapper.writeValueAsString(testAnswer);
+            }
+            catch (JsonParseException | UnrecognizedPropertyException e) {
+               // not all outputs of process command are of Answer.class type
+               // in that case, we use the exact string as initialized above for
+               // comparison
+            }
 
             if (!missingReferenceFile) {
                String referenceOutput = CommonUtil
                      .readFile(Paths.get(referenceFileName));
+
+               String referenceAnswerString = referenceOutput;
 
                // rewrite reference string using local implementation
                Answer referenceAnswer;
                try {
                   referenceAnswer = mapper.readValue(referenceOutput,
                         Answer.class);
+                  referenceAnswerString = mapper
+                        .writeValueAsString(referenceAnswer);
                }
-               catch (Exception e) {
-                  throw new BatfishException(
-                        "Error reading reference output using current schema (reference output is likely obsolete)",
-                        e);
+               catch (JsonParseException | UnrecognizedPropertyException e) {
+                  // throw new BatfishException(
+                  // "Error reading reference output using current schema
+                  // (reference output is likely obsolete)",
+                  // e);
+                  // not all outputs of process command are of Answer.class type
+                  // in that case, we use the exact string as initialized above
+                  // for comparison
                }
-               String referenceAnswerString = mapper
-                     .writeValueAsString(referenceAnswer);
 
                // due to options chosen in BatfishObjectMapper, if json
                // outputs were equal, then strings should be equal

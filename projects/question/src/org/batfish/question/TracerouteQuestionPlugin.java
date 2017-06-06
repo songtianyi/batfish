@@ -12,7 +12,6 @@ import org.batfish.common.plugin.IBatfish;
 import org.batfish.datamodel.Protocol;
 import org.batfish.datamodel.Configuration;
 import org.batfish.datamodel.Flow;
-import org.batfish.datamodel.FlowBuilder;
 import org.batfish.datamodel.FlowHistory;
 import org.batfish.datamodel.FlowTrace;
 import org.batfish.datamodel.Ip;
@@ -34,7 +33,6 @@ public class TracerouteQuestionPlugin extends QuestionPlugin {
 
       @Override
       public AnswerElement answer() {
-         _batfish.checkDataPlaneQuestionDependencies();
          String tag = _batfish.getFlowTag();
          Set<Flow> flows = getFlows(tag);
          _batfish.processFlows(flows);
@@ -90,9 +88,9 @@ public class TracerouteQuestionPlugin extends QuestionPlugin {
       private Set<Flow> getFlows(String tag) {
          Set<Flow> flows = new TreeSet<>();
          TracerouteQuestion question = (TracerouteQuestion) _question;
-         Set<FlowBuilder> flowBuilders = question.getFlowBuilders();
+         Set<Flow.Builder> flowBuilders = question.getFlowBuilders();
          Map<String, Configuration> configurations = null;
-         for (FlowBuilder flowBuilder : flowBuilders) {
+         for (Flow.Builder flowBuilder : flowBuilders) {
             // TODO: better automatic source ip, considering VRFs and routing
             if (flowBuilder.getSrcIp().equals(Ip.AUTO)) {
                if (configurations == null) {
@@ -219,6 +217,8 @@ public class TracerouteQuestionPlugin extends QuestionPlugin {
 
       private static final String ICMP_TYPE_VAR = "icmpType";
 
+      private static final String INGRESS_INTERFACE_VAR = "ingressInterface";
+
       private static final String INGRESS_NODE_VAR = "ingressNode";
 
       private static final String INGRESS_VRF_VAR = "ingressVrf";
@@ -265,6 +265,8 @@ public class TracerouteQuestionPlugin extends QuestionPlugin {
 
       private Integer _icmpType;
 
+      private String _ingressInterface;
+
       private String _ingressNode;
 
       private String _ingressVrf;
@@ -300,8 +302,8 @@ public class TracerouteQuestionPlugin extends QuestionPlugin {
       public TracerouteQuestion() {
       }
 
-      public FlowBuilder createFlowBuilder() {
-         FlowBuilder flowBuilder = new FlowBuilder();
+      public Flow.Builder createFlowBuilder() {
+         Flow.Builder flowBuilder = new Flow.Builder();
          if (_dscp != null) {
             flowBuilder.setDscp(_dscp);
          }
@@ -322,6 +324,9 @@ public class TracerouteQuestionPlugin extends QuestionPlugin {
          }
          if (_ingressNode != null) {
             flowBuilder.setIngressNode(_ingressNode);
+         }
+         if (_ingressInterface != null) {
+            flowBuilder.setIngressInterface(_ingressInterface);
          }
          if (_ingressVrf != null) {
             flowBuilder.setIngressVrf(_ingressVrf);
@@ -419,7 +424,7 @@ public class TracerouteQuestionPlugin extends QuestionPlugin {
       }
 
       @JsonIgnore
-      public Set<FlowBuilder> getFlowBuilders() {
+      public Set<Flow.Builder> getFlowBuilders() {
          return Collections.singleton(createFlowBuilder());
       }
 
@@ -431,6 +436,11 @@ public class TracerouteQuestionPlugin extends QuestionPlugin {
       @JsonProperty(ICMP_TYPE_VAR)
       public Integer getIcmpType() {
          return _icmpType;
+      }
+
+      @JsonProperty(INGRESS_INTERFACE_VAR)
+      public String getIngressInterface() {
+         return _ingressInterface;
       }
 
       @JsonProperty(INGRESS_NODE_VAR)
@@ -529,6 +539,10 @@ public class TracerouteQuestionPlugin extends QuestionPlugin {
             String retString = String.format("traceroute %singressNode=%s",
                   prettyPrintBase(), _ingressNode);
             // we only print "interesting" values
+            if (_ingressInterface != null) {
+               retString += String.format(" | %s=%s", INGRESS_INTERFACE_VAR,
+                     _ingressInterface);
+            }
             if (_ingressVrf != null) {
                retString += String.format(" | %s=%s", INGRESS_VRF_VAR,
                      _ingressVrf);
@@ -657,6 +671,11 @@ public class TracerouteQuestionPlugin extends QuestionPlugin {
       @JsonProperty(ICMP_TYPE_VAR)
       public void setIcmpType(Integer icmpType) {
          _icmpType = icmpType;
+      }
+
+      @JsonProperty(INGRESS_INTERFACE_VAR)
+      public void setIngressInterface(String ingressInterface) {
+         _ingressInterface = ingressInterface;
       }
 
       @Override

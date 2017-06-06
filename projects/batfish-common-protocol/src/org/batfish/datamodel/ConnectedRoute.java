@@ -8,7 +8,7 @@ public class ConnectedRoute extends AbstractRoute
    private final String _nextHopInterface;
 
    public ConnectedRoute(Prefix prefix, String nextHopInterface) {
-      super(prefix, null);
+      super(prefix, Route.UNSET_ROUTE_NEXT_HOP_IP);
       _nextHopInterface = nextHopInterface;
    }
 
@@ -61,6 +61,11 @@ public class ConnectedRoute extends AbstractRoute
       result = prime * result + _network.hashCode();
       result = prime * result + _nextHopInterface.hashCode();
       return result;
+   }
+
+   @Override
+   protected String protocolRouteString() {
+      return "";
    }
 
 }

@@ -2540,6 +2540,11 @@ EGRESS_INTERFACE_SELECTION
    'egress-interface-selection'
 ;
 
+EIBGP
+:
+   'eibgp'
+;
+
 EIGRP
 :
    'eigrp'
@@ -3632,6 +3637,11 @@ HW_MODULE
 HW_SWITCH
 :
    'hw-switch'
+;
+
+IBGP
+:
+   'ibgp'
 ;
 
 ICMP
@@ -6341,6 +6351,11 @@ PREFIX
    'prefix'
 ;
 
+PREFIX_LENGTH
+:
+   'prefix-length'
+;
+
 PREFIX_LIST
 :
    'prefix-list'
@@ -7349,6 +7364,11 @@ SECURITY_ASSOCIATION
 SECURITY_LEVEL
 :
    'security-level'
+;
+
+SELECTIVE
+:
+   'selective'
 ;
 
 SELF

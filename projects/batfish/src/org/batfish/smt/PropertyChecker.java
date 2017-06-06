@@ -33,8 +33,11 @@ public class PropertyChecker {
      * and data plane packet.
      */
     public static AnswerElement computeForwarding(IBatfish batfish, HeaderQuestion q) {
+        long start = System.currentTimeMillis();
         Encoder encoder = new Encoder(batfish, q);
         encoder.computeEncoding();
+        long end = System.currentTimeMillis() - start;
+        // System.out.println("Encoding took: " + end);
         VerificationResult result = encoder.verify();
         // result.debug(encoder.getMainSlice(), true, null);
         SmtOneAnswerElement answer = new SmtOneAnswerElement();

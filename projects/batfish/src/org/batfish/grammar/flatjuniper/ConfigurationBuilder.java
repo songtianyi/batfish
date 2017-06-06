@@ -7,6 +7,8 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.SortedSet;
+import java.util.TreeSet;
 
 import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.Token;
@@ -17,7 +19,6 @@ import org.batfish.common.BatfishException;
 import org.batfish.common.util.JuniperUtils;
 import org.batfish.common.util.CommonUtil;
 import org.batfish.datamodel.AsPath;
-import org.batfish.datamodel.AsSet;
 import org.batfish.datamodel.DiffieHellmanGroup;
 import org.batfish.datamodel.EncryptionAlgorithm;
 import org.batfish.datamodel.ExtendedCommunity;
@@ -2419,6 +2420,12 @@ public class ConfigurationBuilder extends FlatJuniperParserBaseListener {
    }
 
    @Override
+   public void exitB_multipath(B_multipathContext ctx) {
+      _currentBgpGroup.setMultipath(true);
+      // TODO: support multiple-as function properly
+   }
+
+   @Override
    public void exitB_remove_private(B_remove_privateContext ctx) {
       _currentBgpGroup.setRemovePrivate(true);
    }
@@ -3987,9 +3994,9 @@ public class ConfigurationBuilder extends FlatJuniperParserBaseListener {
    }
 
    private AsPath toAsPath(As_path_exprContext path) {
-      AsPath asPath = new AsPath();
+      List<SortedSet<Integer>> asPath = new ArrayList<>();
       for (As_unitContext ctx : path.items) {
-         AsSet asSet = new AsSet();
+         SortedSet<Integer> asSet = new TreeSet<>();
          if (ctx.DEC() != null) {
             asSet.add(toInt(ctx.DEC()));
          }
@@ -4000,7 +4007,7 @@ public class ConfigurationBuilder extends FlatJuniperParserBaseListener {
          }
          asPath.add(asSet);
       }
-      return asPath;
+      return new AsPath(asPath);
    }
 
    private long toCommunityLong(Ec_literalContext ctx) {
