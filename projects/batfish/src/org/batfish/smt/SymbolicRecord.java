@@ -1,6 +1,8 @@
 package org.batfish.smt;
 
 import com.microsoft.z3.*;
+import org.batfish.datamodel.BgpProcess;
+import org.batfish.datamodel.Configuration;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -228,8 +230,10 @@ class SymbolicRecord {
             }
         }
 
-        boolean needId = false; // (_isBestOverall || (_isBest && proto.isBgp())) && opts.getNeedRouterId().contains(router);
-        if (needId) {
+
+        boolean bestAndNeedId = (_isBestOverall || _isBest && proto.isBgp()) && opts.getNeedRouterId().contains(router);
+        if (bestAndNeedId && _enc.isMainSlice()) {
+            System.out.println("ADDING ROUTER ID FOR: " + _name);
             _routerId = ctx.mkIntConst(_name + "_routerID");
         } else {
             _routerId = null;
@@ -257,6 +261,31 @@ class SymbolicRecord {
         }
 
         addExprs(enc);
+    }
+
+    // TODO: depends on configuration
+    /*
+     * Check if a particular protocol on a router is configured
+     * to use multipath routing or not.
+     */
+    private boolean isMultipath(String router, Protocol proto, boolean isIbgp) {
+        Configuration conf = _enc.getGraph().getConfigurations().get(router);
+        if (proto.isConnected()) {
+            return true;
+        } else if (proto.isStatic()) {
+            return true;
+        } else if (proto.isOspf()) {
+            return true;
+        } else if (proto.isBgp()) {
+            BgpProcess p = conf.getDefaultVrf().getBgpProcess();
+            if (isIbgp) {
+                return p.getMultipathIbgp();
+            } else {
+                return p.getMultipathEbgp();
+            }
+        } else {
+            return true;
+        }
     }
 
     private void addExprs(EncoderSlice enc) {

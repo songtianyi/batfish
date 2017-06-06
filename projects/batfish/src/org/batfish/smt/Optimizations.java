@@ -307,7 +307,7 @@ class Optimizations {
     private void computeRouterIdNeeded() {
         _encoderSlice.getGraph().getConfigurations().forEach((router, conf) -> {
 
-            // If iBGP is used, then we need the routerId
+            // If iBGP is used, and no multipath, then we need the routerId
             boolean usesIbgp = false;
             for (GraphEdge ge : _encoderSlice.getGraph().getEdgeMap().get(router)) {
                 if (_encoderSlice.getGraph().getIbgpNeighbors().get(ge) != null) {
@@ -315,7 +315,21 @@ class Optimizations {
                     break;
                 }
             }
-            if (usesIbgp) {
+
+            // If eBGP is used, and no multipath, then we need the routerId
+            boolean usesEbgp = _encoderSlice.getProtocols().get(router).contains(Protocol.BGP);
+
+            // check if multipath is used
+            boolean ibgpMultipath = false;
+            boolean ebgpMultipath = false;
+            BgpProcess p = conf.getDefaultVrf().getBgpProcess();
+
+            if (p != null) {
+                ibgpMultipath = p.getMultipathIbgp();
+                ebgpMultipath = p.getMultipathEbgp();
+            }
+
+            if ((usesIbgp && !ibgpMultipath) || (usesEbgp && !ebgpMultipath)) {
                 _needRouterId.add(router);
             }
 

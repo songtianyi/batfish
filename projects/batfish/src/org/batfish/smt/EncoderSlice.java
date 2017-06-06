@@ -1137,6 +1137,10 @@ class EncoderSlice {
         add(Lt(_symbolicPacket.getIcmpCode(), upperBound4));
 
         for (SymbolicRecord e : getAllSymbolicRecords()) {
+            if (e.getRouterId() != null) {
+                add(Ge(e.getRouterId(), zero));
+            }
+
             if (e.getAdminDist() != null) {
                 add(Ge(e.getAdminDist(), zero));
                 add(Lt(e.getAdminDist(), upperBound8));
@@ -1236,23 +1240,6 @@ class EncoderSlice {
         return getCtx().mkBV(0, 2); // OI
     }
 
-
-    // TODO: depends on configuration
-    /*
-     * Check if a particular protocol on a router is configured
-     * to use multipath routing or not.
-     */
-    public boolean isMultipath(Configuration conf, Protocol proto) {
-        if (proto.isConnected()) {
-            return true;
-        } else if (proto.isStatic()) {
-            return true;
-        } else if (proto.isOspf()) {
-            return true;
-        } else {
-            return true;
-        }
-    }
 
     /*
      * Returns the symbolic record for logical edge e.
@@ -1380,6 +1367,7 @@ class EncoderSlice {
      */
     private BoolExpr equalIds(SymbolicRecord best, SymbolicRecord vars, Configuration conf,
             Protocol proto, LogicalEdge e) {
+
         BoolExpr equalId;
         if (vars.getRouterId() == null) {
             if (best.getRouterId() == null || e == null) {
@@ -1560,6 +1548,7 @@ class EncoderSlice {
         BoolExpr equalIgpMet = geEqualHelper(best.getIgpMetric(), vars.getIgpMetric(), defaultIgp);
 
         BoolExpr tiebreak;
+
         if (vars.getRouterId() != null) {
             tiebreak = Le(best.getRouterId(), vars.getRouterId());
         } else if (best.getRouterId() != null) {
@@ -1632,8 +1621,7 @@ class EncoderSlice {
                     } else {
                         acc = Or(acc, val);
                     }
-                    add(Implies(bestVars.getPermitted(), greaterOrEqual(conf, proto, best,
-                            bestVars, null)));
+                    add(Implies(bestVars.getPermitted(), greaterOrEqual(conf, proto, best, bestVars, null)));
                 }
 
                 if (someProto) {
@@ -2509,6 +2497,9 @@ class EncoderSlice {
             }
             if (vars.getIgpMetric() != null) {
                 add(Implies(notPermitted, Eq(vars.getIgpMetric(), zero)));
+            }
+            if (vars.getRouterId() != null) {
+                add(Implies(notPermitted, Eq(vars.getRouterId(), zero)));
             }
             vars.getCommunities().forEach((cvar, e) -> {
                 add(Implies(notPermitted, Not(e)));

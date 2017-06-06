@@ -554,7 +554,12 @@ class TransferFunctionSSA {
         // Update prefix length when aggregation
         BoolExpr len = _enc.safeEq(_current.getPrefixLength(), getOrDefault(p.getOther().getPrefixLength(), defaultLen));
         BoolExpr per = _enc.safeEq(_current.getPermitted(), p.getOther().getPermitted());
-        BoolExpr id = _enc.safeEq(_current.getRouterId(), getOrDefault(p.getOther().getRouterId(), defaultId));
+
+        // Only update the router id for import edges
+        BoolExpr id = _enc.True();
+        if (!_isExport) {
+            id = _enc.safeEq(_current.getRouterId(), getOrDefault(p.getOther().getRouterId(), defaultId));
+        }
 
         // Update OSPF area id
         BoolExpr area;
