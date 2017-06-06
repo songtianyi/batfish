@@ -233,7 +233,6 @@ class SymbolicRecord {
 
         boolean bestAndNeedId = (_isBestOverall || _isBest && proto.isBgp()) && opts.getNeedRouterId().contains(router);
         if (bestAndNeedId && _enc.isMainSlice()) {
-            System.out.println("ADDING ROUTER ID FOR: " + _name);
             _routerId = ctx.mkIntConst(_name + "_routerID");
         } else {
             _routerId = null;
