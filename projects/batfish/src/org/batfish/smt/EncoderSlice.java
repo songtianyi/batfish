@@ -701,12 +701,9 @@ class EncoderSlice {
         }
 
         if (proto.isBgp()) {
-            // System.out.println(conf.getName());
-
             conf.getRouteFilterLists().forEach((name, list) -> {
                 for (RouteFilterLine line : list.getLines()) {
                     if (name.contains(BGP_NETWORK_FILTER_LIST_NAME)) {
-                        // System.out.println("ORIGINATE: " + line.getPrefix());
                         acc.add(line.getPrefix());
                     }
                 }
@@ -814,11 +811,8 @@ class EncoderSlice {
             for (int len = 0; len <= BITS; len++) {
                 String name = String.format("%d_%s%s_%s_%s_%s", _encoder.getId(), _sliceName, router, "OVERALL", "BEST", "None");
                 String historyName = name + "_history";
-
                 SymbolicEnum<Protocol> h = new SymbolicEnum<>(this, allProtos, historyName);
-
-                SymbolicRecord evBest = new SymbolicRecord(this, name, router, Protocol.BEST
-                        , _optimizations, h, false);
+                SymbolicRecord evBest = new SymbolicRecord(this, name, router, Protocol.BEST, _optimizations, h, false);
                 getAllSymbolicRecords().add(evBest);
                 _symbolicDecisions.getBestNeighbor().put(router, evBest);
             }
@@ -830,12 +824,10 @@ class EncoderSlice {
                             "BEST", "None");
                     String historyName = name + "_history";
 
-                    SymbolicEnum<Protocol> h = new SymbolicEnum<>(this, allProtos,
-                            historyName);
+                    SymbolicEnum<Protocol> h = null; //new SymbolicEnum<>(this, allProtos, historyName);
 
                     for (int len = 0; len <= BITS; len++) {
-                        SymbolicRecord evBest = new SymbolicRecord(this, name, router, proto,
-                                _optimizations, h, false);
+                        SymbolicRecord evBest = new SymbolicRecord(this, name, router, proto, _optimizations, h, false);
                         getAllSymbolicRecords().add(evBest);
                         _symbolicDecisions.getBestNeighborPerProtocol().put(router, proto, evBest);
                     }
@@ -912,53 +904,62 @@ class EncoderSlice {
 
                             String ifaceName = e.getStart().getName();
 
-                            // If we use a single set of export variables, then make sure
-                            // to reuse the existing variables instead of creating new ones
-                            if (useSingleExport) {
-                                SymbolicRecord singleVars = singleExportMap.get(router).get(proto);
-                                SymbolicRecord ev1;
-                                if (singleVars == null) {
-                                    String name = String.format("%d_%s%s_%s_%s_%s", _encoder.getId(), _sliceName, router, proto
-                                            .name(), "SINGLE-EXPORT", "");
-                                    ev1 = new SymbolicRecord(this, name, router, proto,
-                                            _optimizations, null, e.isAbstract());
-                                    singleProtoMap.put(proto, ev1);
-                                    getAllSymbolicRecords().add(ev1);
+                            if (!proto.isConnected()) {
+                                // If we use a single set of export variables, then make sure
+                                // to reuse the existing variables instead of creating new ones
+                                if (useSingleExport) {
+                                    SymbolicRecord singleVars = singleExportMap.get(router).get(proto);
+                                    SymbolicRecord ev1;
+                                    if (singleVars == null) {
+                                        String name = String.format("%d_%s%s_%s_%s_%s", _encoder.getId(), _sliceName, router, proto
+                                                .name(), "SINGLE-EXPORT", "");
+                                        ev1 = new SymbolicRecord(this, name, router, proto,
+                                                _optimizations, null, e.isAbstract());
+                                        singleProtoMap.put(proto, ev1);
+                                        getAllSymbolicRecords().add(ev1);
+                                    } else {
+                                        ev1 = singleVars;
+                                    }
+                                    LogicalEdge eExport = new LogicalEdge(e, EdgeType.EXPORT, ev1);
+                                    exportEdgeList.add(eExport);
+
                                 } else {
-                                    ev1 = singleVars;
+                                    String name = String.format("%d_%s%s_%s_%s_%s", _encoder.getId(), _sliceName, router, proto
+                                            .name(), "EXPORT", ifaceName);
+
+                                    SymbolicRecord ev1 = new SymbolicRecord(this, name, router,
+                                            proto, _optimizations, null, e.isAbstract());
+                                    LogicalEdge eExport = new LogicalEdge(e, EdgeType.EXPORT, ev1);
+                                    exportEdgeList.add(eExport);
+                                    getAllSymbolicRecords().add(ev1);
                                 }
-                                LogicalEdge eExport = new LogicalEdge(e, EdgeType.EXPORT, ev1);
-                                exportEdgeList.add(eExport);
-
-                            } else {
-                                String name = String.format("%d_%s%s_%s_%s_%s", _encoder.getId(), _sliceName, router, proto
-                                        .name(), "EXPORT", ifaceName);
-
-                                SymbolicRecord ev1 = new SymbolicRecord(this, name, router,
-                                        proto, _optimizations, null, e.isAbstract());
-                                LogicalEdge eExport = new LogicalEdge(e, EdgeType.EXPORT, ev1);
-                                exportEdgeList.add(eExport);
-                                getAllSymbolicRecords().add(ev1);
                             }
 
                             boolean notNeeded = _optimizations.getSliceCanCombineImportExportVars
                                     ().get(router).get(proto).contains(e);
 
-                            if (notNeeded) {
-                                String name = String.format("%d_%s%s_%s_%s_%s", _encoder.getId(), _sliceName, router, proto
-                                        .name(), "IMPORT", ifaceName);
-                                SymbolicRecord ev2 = new SymbolicRecord(name, proto);
-                                LogicalEdge eImport = new LogicalEdge(e, EdgeType.IMPORT, ev2);
-                                importEdgeList.add(eImport);
-                            } else {
 
-                                String name = String.format("%d_%s%s_%s_%s_%s", _encoder.getId(), _sliceName, router, proto
-                                        .name(), "IMPORT", ifaceName);
-                                SymbolicRecord ev2 = new SymbolicRecord(this, name, router,
-                                        proto, _optimizations, null, e.isAbstract());
-                                LogicalEdge eImport = new LogicalEdge(e, EdgeType.IMPORT, ev2);
-                                importEdgeList.add(eImport);
-                                getAllSymbolicRecords().add(ev2);
+                            Interface i = e.getStart();
+                            Prefix p = i.getPrefix();
+
+                            boolean doModel = !(proto.isConnected() && p!=null && !relevantPrefix(p));
+                            // Optimization: Don't model the connected interfaces that aren't relevant
+                            if (doModel) {
+                                if (notNeeded) {
+                                    String name = String.format("%d_%s%s_%s_%s_%s", _encoder.getId(), _sliceName, router, proto
+                                            .name(), "IMPORT", ifaceName);
+                                    SymbolicRecord ev2 = new SymbolicRecord(name, proto);
+                                    LogicalEdge eImport = new LogicalEdge(e, EdgeType.IMPORT, ev2);
+                                    importEdgeList.add(eImport);
+                                } else {
+                                    String name = String.format("%d_%s%s_%s_%s_%s", _encoder.getId(), _sliceName, router, proto
+                                            .name(), "IMPORT", ifaceName);
+                                    SymbolicRecord ev2 = new SymbolicRecord(this, name, router,
+                                            proto, _optimizations, null, e.isAbstract());
+                                    LogicalEdge eImport = new LogicalEdge(e, EdgeType.IMPORT, ev2);
+                                    importEdgeList.add(eImport);
+                                    getAllSymbolicRecords().add(ev2);
+                                }
                             }
                         }
 
@@ -987,6 +988,10 @@ class EncoderSlice {
                         GraphEdge edge = e.getEdge();
                         Map<GraphEdge, ArrayList<LogicalEdge>> m;
 
+                        // System.out.println("i: " + i);
+                        // System.out.println("proto: " + proto.name());
+                        // System.out.println("edge: " + edge + ", " + e.getEdgeType());
+
                         if (edge.getPeer() != null) {
 
                             if (e.getEdgeType() == EdgeType.IMPORT) {
@@ -998,8 +1003,11 @@ class EncoderSlice {
 
                             if (m != null) {
                                 GraphEdge otherEdge = getGraph().getOtherEnd().get(edge);
-                                LogicalEdge other = m.get(otherEdge).get(i / 2);
-                                _logicalGraph.getOtherEnd().put(e, other);
+                                ArrayList<LogicalEdge> list = m.get(otherEdge);
+                                if (list.size() > 0) {
+                                    LogicalEdge other = list.get(0);
+                                    _logicalGraph.getOtherEnd().put(e, other);
+                                }
                             }
 
                         }
@@ -1278,14 +1286,22 @@ class EncoderSlice {
      * Creates a test to check for equal protocol histories
      * after accounting for null values introduced by optimizations
      */
-    public BoolExpr equalHistories(SymbolicRecord best, SymbolicRecord
-            vars) {
+    public BoolExpr equalHistories(SymbolicRecord best, SymbolicRecord vars) {
         BoolExpr history;
-        if (best.getProtocolHistory() == null || vars.getProtocolHistory() == null) {
+        if (best.getProtocolHistory() == null) {
+            history = True();
+        } else {
+            if (vars.getProtocolHistory() == null) {
+                history = best.getProtocolHistory().checkIfValue(vars.getProto());
+            } else {
+                history = best.getProtocolHistory().Eq(vars.getProtocolHistory());
+            }
+        }
+        /* if (best.getProtocolHistory() == null || vars.getProtocolHistory() == null) {
             history = True();
         } else {
             history = best.getProtocolHistory().Eq(vars.getProtocolHistory());
-        }
+        } */
         return history;
     }
 
@@ -2442,9 +2458,9 @@ class EncoderSlice {
      * in the actual FIB.
      */
     private void addHistoryConstraints() {
-        _symbolicDecisions.getBestNeighborPerProtocol().forEach((router, proto, vars) -> {
-            add(Implies(vars.getPermitted(), vars.getProtocolHistory().checkIfValue(proto)));
-        });
+        //_symbolicDecisions.getBestNeighborPerProtocol().forEach((router, proto, vars) -> {
+        //    add(Implies(vars.getPermitted(), vars.getProtocolHistory().checkIfValue(proto)));
+        //});
 
         _symbolicDecisions.getBestNeighbor().forEach((router, vars) -> {
             if (_optimizations.getSliceHasSingleProtocol().contains(router)) {

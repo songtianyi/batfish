@@ -953,7 +953,6 @@ class TransferFunctionSSA {
                 p.getOther().getOspfType().setBitVec(x);
                 result = result.addChangedVariable("OSPF-TYPE", x);
 
-
             } else if (stmt instanceof SetLocalPreference) {
                 p.debug("SetLocalPreference");
                 SetLocalPreference slp = (SetLocalPreference) stmt;

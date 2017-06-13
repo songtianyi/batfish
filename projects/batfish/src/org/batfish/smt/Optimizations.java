@@ -439,7 +439,7 @@ class Optimizations {
                     if (!proto.isConnected() && !proto.isStatic()) {
 
                         boolean isNotRoot = !hasRelevantOriginatedRoute(conf, proto);
-                        if (isNotRoot) {
+                        //if (isNotRoot) {
                             for (GraphEdge ge : _encoderSlice.getGraph().getEdgeMap().get(router)) {
 
                                 // Don't merge when an abstract edge is used.
@@ -461,7 +461,7 @@ class Optimizations {
                                     }
                                 }
                             }
-                        }
+                        //}
                     }
                 }
                 map.put(proto, edges);

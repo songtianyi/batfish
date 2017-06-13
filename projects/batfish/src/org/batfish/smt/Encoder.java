@@ -113,6 +113,7 @@ public class Encoder {
             cfg.put("auto-config", "false");
         }
 
+
         _ctx = (ctx == null ? new Context(cfg) : ctx);
 
         if (solver == null) {
@@ -125,10 +126,17 @@ public class Encoder {
                 Tactic t4 = _ctx.mkTactic("smt");
                 Tactic t = _ctx.then(t1, t2, t3, t4);
                 _solver = _ctx.mkSolver(t);
+                // System.out.println("Help: \n" + _solver.getHelp());
             }
         } else {
             _solver = solver;
         }
+
+        // Set parameters
+        Params p = _ctx.mkParams();
+        p.add("ite_extra_rules", true);
+        p.add("pull_cheap_ite", true);
+        _solver.setParameters(p);
 
         _symbolicFailures = new SymbolicFailures();
         _allSymbolicRecords = new ArrayList<>();
@@ -692,11 +700,11 @@ public class Encoder {
         VerificationStats stats = new VerificationStats(numNodes, numEdges, numVariables,
                 numConstraints, time);
 
-        if (ENABLE_DEBUGGING) {
+        //if (ENABLE_DEBUGGING) {
             System.out.println("Constraints: " + stats.getNumConstraints());
             System.out.println("Variables: " + stats.getNumVariables());
             System.out.println("Z3 Time: " + stats.getTime());
-        }
+        //}
 
         if (status == Status.UNSATISFIABLE) {
             return new VerificationResult(true, null, null, null, null, null);

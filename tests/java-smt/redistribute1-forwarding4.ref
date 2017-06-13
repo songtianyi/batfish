@@ -34,7 +34,6 @@
           "|0_R1_OVERALL_BEST_None_permitted|" : "true",
           "|0_R1_OVERALL_BEST_None_prefixLength|" : "24",
           "|0_R2_OSPF_BEST_None_adminDist|" : "1",
-          "|0_R2_OSPF_BEST_None_history|" : "0",
           "|0_R2_OSPF_BEST_None_metric|" : "21",
           "|0_R2_OSPF_BEST_None_ospfType|" : "3",
           "|0_R2_OSPF_BEST_None_permitted|" : "true",
@@ -62,7 +61,6 @@
           "|0_R2_OVERALL_BEST_None_ospfType|" : "0",
           "|0_R2_OVERALL_BEST_None_permitted|" : "true",
           "|0_R2_OVERALL_BEST_None_prefixLength|" : "24",
-          "|0_R2_STATIC_BEST_None_history|" : "1",
           "|0_R2_STATIC_BEST_None_permitted|" : "true",
           "|0_R2_STATIC_BEST_None_prefixLength|" : "24",
           "|0_R2_STATIC_IMPORT_Serial1_choice|" : "true",
@@ -91,6 +89,7 @@
     "dstIps" : [
       "140.0.0.0"
     ],
+    "equivalence" : false,
     "failures" : 0,
     "fullModel" : true,
     "minimize" : false,

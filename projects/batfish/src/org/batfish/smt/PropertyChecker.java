@@ -660,7 +660,7 @@ public class PropertyChecker {
 
             VerificationResult res = e2.verify();
 
-            // res.debug(e1.getMainSlice(), true, null);
+            // res.debug(e1.getMainSlice(), false, null);
 
             String name = r1 + "<-->" + r2;
             result.put(name, res);
