@@ -3864,6 +3864,11 @@ INFORM
    'inform'
 ;
 
+INFORMATION
+:
+   'information'
+;
+
 INFORMATION_REPLY
 :
    'information-reply'
@@ -5409,6 +5414,11 @@ NETBIOS_SSN
 NETCONF
 :
    'netconf'
+;
+
+NETMASK
+:
+   'netmask'
 ;
 
 NETWORK
